@@ -1,5 +1,6 @@
 import { zip } from "fflate";
 import type { Asset } from "./types";
+import { downloadNameFor } from "./naming";
 
 /**
  * Downloads happen in the browser, straight from the origin server.
@@ -26,9 +27,8 @@ function safeSegment(s: string): string {
 }
 
 export function filenameFor(a: Asset): string {
-  const ext = a.format.toLowerCase();
-  const base = safeSegment(a.name);
-  return base.toLowerCase().endsWith(`.${ext}`) ? base : `${base}.${ext}`;
+  // Readable label rather than the CDN's content hash.
+  return safeSegment(downloadNameFor(a));
 }
 
 /** Decodes a data: URL without a network round-trip. */
@@ -157,12 +157,13 @@ export async function downloadAsZip(
 
   // A manifest so the archive is still readable months later.
   const manifest = [
-    "path,source_url,kind,format,bytes,from_page",
+    "filename,label,source_url,kind,format,bytes,from_page",
     ...assets
       .filter((a) => !failed.includes(a))
       .map((a) =>
         [
           filenameFor(a),
+          a.displayName,
           a.url,
           a.kind,
           a.format,

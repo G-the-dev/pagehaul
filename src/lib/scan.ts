@@ -1,6 +1,7 @@
 import * as cheerio from "cheerio";
 import type { Element } from "domhandler";
 import type { Asset, AssetKind, Origin, ScanPage, ScanResult } from "./types";
+import { displayNameFor } from "./naming";
 
 const UA =
   "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36";
@@ -250,6 +251,7 @@ class Collector {
       kind,
       format: (ext || kind).toUpperCase(),
       name: isData ? `inline-${kind}` : nameOf(url),
+      displayName: "",
       origin,
       transparent: ALPHA.has(ext),
       inline: isData || undefined,
@@ -257,9 +259,57 @@ class Collector {
     });
   }
 
+  setFontFamily(url: string, family: string) {
+    const a = this.map.get(url);
+    if (a && a.kind === "font") a.fontFamily = family;
+  }
+
   all(): Asset[] {
     return [...this.map.values()];
   }
+}
+
+const MEDIA_URL_RE =
+  /https?:(?:\\?\/){2}[^"'\s\\<>()]+?\.(?:jpe?g|png|webp|avif|gif|svg|mp4|webm|m4v|mp3|wav|woff2?|pdf)(?:\?[^"'\s\\<>()]*)?/gi;
+
+/**
+ * Pulls media URLs straight out of the raw HTML, including ones embedded in JSON
+ * blobs. Framework payloads (__NEXT_DATA__, Nuxt state, inline config) hold image
+ * URLs that never appear as markup attributes, so a pure DOM walk misses them.
+ */
+function mineRawUrls(html: string, page: string, c: Collector) {
+  const seen = new Set<string>();
+  let m: RegExpExecArray | null;
+  MEDIA_URL_RE.lastIndex = 0;
+  while ((m = MEDIA_URL_RE.exec(html))) {
+    // JSON escapes slashes; undo that before treating it as a URL.
+    const raw = m[0].replace(/\\\//g, "/").replace(/&amp;/g, "&");
+    if (seen.has(raw) || seen.size > 1200) continue;
+    seen.add(raw);
+    c.add(raw, { fromPage: page, section: "embedded" });
+  }
+}
+
+/** Reads real family names out of @font-face so fonts are not labelled by hash. */
+function extractFontFamilies(css: string, cssUrl: string): Map<string, string> {
+  const out = new Map<string, string>();
+  const blocks = css.match(/@font-face\s*\{[^}]*\}/gi) ?? [];
+  for (const b of blocks) {
+    const fam = /font-family\s*:\s*(['"]?)([^;'"]+)\1/i.exec(b)?.[2]?.trim();
+    if (!fam) continue;
+    const weight = /font-weight\s*:\s*([^;]+)/i.exec(b)?.[1]?.trim();
+    const style = /font-style\s*:\s*(italic|oblique)/i.exec(b)?.[1];
+    const label = [fam, weight && weight !== "normal" ? weight : "", style ? "Italic" : ""]
+      .filter(Boolean)
+      .join(" ");
+    const urlRe = /url\(\s*(['"]?)([^'")]+)\1\s*\)/gi;
+    let u: RegExpExecArray | null;
+    while ((u = urlRe.exec(b))) {
+      const abs2 = abs(cssUrl, u[2].trim());
+      if (abs2) out.set(abs2, label);
+    }
+  }
+  return out;
 }
 
 function extractFromCss(css: string, cssUrl: string, page: string, c: Collector) {
@@ -443,6 +493,23 @@ async function scanOnePage(
     c.add(u, { fromPage: finalUrl, section: "head" });
   }
 
+  // <noscript> holds real <img> tags for lazy-loading libraries.
+  $("noscript").each((_, el) => {
+    const inner = $(el).text();
+    if (!inner || !inner.includes("<img")) return;
+    const $$ = cheerio.load(inner);
+    $$("img[src]").each((__, im) => {
+      c.add(abs(base, $$(im).attr("src")!), {
+        fromPage: finalUrl,
+        section: "noscript",
+        alt: $$(im).attr("alt")?.trim() || undefined,
+      });
+    });
+  });
+
+  // Anything referenced only from a JSON payload or inline script.
+  mineRawUrls(html, finalUrl, c);
+
   const fetched = await Promise.allSettled(
     sheets.slice(0, MAX_STYLESHEETS).map((u) =>
       fetchText(u, CSS_TIMEOUT_MS, MAX_CSS_BYTES).then((r) => ({ url: u, css: r.text })),
@@ -450,8 +517,12 @@ async function scanOnePage(
   );
   let cssFailures = 0;
   for (const r of fetched) {
-    if (r.status === "fulfilled") extractFromCss(r.value.css, r.value.url, finalUrl, c);
-    else cssFailures++;
+    if (r.status === "fulfilled") {
+      extractFromCss(r.value.css, r.value.url, finalUrl, c);
+      for (const [u, fam] of extractFontFamilies(r.value.css, r.value.url)) {
+        c.setFontFamily(u, fam);
+      }
+    } else cssFailures++;
   }
   if (cssFailures) {
     notes.push(
@@ -552,6 +623,20 @@ export async function scan(rawUrl: string, opts: ScanOptions = {}): Promise<Scan
   }
 
   const assets = collector.all();
+
+  // Mark build artefacts and tracking pixels so the default view stays clean.
+  // These are still available under the Code tab — just never mixed in with
+  // the images somebody actually came for.
+  for (const a of assets) {
+    if (a.kind === "code") {
+      a.noise = true;
+      continue;
+    }
+    const tiny = (a.width !== undefined && a.width <= 2) || a.bytes === 0;
+    const looksLikePixel = /\b(pixel|beacon|analytics|track|spacer|1x1|blank)\b/i.test(a.url);
+    if (tiny || looksLikePixel) a.noise = true;
+  }
+
   if (!opts.skipSizes) await fillSizes(assets);
 
   // Largest-of-family flag for srcset groups, used by the default filter.
@@ -569,6 +654,25 @@ export async function scan(rawUrl: string, opts: ScanOptions = {}): Promise<Scan
     );
     best.isLargest = true;
   }
+
+  // Readable labels, numbered within their kind so fallbacks stay distinct.
+  const counters = new Map<string, number>();
+  for (const a of assets) {
+    const n = (counters.get(a.kind) ?? 0) + 1;
+    counters.set(a.kind, n);
+    a.displayName = displayNameFor(a, n);
+  }
+
+  // Most useful first: real imagery before chrome, big before small.
+  const KIND_RANK: Record<string, number> = {
+    image: 0, video: 1, svg: 2, font: 3, document: 4, audio: 5, data: 6, code: 7,
+  };
+  assets.sort((x, y) => {
+    if (!!x.noise !== !!y.noise) return x.noise ? 1 : -1;
+    const k = (KIND_RANK[x.kind] ?? 9) - (KIND_RANK[y.kind] ?? 9);
+    if (k !== 0) return k;
+    return (y.bytes ?? 0) - (x.bytes ?? 0);
+  });
 
   return {
     target: target.toString(),

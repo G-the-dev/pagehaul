@@ -10,6 +10,8 @@ interface Props {
   onToggle: (id: string) => void;
   onMeasure: (id: string, w: number, h: number) => void;
   onExpand: (asset: Asset) => void;
+  /** Hides the hover "view" affordance inside the picker, where click means select. */
+  compact?: boolean;
 }
 
 /** Dimensions or duration, whichever this kind of file is judged on. */
@@ -25,7 +27,14 @@ function Checkerboard({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function AssetTile({ asset, selected, onToggle, onMeasure, onExpand }: Props) {
+export function AssetTile({
+  asset,
+  selected,
+  onToggle,
+  onMeasure,
+  onExpand,
+  compact,
+}: Props) {
   const [failed, setFailed] = useState(false);
   // Preview the smallest known variant — never pull the full-size original
   // just to paint a 180px tile.
@@ -45,7 +54,7 @@ export function AssetTile({ asset, selected, onToggle, onMeasure, onExpand }: Pr
         type="button"
         onClick={() => onToggle(asset.id)}
         aria-pressed={selected}
-        aria-label={`${selected ? "Deselect" : "Select"} ${asset.name}.${asset.format.toLowerCase()}`}
+        aria-label={`${selected ? "Deselect" : "Select"} ${asset.displayName}`}
         className="block w-full cursor-pointer text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
       >
         <div className="relative aspect-[4/3] w-full overflow-hidden bg-tile">
@@ -118,6 +127,7 @@ export function AssetTile({ asset, selected, onToggle, onMeasure, onExpand }: Pr
         </div>
       </button>
 
+      {!compact && (
       <button
         type="button"
         onClick={(e) => {
@@ -129,13 +139,17 @@ export function AssetTile({ asset, selected, onToggle, onMeasure, onExpand }: Pr
       >
         view
       </button>
+      )}
 
       <div className="flex items-center gap-1.5 border-t border-line px-2 py-1.5 font-mono text-[10px] text-muted">
         <span className="shrink-0 rounded border border-line bg-tile px-1 py-px font-semibold text-fg-2">
           {asset.format}
         </span>
-        <span className="flex-1 truncate" title={`${asset.name}.${asset.format.toLowerCase()}`}>
-          {asset.name}
+        <span
+          className="flex-1 truncate"
+          title={`${asset.displayName} — ${asset.url}`}
+        >
+          {asset.displayName}
         </span>
         <span className="shrink-0 tabular-nums">{formatBytes(asset.bytes)}</span>
       </div>

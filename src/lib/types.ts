@@ -18,8 +18,14 @@ export interface Asset {
   kind: AssetKind;
   /** Uppercase extension shown in the tile band, e.g. WEBP. */
   format: string;
-  /** Filename without extension. */
+  /** Filename without extension, as served. */
   name: string;
+  /** Readable label for the tile. Derived when the filename is a hash. */
+  displayName: string;
+  /** Real family name for fonts, read out of the @font-face rule. */
+  fontFamily?: string;
+  /** Build artefacts and tracking pixels — hidden from the default view. */
+  noise?: boolean;
   /** Bytes, when the origin reported a content-length. */
   bytes?: number;
   /** Intrinsic size when the markup declared it. The client refines this on load. */

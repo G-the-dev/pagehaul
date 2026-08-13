@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { scan } from "@/lib/scan";
+import { deepScan } from "@/lib/deepscan";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+export const maxDuration = 120;
 
 function normalise(input: string): string {
   const t = input.trim();
@@ -13,7 +14,7 @@ function normalise(input: string): string {
 }
 
 export async function POST(req: NextRequest) {
-  let body: { url?: string; depth?: number; maxPages?: number };
+  let body: { url?: string; depth?: number; maxPages?: number; deep?: boolean };
   try {
     body = await req.json();
   } catch {
@@ -25,10 +26,12 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const result = await scan(normalise(body.url), {
-      depth: body.depth === 2 ? 2 : 1,
-      maxPages: typeof body.maxPages === "number" ? body.maxPages : undefined,
-    });
+    const result = body.deep
+      ? await deepScan(normalise(body.url))
+      : await scan(normalise(body.url), {
+          depth: body.depth === 2 ? 2 : 1,
+          maxPages: typeof body.maxPages === "number" ? body.maxPages : undefined,
+        });
     return NextResponse.json(result, {
       headers: { "cache-control": "no-store" },
     });
