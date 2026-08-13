@@ -50,7 +50,7 @@ export function Hero({
             {words.map((w, i) => (
               <motion.span
                 key={w}
-                className="absolute font-semibold text-accent"
+                className="absolute font-semibold text-foreground"
                 initial={{ opacity: 0, y: 60 }}
                 transition={{ type: "spring", stiffness: 60, damping: 14 }}
                 animate={

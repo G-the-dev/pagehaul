@@ -4,116 +4,59 @@
 @custom-variant dark (&:is(.dark *));
 
 /*
-  pagehaul design system
-  ----------------------
-  Matte near-black surfaces with a faint green bias, one emerald signal colour,
-  and mono utility labelling. Light mode is the base so no colour is ever
-  defined only inside a media query; dark redefines the same token names.
+  pagehaul theme
+  --------------
+  Dark only, neutral greys, no hue anywhere. Emphasis comes from contrast and
+  weight rather than colour, so the single "accent" is near white and sits on a
+  dark foreground. Radius and scale follow shadcn's neutral conventions.
 */
 
 :root {
   --radius: 0.625rem;
 
-  /* surfaces */
-  --background: oklch(0.985 0.002 160);
-  --surface: oklch(1 0 0);
-  --surface-2: oklch(0.968 0.003 160);
-  --surface-3: oklch(0.94 0.004 160);
+  /* surfaces, darkest to lightest */
+  --background: #0a0a0a;
+  --surface: #171717;
+  --surface-2: #262626;
+  --surface-3: #404040;
 
   /* ink */
-  --foreground: oklch(0.17 0.008 160);
-  --foreground-2: oklch(0.42 0.008 160);
-  --muted-foreground: oklch(0.56 0.008 160);
+  --foreground: #fafafa;
+  --foreground-2: #d4d4d4;
+  --muted-foreground: #a1a1a1;
 
   /* structure */
-  --border: oklch(0.9 0.004 160);
-  --border-strong: oklch(0.82 0.006 160);
+  --border: #ffffff1a;
+  --border-strong: #ffffff2e;
 
-  /* signal */
-  --accent: oklch(0.52 0.125 162);
-  --accent-fg: oklch(0.99 0 0);
-  --accent-soft: oklch(0.95 0.03 162);
-  --accent-line: oklch(0.85 0.06 162);
+  /* signal: white, not a colour */
+  --accent: #fafafa;
+  --accent-fg: #171717;
+  --accent-soft: #262626;
+  --accent-line: #525252;
 
-  --warn: oklch(0.55 0.11 75);
-  --warn-soft: oklch(0.96 0.035 85);
-  --danger: oklch(0.53 0.17 27);
-  --danger-soft: oklch(0.955 0.03 27);
+  --warn: #d4d4d4;
+  --warn-soft: #262626;
+  --danger: #ff6568;
+  --danger-soft: #2a1416;
 
-  --checker-a: oklch(0.965 0.002 160);
-  --checker-b: oklch(0.915 0.003 160);
+  --checker-a: #1c1c1c;
+  --checker-b: #262626;
 
   /* shadcn compatibility */
   --card: var(--surface);
   --card-foreground: var(--foreground);
-  --popover: var(--surface);
+  --popover: var(--surface-2);
   --popover-foreground: var(--foreground);
-  --primary: var(--accent);
-  --primary-foreground: var(--accent-fg);
+  --primary: #e5e5e5;
+  --primary-foreground: #171717;
   --secondary: var(--surface-2);
   --secondary-foreground: var(--foreground);
   --muted: var(--surface-2);
-  --accent-foreground: var(--accent-fg);
+  --accent-foreground: var(--foreground);
   --destructive: var(--danger);
-  --input: var(--border);
-  --ring: var(--accent);
-}
-
-.dark,
-:root[data-theme="dark"] {
-  --background: oklch(0.155 0.006 160);
-  --surface: oklch(0.192 0.007 160);
-  --surface-2: oklch(0.232 0.008 160);
-  --surface-3: oklch(0.28 0.008 160);
-
-  --foreground: oklch(0.965 0.004 160);
-  --foreground-2: oklch(0.74 0.008 160);
-  --muted-foreground: oklch(0.6 0.008 160);
-
-  --border: oklch(1 0 0 / 9%);
-  --border-strong: oklch(1 0 0 / 17%);
-
-  --accent: oklch(0.79 0.155 163);
-  --accent-fg: oklch(0.16 0.02 163);
-  --accent-soft: oklch(0.28 0.05 163);
-  --accent-line: oklch(0.42 0.08 163);
-
-  --warn: oklch(0.82 0.12 82);
-  --warn-soft: oklch(0.28 0.04 82);
-  --danger: oklch(0.72 0.15 24);
-  --danger-soft: oklch(0.28 0.05 24);
-
-  --checker-a: oklch(0.21 0.006 160);
-  --checker-b: oklch(0.25 0.007 160);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]):not(.light) {
-    --background: oklch(0.155 0.006 160);
-    --surface: oklch(0.192 0.007 160);
-    --surface-2: oklch(0.232 0.008 160);
-    --surface-3: oklch(0.28 0.008 160);
-
-    --foreground: oklch(0.965 0.004 160);
-    --foreground-2: oklch(0.74 0.008 160);
-    --muted-foreground: oklch(0.6 0.008 160);
-
-    --border: oklch(1 0 0 / 9%);
-    --border-strong: oklch(1 0 0 / 17%);
-
-    --accent: oklch(0.79 0.155 163);
-    --accent-fg: oklch(0.16 0.02 163);
-    --accent-soft: oklch(0.28 0.05 163);
-    --accent-line: oklch(0.42 0.08 163);
-
-    --warn: oklch(0.82 0.12 82);
-    --warn-soft: oklch(0.28 0.04 82);
-    --danger: oklch(0.72 0.15 24);
-    --danger-soft: oklch(0.28 0.05 24);
-
-    --checker-a: oklch(0.21 0.006 160);
-    --checker-b: oklch(0.25 0.007 160);
-  }
+  --input: #ffffff26;
+  --ring: #a1a1a1;
 }
 
 @theme inline {
@@ -163,6 +106,9 @@
   * {
     border-color: var(--border);
   }
+  html {
+    color-scheme: dark;
+  }
   body {
     background: var(--background);
     color: var(--foreground);
@@ -170,7 +116,6 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
-  /* Display type is the anchor of the page, so it gets real optical tracking. */
   h1,
   h2 {
     letter-spacing: -0.033em;
@@ -180,13 +125,12 @@
     letter-spacing: -0.018em;
   }
   ::selection {
-    background: var(--accent);
-    color: var(--accent-fg);
+    background: var(--foreground);
+    color: var(--background);
   }
 }
 
 @layer components {
-  /* Tiny uppercase utility label — the instrument-panel voice of the design. */
   .label-mono {
     font-family: var(--font-mono);
     font-size: 0.6875rem;
@@ -208,7 +152,6 @@
     background-position: 0 0, 0 6px, 6px -6px, -6px 0;
   }
 
-  /* Faint technical grid, used behind the hero only. */
   .bg-grid {
     background-image:
       linear-gradient(to right, var(--border) 1px, transparent 1px),
@@ -216,40 +159,18 @@
     background-size: 64px 64px;
   }
 
-  /* Layered neutral elevation. One strength per component, never stacked. */
+  /* Elevation on a dark ground reads through a hairline plus depth, not blur. */
   .shadow-soft {
     box-shadow:
-      0 0 0 1px oklch(0 0 0 / 0.04),
-      0 1px 1px -0.5px oklch(0 0 0 / 0.04),
-      0 3px 3px -1.5px oklch(0 0 0 / 0.04),
-      0 6px 6px -3px oklch(0 0 0 / 0.04),
-      0 12px 12px -6px oklch(0 0 0 / 0.04);
-  }
-  .dark .shadow-soft {
-    box-shadow:
-      0 0 0 1px oklch(1 0 0 / 0.04),
-      0 2px 6px -2px oklch(0 0 0 / 0.5),
-      0 12px 28px -12px oklch(0 0 0 / 0.7);
+      0 0 0 1px #ffffff0a,
+      0 2px 6px -2px #00000080,
+      0 12px 28px -12px #000000b3;
   }
 
   .shadow-lift {
     box-shadow:
-      0 2.8px 2.2px oklch(0 0 0 / 0.02),
-      0 6.7px 5.3px oklch(0 0 0 / 0.03),
-      0 12.5px 10px oklch(0 0 0 / 0.04),
-      0 22.3px 17.9px oklch(0 0 0 / 0.05),
-      0 41.8px 33.4px oklch(0 0 0 / 0.06),
-      0 100px 80px oklch(0 0 0 / 0.09);
-  }
-  .dark .shadow-lift {
-    box-shadow:
-      0 0 0 1px oklch(1 0 0 / 0.05),
-      0 24px 60px -20px oklch(0 0 0 / 0.85);
-  }
-
-  /* Localised emerald bloom. Punctuation, never flood lighting. */
-  .glow-accent {
-    box-shadow: 0 0 0 1px var(--accent-line), 0 8px 40px -12px var(--accent);
+      0 0 0 1px #ffffff0d,
+      0 24px 60px -20px #000000d9;
   }
 }
 

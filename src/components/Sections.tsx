@@ -59,7 +59,7 @@ export function Steps() {
         <div className="grid gap-12 sm:grid-cols-3 sm:gap-8">
           {STEPS.map((s) => (
             <div key={s.n}>
-              <div className="label-mono mb-3 text-accent">{s.n}</div>
+              <div className="label-mono mb-3 text-foreground">{s.n}</div>
               <h3 className="mb-2 text-[15px] font-semibold">{s.h}</h3>
               <p className="text-[13.5px] leading-relaxed text-muted-foreground">
                 {s.p}
