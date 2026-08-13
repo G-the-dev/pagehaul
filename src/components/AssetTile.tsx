@@ -10,21 +10,16 @@ interface Props {
   onToggle: (id: string) => void;
   onMeasure: (id: string, w: number, h: number) => void;
   onExpand: (asset: Asset) => void;
-  /** Hides the hover "view" affordance inside the picker, where click means select. */
+  /** Picker mode: click means select, so the preview affordance is hidden. */
   compact?: boolean;
+  /** Results mode shows no checkbox — a click downloads instead. */
+  selectable?: boolean;
 }
 
-/** Dimensions or duration, whichever this kind of file is judged on. */
 function cornerLabel(a: Asset): string | null {
   if (a.width && a.height) return `${a.width}×${a.height}`;
   if (a.kind === "video") return "video";
   return null;
-}
-
-function Checkerboard({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="absolute inset-0 grid place-items-center bg-checker">{children}</div>
-  );
 }
 
 export function AssetTile({
@@ -34,93 +29,98 @@ export function AssetTile({
   onMeasure,
   onExpand,
   compact,
+  selectable = true,
 }: Props) {
   const [failed, setFailed] = useState(false);
-  // Preview the smallest known variant — never pull the full-size original
-  // just to paint a 180px tile.
+  // Preview the smallest known variant, never the full-size original.
   const previewSrc = asset.thumbUrl ?? asset.poster ?? asset.url;
   const corner = cornerLabel(asset);
-
   const showsImage =
-    !failed && (asset.kind === "image" || asset.kind === "svg" || asset.poster);
+    !failed && (asset.kind === "image" || asset.kind === "svg" || !!asset.poster);
 
   return (
     <div
-      className={`group relative overflow-hidden rounded border bg-panel transition-colors ${
-        selected ? "border-accent ring-1 ring-accent" : "border-line hover:border-line-strong"
+      className={`group relative overflow-hidden rounded-xl border bg-surface transition-all duration-200 ${
+        selected
+          ? "border-accent shadow-[0_0_0_1px_var(--accent)]"
+          : "border-border hover:border-border-strong hover:shadow-soft"
       }`}
     >
       <button
         type="button"
         onClick={() => onToggle(asset.id)}
-        aria-pressed={selected}
-        aria-label={`${selected ? "Deselect" : "Select"} ${asset.displayName}`}
-        className="block w-full cursor-pointer text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+        aria-pressed={selectable ? selected : undefined}
+        aria-label={
+          selectable
+            ? `${selected ? "Deselect" : "Select"} ${asset.displayName}`
+            : `Download ${asset.displayName}`
+        }
+        className="block w-full cursor-pointer text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-background"
       >
-        <div className="relative aspect-[4/3] w-full overflow-hidden bg-tile">
+        <div
+          className={`relative aspect-[4/3] w-full overflow-hidden ${
+            asset.transparent && showsImage ? "bg-checker" : "bg-surface-2"
+          }`}
+        >
           {showsImage ? (
-            asset.transparent ? (
-              <Checkerboard>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={previewSrc}
-                  alt=""
-                  loading="lazy"
-                  decoding="async"
-                  onError={() => setFailed(true)}
-                  onLoad={(e) => {
-                    const el = e.currentTarget;
-                    if (el.naturalWidth) onMeasure(asset.id, el.naturalWidth, el.naturalHeight);
-                  }}
-                  className="max-h-full max-w-full object-contain p-2"
-                />
-              </Checkerboard>
-            ) : (
-              /* eslint-disable-next-line @next/next/no-img-element */
-              <img
-                src={previewSrc}
-                alt=""
-                loading="lazy"
-                decoding="async"
-                onError={() => setFailed(true)}
-                onLoad={(e) => {
-                  const el = e.currentTarget;
-                  if (el.naturalWidth) onMeasure(asset.id, el.naturalWidth, el.naturalHeight);
-                }}
-                className="h-full w-full object-cover"
-              />
-            )
+            /* eslint-disable-next-line @next/next/no-img-element */
+            <img
+              src={previewSrc}
+              alt=""
+              loading="lazy"
+              decoding="async"
+              onError={() => setFailed(true)}
+              onLoad={(e) => {
+                const el = e.currentTarget;
+                if (el.naturalWidth) onMeasure(asset.id, el.naturalWidth, el.naturalHeight);
+              }}
+              className={
+                asset.transparent
+                  ? "absolute inset-0 m-auto max-h-[78%] max-w-[78%] object-contain"
+                  : "h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
+              }
+            />
           ) : (
             <TypePlaceholder asset={asset} failed={failed} />
           )}
 
           {asset.kind === "video" && (
-            <span className="pointer-events-none absolute left-1/2 top-1/2 grid h-9 w-9 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full bg-black/55">
-              <span className="ml-1 border-y-[7px] border-l-[11px] border-y-transparent border-l-white" />
+            <span className="pointer-events-none absolute left-1/2 top-1/2 grid h-10 w-10 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full bg-black/55 backdrop-blur-sm">
+              <span className="ml-[3px] border-y-[6px] border-l-[10px] border-y-transparent border-l-white" />
             </span>
           )}
 
-          <span
-            aria-hidden
-            className={`absolute right-1.5 top-1.5 z-10 grid h-[19px] w-[19px] place-items-center rounded border ${
-              selected
-                ? "border-accent bg-accent"
-                : "border-white/45 bg-black/45 group-hover:border-white/70"
-            }`}
-          >
-            {selected && (
-              <span className="mb-[3px] h-[5px] w-[9px] -rotate-45 border-b-2 border-l-2 border-ink-inverse" />
-            )}
-          </span>
+          {selectable && (
+            <span
+              aria-hidden
+              className={`absolute right-2 top-2 z-10 grid h-5 w-5 place-items-center rounded-md border backdrop-blur-sm transition-colors ${
+                selected
+                  ? "border-accent bg-accent"
+                  : "border-white/35 bg-black/40 group-hover:border-white/70"
+              }`}
+            >
+              {selected && (
+                <svg
+                  viewBox="0 0 12 12"
+                  className="h-2.5 w-2.5 text-accent-fg"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.4"
+                >
+                  <path d="M2.5 6.2 4.8 8.5 9.5 3.8" />
+                </svg>
+              )}
+            </span>
+          )}
 
           {asset.section && (
-            <span className="pointer-events-none absolute left-1.5 top-1.5 z-10 rounded bg-black/60 px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-wider text-white/90">
+            <span className="pointer-events-none absolute left-2 top-2 z-10 rounded-md bg-black/55 px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-widest text-white/90 backdrop-blur-sm">
               {asset.section}
             </span>
           )}
 
           {corner && (
-            <span className="pointer-events-none absolute bottom-1.5 right-1.5 z-10 rounded bg-black/60 px-1.5 py-0.5 font-mono text-[10px] tabular-nums text-white/90">
+            <span className="pointer-events-none absolute bottom-2 right-2 z-10 rounded-md bg-black/55 px-1.5 py-0.5 font-mono text-[10px] tabular-nums text-white/90 backdrop-blur-sm">
               {corner}
             </span>
           )}
@@ -128,44 +128,46 @@ export function AssetTile({
       </button>
 
       {!compact && (
-      <button
-        type="button"
-        onClick={(e) => {
-          e.stopPropagation();
-          onExpand(asset);
-        }}
-        aria-label={`Preview ${asset.name}`}
-        className="absolute bottom-[38px] left-1.5 z-20 hidden rounded bg-black/60 px-1.5 py-0.5 font-mono text-[10px] text-white/90 hover:bg-black/80 group-hover:block focus:block focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-      >
-        view
-      </button>
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onExpand(asset);
+          }}
+          aria-label={`Preview ${asset.displayName}`}
+          className="absolute bottom-[46px] left-2 z-20 hidden rounded-md bg-black/55 px-2 py-1 font-mono text-[10px] text-white/90 backdrop-blur-sm hover:bg-black/75 group-hover:block focus:block focus:outline-none"
+        >
+          preview
+        </button>
       )}
 
-      <div className="flex items-center gap-1.5 border-t border-line px-2 py-1.5 font-mono text-[10px] text-muted">
-        <span className="shrink-0 rounded border border-line bg-tile px-1 py-px font-semibold text-fg-2">
+      <div className="flex items-center gap-2 border-t border-border px-2.5 py-2">
+        <span className="shrink-0 rounded border border-border bg-surface-2 px-1.5 py-px font-mono text-[9.5px] font-semibold tracking-wide text-fg-2">
           {asset.format}
         </span>
         <span
-          className="flex-1 truncate"
+          className="flex-1 truncate text-[12px] text-fg-2"
           title={`${asset.displayName} — ${asset.url}`}
         >
           {asset.displayName}
         </span>
-        <span className="shrink-0 tabular-nums">{formatBytes(asset.bytes)}</span>
+        <span className="shrink-0 font-mono text-[10px] tabular-nums text-muted-foreground">
+          {formatBytes(asset.bytes)}
+        </span>
       </div>
     </div>
   );
 }
 
-/** Every type that has no natural picture gets something better than a file icon. */
+/** Types with no natural picture get something more useful than a file icon. */
 function TypePlaceholder({ asset, failed }: { asset: Asset; failed: boolean }) {
   if (failed) {
     return (
-      <div className="flex h-full flex-col items-center justify-center gap-1.5 px-3 text-center">
-        <span className="grid h-6 w-6 place-items-center rounded-full border border-line-strong font-mono text-[11px] text-muted">
+      <div className="flex h-full flex-col items-center justify-center gap-2 px-4 text-center">
+        <span className="grid h-7 w-7 place-items-center rounded-full border border-border-strong font-mono text-[12px] text-muted-foreground">
           !
         </span>
-        <span className="font-mono text-[9px] leading-tight text-muted">
+        <span className="font-mono text-[9.5px] leading-tight text-muted-foreground">
           Preview blocked
           <br />
           by the source
@@ -177,34 +179,34 @@ function TypePlaceholder({ asset, failed }: { asset: Asset; failed: boolean }) {
   switch (asset.kind) {
     case "font":
       return (
-        <div className="flex h-full flex-col items-center justify-center gap-1">
-          <span className="font-serif text-4xl leading-none text-fg-2">Aa</span>
-          <span className="font-mono text-[9px] uppercase tracking-wider text-muted">
-            {asset.format}
+        <div className="flex h-full flex-col items-center justify-center gap-1.5">
+          <span className="text-[2.6rem] font-medium leading-none tracking-tight text-fg-2">
+            Ag
           </span>
+          <span className="label-mono text-[9px]">{asset.format}</span>
         </div>
       );
     case "audio":
       return (
-        <div className="flex h-full items-center justify-center gap-[3px] px-6">
+        <div className="flex h-full items-center justify-center gap-[3px] px-8">
           {[22, 48, 80, 56, 100, 38, 70, 26, 60, 44, 86, 30].map((h, i) => (
             <span
               key={i}
-              style={{ height: `${h * 0.42}%` }}
-              className="w-full max-w-[4px] flex-1 rounded-sm bg-accent/70"
+              style={{ height: `${h * 0.4}%` }}
+              className="w-full max-w-[3px] flex-1 rounded-full bg-accent/60"
             />
           ))}
         </div>
       );
     case "document":
       return (
-        <div className="flex h-full items-center justify-center">
-          <div className="flex h-[70%] w-[52%] flex-col gap-[3px] rounded-sm border border-line-strong bg-panel p-2">
-            {[78, 100, 60, 100, 78, 60].map((w, i) => (
+        <div className="grid h-full place-items-center">
+          <div className="flex h-[68%] w-[50%] flex-col gap-[3px] rounded-md border border-border-strong bg-surface p-2.5">
+            {[78, 100, 60, 100, 78, 55].map((w, i) => (
               <span
                 key={i}
                 style={{ width: `${w}%` }}
-                className="h-[3px] rounded-sm bg-tile-2"
+                className="h-[2.5px] rounded-full bg-surface-3"
               />
             ))}
           </div>
@@ -212,32 +214,22 @@ function TypePlaceholder({ asset, failed }: { asset: Asset; failed: boolean }) {
       );
     case "code":
       return (
-        <div className="flex h-full items-center justify-center">
-          <div className="flex w-[66%] flex-col gap-1">
+        <div className="grid h-full place-items-center">
+          <div className="flex w-[62%] flex-col gap-1.5">
             {[80, 55, 70, 42].map((w, i) => (
               <span
                 key={i}
                 style={{ width: `${w}%` }}
-                className={`h-1 rounded-sm ${i === 1 ? "bg-accent/50" : "bg-tile-2"}`}
+                className={`h-[3px] rounded-full ${i === 1 ? "bg-accent/45" : "bg-surface-3"}`}
               />
             ))}
           </div>
         </div>
       );
-    case "data":
-      return (
-        <div className="grid h-full place-items-center">
-          <span className="font-mono text-xs uppercase tracking-widest text-muted">
-            {asset.format}
-          </span>
-        </div>
-      );
     default:
       return (
         <div className="grid h-full place-items-center">
-          <span className="font-mono text-[10px] uppercase tracking-widest text-muted">
-            {asset.format}
-          </span>
+          <span className="label-mono text-[10px]">{asset.format}</span>
         </div>
       );
   }

@@ -14,9 +14,9 @@ interface Props {
 }
 
 /**
- * The picker opens on top of the results with everything pre-selected, so
- * "choose files" starts from the same place "download all" would have — the
- * user removes what they do not want rather than building a selection up.
+ * Opens with everything pre-selected, so "choose files" starts from the same
+ * place "download all" would have — the user removes what they do not want
+ * rather than building a selection from nothing.
  */
 export function Picker({ assets, tabLabel, onClose, onConfirm }: Props) {
   const [selected, setSelected] = useState<Set<string>>(
@@ -61,63 +61,74 @@ export function Picker({ assets, tabLabel, onClose, onConfirm }: Props) {
       role="dialog"
       aria-modal="true"
       aria-label={`Choose which ${tabLabel.toLowerCase()} to download`}
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-3 sm:p-6"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-3 backdrop-blur-sm sm:p-6"
       onClick={onClose}
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="flex h-full max-h-[860px] w-full max-w-6xl flex-col overflow-hidden rounded-lg border border-line bg-bg shadow-2xl"
+        className="flex h-full max-h-[880px] w-full max-w-6xl flex-col overflow-hidden rounded-2xl border border-border bg-background shadow-lift"
       >
-        <div className="flex flex-wrap items-center gap-3 border-b border-line px-5 py-3.5">
+        {/* header */}
+        <div className="flex flex-wrap items-center gap-4 border-b border-border px-6 py-4">
           <div className="min-w-0">
-            <h2 className="text-[15px] font-semibold">Choose what to download</h2>
-            <p className="mt-0.5 text-xs text-muted">
+            <div className="label-mono mb-1.5 text-accent">Select</div>
+            <h2 className="text-[17px] font-semibold leading-none">
+              Choose what to download
+            </h2>
+            <p className="mt-1.5 text-[13px] text-muted-foreground">
               Everything is selected. Untick anything you do not want.
             </p>
           </div>
-          <input
-            type="search"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search…"
-            aria-label="Search files"
-            className="ml-auto w-full max-w-[200px] rounded border border-line bg-panel px-2.5 py-1.5 text-xs outline-none placeholder:text-muted focus:border-accent"
-          />
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close"
-            className="rounded border border-line px-2.5 py-1.5 font-mono text-xs text-fg-2 hover:border-line-strong"
-          >
-            Esc
-          </button>
+
+          <div className="ml-auto flex items-center gap-2.5">
+            <input
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search files…"
+              aria-label="Search files"
+              className="w-[190px] rounded-lg border border-border bg-surface px-3 py-2 text-[13px] outline-none transition-colors placeholder:text-muted-foreground focus:border-accent"
+            />
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Close"
+              className="rounded-lg border border-border px-2.5 py-2 font-mono text-[11px] text-fg-2 transition-colors hover:border-border-strong hover:text-foreground"
+            >
+              ESC
+            </button>
+          </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3 border-b border-line bg-panel px-5 py-2 text-xs">
-          <span className="font-mono text-muted">
-            <strong className="text-fg">{selected.size}</strong> of {assets.length} selected
+        {/* selection controls */}
+        <div className="flex flex-wrap items-center gap-4 border-b border-border bg-surface-2/50 px-6 py-2.5">
+          <span className="font-mono text-[12px] text-muted-foreground tabular-nums">
+            <strong className="text-foreground">{selected.size}</strong> of {assets.length}
           </span>
           <button
             type="button"
             onClick={() => setSelected(new Set(shown.map((a) => a.id)))}
-            className="font-mono text-accent hover:underline"
+            className="text-[12.5px] font-medium text-accent transition-opacity hover:opacity-75"
           >
-            Select all
+            Select all{query ? " shown" : ""}
           </button>
           <button
             type="button"
             onClick={() => setSelected(new Set())}
-            className="font-mono text-muted hover:underline"
+            className="text-[12.5px] text-muted-foreground transition-colors hover:text-foreground"
           >
-            Select none
+            Clear
           </button>
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
+        {/* grid */}
+        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
           {shown.length === 0 ? (
-            <p className="py-16 text-center text-sm text-muted">Nothing matches that search.</p>
+            <p className="py-20 text-center text-[14px] text-muted-foreground">
+              Nothing matches that search.
+            </p>
           ) : (
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
+            <div className="grid grid-cols-2 gap-3.5 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
               {shown.map((a) => {
                 const m = measured[a.id];
                 const withDims = m && !a.width ? { ...a, width: m.w, height: m.h } : a;
@@ -139,16 +150,23 @@ export function Picker({ assets, tabLabel, onClose, onConfirm }: Props) {
           )}
         </div>
 
-        <div className="flex flex-wrap items-center gap-3 border-t border-line bg-panel px-5 py-3">
-          <span className="font-mono text-sm">
-            <strong className="text-accent">{selected.size} file{selected.size === 1 ? "" : "s"}</strong>
-            {totalBytes > 0 && <span className="text-muted"> · {formatBytes(totalBytes)}</span>}
-          </span>
-          <div className="ml-auto flex flex-wrap gap-2">
+        {/* footer */}
+        <div className="flex flex-wrap items-center gap-4 border-t border-border bg-surface/70 px-6 py-4">
+          <div className="flex items-baseline gap-2">
+            <span className="text-[16px] font-semibold tabular-nums text-accent">
+              {selected.size}
+            </span>
+            <span className="text-[13px] text-muted-foreground">
+              file{selected.size === 1 ? "" : "s"}
+              {totalBytes > 0 && ` · ${formatBytes(totalBytes)}`}
+            </span>
+          </div>
+
+          <div className="ml-auto flex flex-wrap gap-2.5">
             <button
               type="button"
               onClick={onClose}
-              className="rounded border border-line-strong px-3.5 py-2 font-mono text-xs uppercase tracking-wider text-fg-2"
+              className="rounded-lg border border-border px-4 py-2 text-[13.5px] font-medium text-fg-2 transition-colors hover:border-border-strong hover:text-foreground"
             >
               Cancel
             </button>
@@ -156,7 +174,7 @@ export function Picker({ assets, tabLabel, onClose, onConfirm }: Props) {
               type="button"
               disabled={selected.size === 0}
               onClick={() => onConfirm(chosen, false)}
-              className="rounded border border-line-strong px-3.5 py-2 font-mono text-xs uppercase tracking-wider text-fg-2 disabled:opacity-40"
+              className="rounded-lg border border-border-strong px-4 py-2 text-[13.5px] font-medium text-fg-2 transition-colors hover:border-accent hover:text-foreground disabled:opacity-40"
             >
               Separate files
             </button>
@@ -164,7 +182,7 @@ export function Picker({ assets, tabLabel, onClose, onConfirm }: Props) {
               type="button"
               disabled={selected.size === 0}
               onClick={() => onConfirm(chosen, true)}
-              className="rounded bg-accent px-4 py-2 font-mono text-xs font-semibold uppercase tracking-wider text-ink-inverse disabled:opacity-40"
+              className="rounded-lg bg-accent px-5 py-2 text-[13.5px] font-semibold text-accent-fg transition-all hover:brightness-110 disabled:opacity-40"
             >
               Download {selected.size}
             </button>

@@ -1,111 +1,256 @@
 @import "tailwindcss";
+@import "tw-animate-css";
 
-/* Light is the base. Dark redefines only the tokens, so no colour is ever
-   defined solely inside a media query. */
+@custom-variant dark (&:is(.dark *));
+
+/*
+  pagehaul design system
+  ----------------------
+  Matte near-black surfaces with a faint green bias, one emerald signal colour,
+  and mono utility labelling. Light mode is the base so no colour is ever
+  defined only inside a media query; dark redefines the same token names.
+*/
+
 :root {
-  --bg: #f4f5f4;
-  --panel: #ffffff;
-  --tile: #e9ebe9;
-  --tile-2: #dcdfdc;
-  --fg: #151816;
-  --fg-2: #4b524e;
-  --muted: #828984;
-  --line: #dcdfdc;
-  --line-strong: #c0c5c1;
-  --accent: #1d6244;
-  --accent-soft: #dfede6;
-  --ink-inverse: #ffffff;
-  --danger: #a33324;
-  --danger-soft: #f8e4e1;
-  --warn: #8a5a05;
-  --warn-soft: #f5ebd7;
-  --checker-a: #e9ece9;
-  --checker-b: #d6dad7;
+  --radius: 0.625rem;
+
+  /* surfaces */
+  --background: oklch(0.985 0.002 160);
+  --surface: oklch(1 0 0);
+  --surface-2: oklch(0.968 0.003 160);
+  --surface-3: oklch(0.94 0.004 160);
+
+  /* ink */
+  --foreground: oklch(0.17 0.008 160);
+  --foreground-2: oklch(0.42 0.008 160);
+  --muted-foreground: oklch(0.56 0.008 160);
+
+  /* structure */
+  --border: oklch(0.9 0.004 160);
+  --border-strong: oklch(0.82 0.006 160);
+
+  /* signal */
+  --accent: oklch(0.52 0.125 162);
+  --accent-fg: oklch(0.99 0 0);
+  --accent-soft: oklch(0.95 0.03 162);
+  --accent-line: oklch(0.85 0.06 162);
+
+  --warn: oklch(0.55 0.11 75);
+  --warn-soft: oklch(0.96 0.035 85);
+  --danger: oklch(0.53 0.17 27);
+  --danger-soft: oklch(0.955 0.03 27);
+
+  --checker-a: oklch(0.965 0.002 160);
+  --checker-b: oklch(0.915 0.003 160);
+
+  /* shadcn compatibility */
+  --card: var(--surface);
+  --card-foreground: var(--foreground);
+  --popover: var(--surface);
+  --popover-foreground: var(--foreground);
+  --primary: var(--accent);
+  --primary-foreground: var(--accent-fg);
+  --secondary: var(--surface-2);
+  --secondary-foreground: var(--foreground);
+  --muted: var(--surface-2);
+  --accent-foreground: var(--accent-fg);
+  --destructive: var(--danger);
+  --input: var(--border);
+  --ring: var(--accent);
+}
+
+.dark,
+:root[data-theme="dark"] {
+  --background: oklch(0.155 0.006 160);
+  --surface: oklch(0.192 0.007 160);
+  --surface-2: oklch(0.232 0.008 160);
+  --surface-3: oklch(0.28 0.008 160);
+
+  --foreground: oklch(0.965 0.004 160);
+  --foreground-2: oklch(0.74 0.008 160);
+  --muted-foreground: oklch(0.6 0.008 160);
+
+  --border: oklch(1 0 0 / 9%);
+  --border-strong: oklch(1 0 0 / 17%);
+
+  --accent: oklch(0.79 0.155 163);
+  --accent-fg: oklch(0.16 0.02 163);
+  --accent-soft: oklch(0.28 0.05 163);
+  --accent-line: oklch(0.42 0.08 163);
+
+  --warn: oklch(0.82 0.12 82);
+  --warn-soft: oklch(0.28 0.04 82);
+  --danger: oklch(0.72 0.15 24);
+  --danger-soft: oklch(0.28 0.05 24);
+
+  --checker-a: oklch(0.21 0.006 160);
+  --checker-b: oklch(0.25 0.007 160);
 }
 
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --bg: #111412;
-    --panel: #181c19;
-    --tile: #242a26;
-    --tile-2: #2e352f;
-    --fg: #ebeeec;
-    --fg-2: #a3aba6;
-    --muted: #78807b;
-    --line: #282e2a;
-    --line-strong: #3a423d;
-    --accent: #59c395;
-    --accent-soft: #132a21;
-    --ink-inverse: #0f1512;
-    --danger: #e8796a;
-    --danger-soft: #2f1b18;
-    --warn: #d9a648;
-    --warn-soft: #2b2515;
-    --checker-a: #232926;
-    --checker-b: #2c332e;
+  :root:not([data-theme="light"]):not(.light) {
+    --background: oklch(0.155 0.006 160);
+    --surface: oklch(0.192 0.007 160);
+    --surface-2: oklch(0.232 0.008 160);
+    --surface-3: oklch(0.28 0.008 160);
+
+    --foreground: oklch(0.965 0.004 160);
+    --foreground-2: oklch(0.74 0.008 160);
+    --muted-foreground: oklch(0.6 0.008 160);
+
+    --border: oklch(1 0 0 / 9%);
+    --border-strong: oklch(1 0 0 / 17%);
+
+    --accent: oklch(0.79 0.155 163);
+    --accent-fg: oklch(0.16 0.02 163);
+    --accent-soft: oklch(0.28 0.05 163);
+    --accent-line: oklch(0.42 0.08 163);
+
+    --warn: oklch(0.82 0.12 82);
+    --warn-soft: oklch(0.28 0.04 82);
+    --danger: oklch(0.72 0.15 24);
+    --danger-soft: oklch(0.28 0.05 24);
+
+    --checker-a: oklch(0.21 0.006 160);
+    --checker-b: oklch(0.25 0.007 160);
   }
 }
 
-:root[data-theme="dark"] {
-  --bg: #111412;
-  --panel: #181c19;
-  --tile: #242a26;
-  --tile-2: #2e352f;
-  --fg: #ebeeec;
-  --fg-2: #a3aba6;
-  --muted: #78807b;
-  --line: #282e2a;
-  --line-strong: #3a423d;
-  --accent: #59c395;
-  --accent-soft: #132a21;
-  --ink-inverse: #0f1512;
-  --danger: #e8796a;
-  --danger-soft: #2f1b18;
-  --warn: #d9a648;
-  --warn-soft: #2b2515;
-  --checker-a: #232926;
-  --checker-b: #2c332e;
-}
-
 @theme inline {
-  --color-bg: var(--bg);
-  --color-panel: var(--panel);
-  --color-tile: var(--tile);
-  --color-tile-2: var(--tile-2);
-  --color-fg: var(--fg);
-  --color-fg-2: var(--fg-2);
-  --color-muted: var(--muted);
-  --color-line: var(--line);
-  --color-line-strong: var(--line-strong);
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-foreground: var(--foreground);
+  --color-fg-2: var(--foreground-2);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
   --color-accent: var(--accent);
+  --color-accent-fg: var(--accent-fg);
   --color-accent-soft: var(--accent-soft);
-  --color-ink-inverse: var(--ink-inverse);
-  --color-danger: var(--danger);
-  --color-danger-soft: var(--danger-soft);
+  --color-accent-line: var(--accent-line);
   --color-warn: var(--warn);
   --color-warn-soft: var(--warn-soft);
-  --font-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
-  --font-serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, monospace;
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 10px);
 }
 
-body {
-  background: var(--bg);
-  color: var(--fg);
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  -webkit-font-smoothing: antialiased;
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+  body {
+    background: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  /* Display type is the anchor of the page, so it gets real optical tracking. */
+  h1,
+  h2 {
+    letter-spacing: -0.033em;
+    text-wrap: balance;
+  }
+  h3 {
+    letter-spacing: -0.018em;
+  }
+  ::selection {
+    background: var(--accent);
+    color: var(--accent-fg);
+  }
 }
 
-/* Transparency is only visible against a checkerboard — this is how people
-   spot logos at a glance. */
-.bg-checker {
-  background-color: var(--checker-a);
-  background-image:
-    linear-gradient(45deg, var(--checker-b) 25%, transparent 25%),
-    linear-gradient(-45deg, var(--checker-b) 25%, transparent 25%),
-    linear-gradient(45deg, transparent 75%, var(--checker-b) 75%),
-    linear-gradient(-45deg, transparent 75%, var(--checker-b) 75%);
-  background-size: 12px 12px;
-  background-position: 0 0, 0 6px, 6px -6px, -6px 0;
+@layer components {
+  /* Tiny uppercase utility label — the instrument-panel voice of the design. */
+  .label-mono {
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    line-height: 1;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted-foreground);
+  }
+
+  /* Transparency is only legible against a checkerboard. */
+  .bg-checker {
+    background-color: var(--checker-a);
+    background-image:
+      linear-gradient(45deg, var(--checker-b) 25%, transparent 25%),
+      linear-gradient(-45deg, var(--checker-b) 25%, transparent 25%),
+      linear-gradient(45deg, transparent 75%, var(--checker-b) 75%),
+      linear-gradient(-45deg, transparent 75%, var(--checker-b) 75%);
+    background-size: 12px 12px;
+    background-position: 0 0, 0 6px, 6px -6px, -6px 0;
+  }
+
+  /* Faint technical grid, used behind the hero only. */
+  .bg-grid {
+    background-image:
+      linear-gradient(to right, var(--border) 1px, transparent 1px),
+      linear-gradient(to bottom, var(--border) 1px, transparent 1px);
+    background-size: 64px 64px;
+  }
+
+  /* Layered neutral elevation. One strength per component, never stacked. */
+  .shadow-soft {
+    box-shadow:
+      0 0 0 1px oklch(0 0 0 / 0.04),
+      0 1px 1px -0.5px oklch(0 0 0 / 0.04),
+      0 3px 3px -1.5px oklch(0 0 0 / 0.04),
+      0 6px 6px -3px oklch(0 0 0 / 0.04),
+      0 12px 12px -6px oklch(0 0 0 / 0.04);
+  }
+  .dark .shadow-soft {
+    box-shadow:
+      0 0 0 1px oklch(1 0 0 / 0.04),
+      0 2px 6px -2px oklch(0 0 0 / 0.5),
+      0 12px 28px -12px oklch(0 0 0 / 0.7);
+  }
+
+  .shadow-lift {
+    box-shadow:
+      0 2.8px 2.2px oklch(0 0 0 / 0.02),
+      0 6.7px 5.3px oklch(0 0 0 / 0.03),
+      0 12.5px 10px oklch(0 0 0 / 0.04),
+      0 22.3px 17.9px oklch(0 0 0 / 0.05),
+      0 41.8px 33.4px oklch(0 0 0 / 0.06),
+      0 100px 80px oklch(0 0 0 / 0.09);
+  }
+  .dark .shadow-lift {
+    box-shadow:
+      0 0 0 1px oklch(1 0 0 / 0.05),
+      0 24px 60px -20px oklch(0 0 0 / 0.85);
+  }
+
+  /* Localised emerald bloom. Punctuation, never flood lighting. */
+  .glow-accent {
+    box-shadow: 0 0 0 1px var(--accent-line), 0 8px 40px -12px var(--accent);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -114,5 +259,6 @@ body {
   *::after {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }
