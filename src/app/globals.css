@@ -1,0 +1,118 @@
+@import "tailwindcss";
+
+/* Light is the base. Dark redefines only the tokens, so no colour is ever
+   defined solely inside a media query. */
+:root {
+  --bg: #f4f5f4;
+  --panel: #ffffff;
+  --tile: #e9ebe9;
+  --tile-2: #dcdfdc;
+  --fg: #151816;
+  --fg-2: #4b524e;
+  --muted: #828984;
+  --line: #dcdfdc;
+  --line-strong: #c0c5c1;
+  --accent: #1d6244;
+  --accent-soft: #dfede6;
+  --ink-inverse: #ffffff;
+  --danger: #a33324;
+  --danger-soft: #f8e4e1;
+  --warn: #8a5a05;
+  --warn-soft: #f5ebd7;
+  --checker-a: #e9ece9;
+  --checker-b: #d6dad7;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #111412;
+    --panel: #181c19;
+    --tile: #242a26;
+    --tile-2: #2e352f;
+    --fg: #ebeeec;
+    --fg-2: #a3aba6;
+    --muted: #78807b;
+    --line: #282e2a;
+    --line-strong: #3a423d;
+    --accent: #59c395;
+    --accent-soft: #132a21;
+    --ink-inverse: #0f1512;
+    --danger: #e8796a;
+    --danger-soft: #2f1b18;
+    --warn: #d9a648;
+    --warn-soft: #2b2515;
+    --checker-a: #232926;
+    --checker-b: #2c332e;
+  }
+}
+
+:root[data-theme="dark"] {
+  --bg: #111412;
+  --panel: #181c19;
+  --tile: #242a26;
+  --tile-2: #2e352f;
+  --fg: #ebeeec;
+  --fg-2: #a3aba6;
+  --muted: #78807b;
+  --line: #282e2a;
+  --line-strong: #3a423d;
+  --accent: #59c395;
+  --accent-soft: #132a21;
+  --ink-inverse: #0f1512;
+  --danger: #e8796a;
+  --danger-soft: #2f1b18;
+  --warn: #d9a648;
+  --warn-soft: #2b2515;
+  --checker-a: #232926;
+  --checker-b: #2c332e;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-panel: var(--panel);
+  --color-tile: var(--tile);
+  --color-tile-2: var(--tile-2);
+  --color-fg: var(--fg);
+  --color-fg-2: var(--fg-2);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-ink-inverse: var(--ink-inverse);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --font-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+  --font-serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+}
+
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Transparency is only visible against a checkerboard — this is how people
+   spot logos at a glance. */
+.bg-checker {
+  background-color: var(--checker-a);
+  background-image:
+    linear-gradient(45deg, var(--checker-b) 25%, transparent 25%),
+    linear-gradient(-45deg, var(--checker-b) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, var(--checker-b) 75%),
+    linear-gradient(-45deg, transparent 75%, var(--checker-b) 75%);
+  background-size: 12px 12px;
+  background-position: 0 0, 0 6px, 6px -6px, -6px 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
