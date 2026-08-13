@@ -1,40 +1,59 @@
-import type { Asset, AssetKind, ScanResult } from "./types";
+import type {
+  Asset,
+  AssetKind,
+  ScanResult,
+  Swatch,
+  TypeSpec,
+} from "./types";
 import { displayNameFor } from "./naming";
 import { assertPublicHttpUrl } from "./scan";
 
 /**
- * Deep scan renders the page in a real browser and records every media file the
- * browser actually requests. That network log is exactly what a person sees in
- * DevTools, which is why this catches things a static parse cannot: lazy-loaded
- * images, anything a script injects, CSS-computed backgrounds, and media fetched
- * from an API after load.
+ * Deep scan drives a real browser and records every response it receives, then
+ * reads the rendered page for design data. The point is parity with what a
+ * person sees in DevTools: not just imagery, but scripts, stylesheets, JSON
+ * payloads and the API calls the page makes.
+ *
+ * It does not defeat authentication. A site that serves content only to a
+ * signed-in session will return its shell here, and we say so rather than
+ * reporting an empty result as success.
  */
 
-const NAV_TIMEOUT_MS = 30_000;
-const SETTLE_MS = 2_000;
-const MAX_SCROLLS = 14;
-const MAX_ASSETS = 900;
+const NAV_TIMEOUT_MS = 35_000;
+const IDLE_TIMEOUT_MS = 12_000;
+const SETTLE_MS = 2_500;
+const MAX_SCROLLS = 18;
+const MAX_ASSETS = 1_400;
 
 const EXT_KIND: Record<string, AssetKind> = {
   jpg: "image", jpeg: "image", png: "image", webp: "image", avif: "image",
-  gif: "image", bmp: "image", ico: "image",
+  gif: "image", bmp: "image", ico: "image", apng: "image",
   svg: "svg",
-  mp4: "video", webm: "video", ogv: "video", mov: "video", m3u8: "video", mpd: "video",
-  mp3: "audio", wav: "audio", ogg: "audio", aac: "audio", m4a: "audio",
-  woff: "font", woff2: "font", ttf: "font", otf: "font",
-  pdf: "document",
+  mp4: "video", webm: "video", ogv: "video", mov: "video", m4v: "video",
+  m3u8: "video", mpd: "video",
+  mp3: "audio", wav: "audio", ogg: "audio", aac: "audio", m4a: "audio", flac: "audio",
+  woff: "font", woff2: "font", ttf: "font", otf: "font", eot: "font",
+  pdf: "document", doc: "document", docx: "document", xls: "document",
+  xlsx: "document", ppt: "document", pptx: "document", csv: "document",
+  zip: "document", txt: "document",
+  js: "code", mjs: "code", cjs: "code", jsx: "code", ts: "code", tsx: "code",
+  css: "code", map: "code",
+  json: "data", xml: "data", rss: "data", atom: "data", wasm: "data",
 };
 
+/** Content-type to kind, used when the URL carries no useful extension. */
 const MIME_KIND: [RegExp, AssetKind][] = [
   [/^image\/svg/, "svg"],
   [/^image\//, "image"],
-  [/^video\//, "video"],
+  [/^video\/|application\/(x-mpegurl|vnd\.apple\.mpegurl|dash\+xml)/, "video"],
   [/^audio\//, "audio"],
-  [/^font\/|application\/font|application\/x-font/, "font"],
-  [/^application\/pdf/, "document"],
+  [/^font\/|application\/(x-)?font|application\/vnd\.ms-fontobject/, "font"],
+  [/^application\/pdf|officedocument|msword|ms-excel|ms-powerpoint|zip/, "document"],
+  [/^(text|application)\/(javascript|ecmascript)|^text\/css/, "code"],
+  [/^application\/(json|ld\+json)|^text\/xml|^application\/xml/, "data"],
 ];
 
-const ALPHA = new Set(["png", "svg", "webp", "gif", "avif", "ico"]);
+const ALPHA = new Set(["png", "svg", "webp", "gif", "avif", "ico", "apng"]);
 
 function extOf(url: string): string {
   try {
@@ -48,9 +67,16 @@ function extOf(url: string): string {
 
 function nameOf(url: string): string {
   try {
-    const seg = decodeURIComponent(new URL(url).pathname.split("/").pop() ?? "");
+    const u = new URL(url);
+    const seg = decodeURIComponent(u.pathname.split("/").pop() ?? "");
     const dot = seg.lastIndexOf(".");
-    return (dot > 0 ? seg.slice(0, dot) : seg) || "untitled";
+    const base = dot > 0 ? seg.slice(0, dot) : seg;
+    // API routes are usually path-shaped, so the last two segments read better.
+    if (!base) {
+      const parts = u.pathname.split("/").filter(Boolean);
+      return parts.slice(-2).join("/") || u.hostname;
+    }
+    return base;
   } catch {
     return "untitled";
   }
@@ -67,27 +93,29 @@ function idOf(input: string): string {
   return (h1 >>> 0).toString(36).padStart(7, "0") + (h2 >>> 0).toString(36).padStart(7, "0");
 }
 
-/** Resolves a browser binary: bundled chromium in the cloud, system Chrome locally. */
 async function launchBrowser() {
   const puppeteer = (await import("puppeteer-core")).default;
-  const onVercel = !!process.env.VERCEL;
 
-  if (onVercel) {
+  if (process.env.VERCEL) {
     const chromium = (await import("@sparticuz/chromium")).default;
     return puppeteer.launch({
-      args: [...chromium.args, "--hide-scrollbars", "--disable-web-security"],
+      args: [...chromium.args, "--hide-scrollbars", "--disable-blink-features=AutomationControlled"],
       executablePath: await chromium.executablePath(),
       headless: true,
     });
   }
 
-  const local =
-    process.env.CHROME_PATH ||
-    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
   return puppeteer.launch({
-    executablePath: local,
+    executablePath:
+      process.env.CHROME_PATH ||
+      "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
     headless: true,
-    args: ["--no-sandbox", "--disable-setuid-sandbox", "--hide-scrollbars"],
+    args: [
+      "--no-sandbox",
+      "--disable-setuid-sandbox",
+      "--hide-scrollbars",
+      "--disable-blink-features=AutomationControlled",
+    ],
   });
 }
 
@@ -96,7 +124,11 @@ interface Seen {
   kind: AssetKind;
   format: string;
   bytes?: number;
-  fromNetwork: boolean;
+  method?: string;
+  status?: number;
+  contentType?: string;
+  resourceType?: string;
+  preview?: string;
 }
 
 export async function deepScan(rawUrl: string): Promise<ScanResult> {
@@ -109,42 +141,88 @@ export async function deepScan(rawUrl: string): Promise<ScanResult> {
   try {
     browser = await launchBrowser();
     const page = await browser.newPage();
-    await page.setViewport({ width: 1440, height: 900 });
+    await page.setViewport({ width: 1512, height: 950, deviceScaleFactor: 2 });
     await page.setUserAgent(
-      "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36",
+      "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
     );
+    // A plain automated browser advertises itself in ways ordinary bot checks
+    // look for. Presenting like a normal Chrome session keeps public pages from
+    // serving us a challenge page instead of their content.
+    await page.setExtraHTTPHeaders({
+      "accept-language": "en-US,en;q=0.9",
+      "sec-ch-ua": '"Chromium";v="126", "Google Chrome";v="126", "Not-A.Brand";v="24"',
+      "sec-ch-ua-platform": '"macOS"',
+      "upgrade-insecure-requests": "1",
+    });
+    await page.evaluateOnNewDocument(() => {
+      Object.defineProperty(navigator, "webdriver", { get: () => undefined });
+      Object.defineProperty(navigator, "languages", { get: () => ["en-US", "en"] });
+      Object.defineProperty(navigator, "plugins", { get: () => [1, 2, 3, 4, 5] });
+    });
 
-    // Every media file the browser fetches — the DevTools Network tab, captured.
-    page.on("response", (res) => {
+    // Record every response, classified. This is the network log.
+    page.on("response", async (res) => {
       try {
         const url = res.url();
         if (!url.startsWith("http") || found.size > MAX_ASSETS) return;
+        if (found.has(url)) return;
+
+        const req = res.request();
+        const rtype = req.resourceType();
         const ct = (res.headers()["content-type"] ?? "").toLowerCase();
         const ext = extOf(url);
 
-        let kind: AssetKind | undefined = EXT_KIND[ext];
-        if (!kind) {
-          for (const [re, k] of MIME_KIND) {
-            if (re.test(ct)) {
-              kind = k;
-              break;
+        let kind: AssetKind | undefined;
+
+        // XHR and fetch are the developer-facing surface, so they are their own
+        // category regardless of what they return.
+        if (rtype === "xhr" || rtype === "fetch") {
+          kind = "api";
+        } else {
+          kind = EXT_KIND[ext];
+          if (!kind) {
+            for (const [re, k] of MIME_KIND) {
+              if (re.test(ct)) {
+                kind = k;
+                break;
+              }
             }
           }
+          if (!kind && rtype === "document") kind = "document";
+          if (!kind && rtype === "script") kind = "code";
+          if (!kind && rtype === "stylesheet") kind = "code";
         }
         if (!kind) return;
 
         const len = Number(res.headers()["content-length"] ?? 0);
-        const prev = found.get(url);
-        if (prev && prev.bytes) return;
+
+        // A short body preview makes an API row readable without opening it.
+        let preview: string | undefined;
+        if (kind === "api" && /json/.test(ct)) {
+          try {
+            const txt = await res.text();
+            preview = txt.replace(/\s+/g, " ").slice(0, 180);
+          } catch {
+            /* body already consumed or streamed */
+          }
+        }
+
         found.set(url, {
           url,
           kind,
-          format: (ext || ct.split("/")[1] || kind).split(";")[0].toUpperCase(),
+          format:
+            kind === "api"
+              ? (/json/.test(ct) ? "JSON" : (ct.split("/")[1] ?? "req").split(";")[0].toUpperCase())
+              : (ext || ct.split("/")[1] || kind).split(";")[0].toUpperCase(),
           bytes: len > 0 ? len : undefined,
-          fromNetwork: true,
+          method: req.method(),
+          status: res.status(),
+          contentType: ct.split(";")[0] || undefined,
+          resourceType: rtype,
+          preview,
         });
       } catch {
-        /* one bad response must not abort the scan */
+        /* a single bad response must never abort the scan */
       }
     });
 
@@ -153,26 +231,34 @@ export async function deepScan(rawUrl: string): Promise<ScanResult> {
       timeout: NAV_TIMEOUT_MS,
     });
 
-    // Scroll the full page so lazy-loading and infinite-scroll content fires.
+    // Let the app boot and issue its first data calls before scrolling.
+    await page
+      .waitForNetworkIdle({ idleTime: 900, timeout: IDLE_TIMEOUT_MS })
+      .catch(() => {});
+
     await page.evaluate(async (maxScrolls: number) => {
       const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
       let last = 0;
       for (let i = 0; i < maxScrolls; i++) {
         window.scrollTo(0, document.body.scrollHeight);
-        await sleep(400);
+        await sleep(450);
         const h = document.body.scrollHeight;
         if (h === last) break;
         last = h;
       }
       window.scrollTo(0, 0);
-      await sleep(250);
+      await sleep(300);
     }, MAX_SCROLLS);
 
+    await page
+      .waitForNetworkIdle({ idleTime: 800, timeout: 6000 })
+      .catch(() => {});
     await new Promise((r) => setTimeout(r, SETTLE_MS));
 
-    // The rendered DOM adds alt text and real dimensions, which the network log lacks.
-    const domInfo = await page.evaluate(() => {
-      const out: {
+    // Read the rendered page: media detail, plus the design data the user asked
+    // for. Computed styles are the only honest source for what a page paints.
+    const pageData = await page.evaluate(() => {
+      const media: {
         url: string;
         alt?: string;
         w?: number;
@@ -202,7 +288,7 @@ export async function deepScan(rawUrl: string): Promise<ScanResult> {
       document.querySelectorAll("img").forEach((im) => {
         const src = im.currentSrc || im.src;
         if (!src || src.startsWith("data:")) return;
-        out.push({
+        media.push({
           url: src,
           alt: im.alt?.trim() || undefined,
           w: im.naturalWidth || undefined,
@@ -213,38 +299,109 @@ export async function deepScan(rawUrl: string): Promise<ScanResult> {
 
       document.querySelectorAll("video").forEach((v) => {
         const src = v.currentSrc || v.src;
-        if (src && !src.startsWith("data:")) {
-          out.push({ url: src, section: sectionOf(v) });
-        }
-        if (v.poster) out.push({ url: v.poster, alt: "poster frame", section: sectionOf(v) });
+        if (src && !src.startsWith("data:")) media.push({ url: src, section: sectionOf(v) });
+        if (v.poster) media.push({ url: v.poster, alt: "poster frame", section: sectionOf(v) });
       });
 
-      // Computed backgrounds — these never appear in the source HTML.
-      document.querySelectorAll<HTMLElement>("*").forEach((el) => {
-        const bg = getComputedStyle(el).backgroundImage;
-        if (!bg || bg === "none") return;
-        const m = /url\(["']?([^"')]+)["']?\)/.exec(bg);
-        if (m && m[1] && !m[1].startsWith("data:")) {
-          out.push({ url: m[1], section: sectionOf(el) });
-        }
-      });
+      // ---- design data -------------------------------------------------
+      const colorCount = new Map<string, { n: number; role: string }>();
+      const fontMap = new Map<string, { weights: Set<string>; sizes: Set<string> }>();
 
-      return out;
+      const toHex = (rgb: string): string | null => {
+        const m = /rgba?\(\s*(\d+)[,\s]+(\d+)[,\s]+(\d+)(?:[,\s/]+([\d.]+))?/.exec(rgb);
+        if (!m) return null;
+        const a = m[4] !== undefined ? parseFloat(m[4]) : 1;
+        if (a < 0.12) return null; // effectively invisible
+        const hex = [m[1], m[2], m[3]]
+          .map((v) => Number(v).toString(16).padStart(2, "0"))
+          .join("");
+        return `#${hex}`;
+      };
+
+      const bump = (raw: string, role: string) => {
+        const hex = toHex(raw);
+        if (!hex) return;
+        const prev = colorCount.get(hex);
+        if (prev) prev.n += 1;
+        else colorCount.set(hex, { n: 1, role });
+      };
+
+      const all = Array.from(document.querySelectorAll<HTMLElement>("body *")).slice(0, 4000);
+      for (const el of all) {
+        const cs = getComputedStyle(el);
+        const rect = el.getBoundingClientRect();
+        const visible = rect.width > 1 && rect.height > 1;
+
+        if (visible) {
+          bump(cs.color, "text");
+          if (cs.backgroundColor && cs.backgroundColor !== "rgba(0, 0, 0, 0)") {
+            bump(cs.backgroundColor, "background");
+          }
+          if (cs.borderTopWidth !== "0px") bump(cs.borderTopColor, "border");
+        }
+
+        // Fonts: only where there is actual text to render.
+        if (el.textContent && el.textContent.trim().length > 1 && visible) {
+          const fam = cs.fontFamily.split(",")[0].replace(/['"]/g, "").trim();
+          if (fam) {
+            const rec = fontMap.get(fam) ?? { weights: new Set(), sizes: new Set() };
+            rec.weights.add(cs.fontWeight);
+            rec.sizes.add(cs.fontSize);
+            fontMap.set(fam, rec);
+          }
+        }
+
+        // Background images never appear in the source markup.
+        const bg = cs.backgroundImage;
+        if (bg && bg !== "none") {
+          const m = /url\(["']?([^"')]+)["']?\)/.exec(bg);
+          if (m && m[1] && !m[1].startsWith("data:")) {
+            media.push({ url: m[1], section: sectionOf(el) });
+          }
+        }
+      }
+
+      // Declared design tokens, if the site publishes any.
+      const tokens: { name: string; value: string }[] = [];
+      try {
+        const rootStyle = getComputedStyle(document.documentElement);
+        for (let i = 0; i < rootStyle.length && tokens.length < 60; i++) {
+          const prop = rootStyle[i];
+          if (!prop.startsWith("--")) continue;
+          const value = rootStyle.getPropertyValue(prop).trim();
+          if (value && value.length < 60) tokens.push({ name: prop, value });
+        }
+      } catch {
+        /* some pages lock this down */
+      }
+
+      const palette = Array.from(colorCount.entries())
+        .map(([hex, v]) => ({ hex, count: v.n, role: v.role }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 18);
+
+      const typography = Array.from(fontMap.entries())
+        .map(([family, v]) => ({
+          family,
+          weights: Array.from(v.weights).sort(),
+          sizes: Array.from(v.sizes)
+            .sort((a, b) => parseFloat(b) - parseFloat(a))
+            .slice(0, 6),
+        }))
+        .slice(0, 6);
+
+      return { media, palette, typography, tokens, title: document.title };
     });
 
-    const title = await page.title().catch(() => undefined);
-
-    // Merge DOM detail onto the network log.
-    const meta = new Map(domInfo.map((d) => [d.url, d]));
-    for (const d of domInfo) {
+    // Merge rendered detail onto the network log.
+    const meta = new Map(pageData.media.map((d) => [d.url, d]));
+    for (const d of pageData.media) {
       if (found.has(d.url)) continue;
       const ext = extOf(d.url);
-      const kind = EXT_KIND[ext] ?? "image";
       found.set(d.url, {
         url: d.url,
-        kind,
+        kind: EXT_KIND[ext] ?? "image",
         format: (ext || "img").toUpperCase(),
-        fromNetwork: false,
       });
     }
 
@@ -254,12 +411,13 @@ export async function deepScan(rawUrl: string): Promise<ScanResult> {
       const ext = extOf(s.url);
       const isPixel =
         (d?.w !== undefined && d.w <= 2) ||
-        /\b(pixel|beacon|analytics|track|spacer|1x1|blank)\b/i.test(s.url);
+        /\b(pixel|beacon|analytics|collect|track|spacer|1x1|blank)\b/i.test(s.url);
+
       assets.push({
         id: idOf(s.url),
         url: s.url,
         kind: s.kind,
-        format: s.format.replace(/[^A-Z0-9]/gi, "").slice(0, 6) || "IMG",
+        format: (s.format || "FILE").replace(/[^A-Z0-9]/gi, "").slice(0, 6) || "FILE",
         name: nameOf(s.url),
         displayName: "",
         bytes: s.bytes,
@@ -268,6 +426,10 @@ export async function deepScan(rawUrl: string): Promise<ScanResult> {
         alt: d?.alt,
         fromPage: target.toString(),
         section: d?.section,
+        method: s.method,
+        status: s.status,
+        contentType: s.contentType,
+        preview: s.preview,
         origin: (() => {
           try {
             return new URL(s.url).origin === target.origin ? "first-party" : "third-party";
@@ -276,7 +438,7 @@ export async function deepScan(rawUrl: string): Promise<ScanResult> {
           }
         })(),
         transparent: ALPHA.has(ext),
-        noise: isPixel || s.kind === "code" || undefined,
+        noise: isPixel || undefined,
       });
     }
 
@@ -288,34 +450,39 @@ export async function deepScan(rawUrl: string): Promise<ScanResult> {
     }
 
     const RANK: Record<string, number> = {
-      image: 0, video: 1, svg: 2, font: 3, document: 4, audio: 5, data: 6, code: 7,
+      image: 0, video: 1, svg: 2, font: 3, document: 4,
+      audio: 5, api: 6, data: 7, code: 8,
     };
     assets.sort((x, y) => {
       if (!!x.noise !== !!y.noise) return x.noise ? 1 : -1;
       const k = (RANK[x.kind] ?? 9) - (RANK[y.kind] ?? 9);
       if (k !== 0) return k;
-      return (y.bytes ?? 0) * (y.width ?? 1) - (x.bytes ?? 0) * (x.width ?? 1);
+      return (y.bytes ?? 0) - (x.bytes ?? 0);
     });
 
-    // Sites that gate content behind a session return their shell and nothing
-    // else. Say so plainly rather than reporting an empty result as success.
-    const LOGIN_WALLED = /(^|\.)(x\.com|twitter\.com|instagram\.com|facebook\.com|linkedin\.com|threads\.net)$/i;
-    const realCount = assets.filter((a) => !a.noise && (a.kind === "image" || a.kind === "video")).length;
+    const LOGIN_WALLED =
+      /(^|\.)(x\.com|twitter\.com|instagram\.com|facebook\.com|linkedin\.com|threads\.net)$/i;
+    const realMedia = assets.filter(
+      (a) => !a.noise && (a.kind === "image" || a.kind === "video"),
+    ).length;
 
-    if (LOGIN_WALLED.test(target.hostname) && realCount < 5) {
+    if (LOGIN_WALLED.test(target.hostname) && realMedia < 5) {
       notes.push(
-        `${target.hostname} only serves its media to logged-in sessions, so an automated browser sees the page shell and nothing more. You can still see those images in your own browser because you are signed in — capturing them needs the browser extension, which is not built yet.`,
+        `${target.hostname} serves its media only to signed-in sessions, so an automated browser receives the page shell and nothing more. That is access control rather than a technical limit, and it is what a browser extension carrying your own session would solve.`,
       );
-    } else if (realCount === 0) {
+    } else if (realMedia === 0 && assets.length < 5) {
       notes.push(
-        "The page rendered but exposed no images or video. It may require a login, or block automated browsers.",
+        "The page rendered but exposed almost nothing. It may require a login or actively block automated browsers.",
       );
     }
 
     return {
       target: target.toString(),
-      pages: [{ url: target.toString(), title, ok: true }],
+      pages: [{ url: target.toString(), title: pageData.title, ok: true }],
       assets,
+      palette: pageData.palette as Swatch[],
+      typography: pageData.typography as TypeSpec[],
+      tokens: pageData.tokens,
       ms: Date.now() - started,
       notes,
     };

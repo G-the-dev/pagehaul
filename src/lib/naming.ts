@@ -60,6 +60,7 @@ const KIND_NOUN: Record<AssetKind, string> = {
   document: "Document",
   code: "Script",
   data: "Data",
+  api: "Request",
 };
 
 /**

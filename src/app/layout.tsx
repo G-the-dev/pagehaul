@@ -15,9 +15,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "pagehaul — every asset on any page, one click away",
+  title: "pagehaul, every asset on any page",
   description:
-    "Paste a link and get every image, icon, video, font and document on the page in one grid. Take a single file or all of them. No DevTools, no ZIP to dig through.",
+    "Paste a link and get every image, icon, video, font and document on the page in one grid. Take a single file or all of them. No DevTools, no archive to dig through.",
 };
 
 export default function RootLayout({

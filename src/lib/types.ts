@@ -6,7 +6,9 @@ export type AssetKind =
   | "font"
   | "document"
   | "code"
-  | "data";
+  | "data"
+  /** Network calls the page made: XHR, fetch, GraphQL. */
+  | "api";
 
 export type Origin = "first-party" | "third-party";
 
@@ -24,8 +26,16 @@ export interface Asset {
   displayName: string;
   /** Real family name for fonts, read out of the @font-face rule. */
   fontFamily?: string;
-  /** Build artefacts and tracking pixels — hidden from the default view. */
+  /** Tracking pixels and empty responses, hidden from the default view. */
   noise?: boolean;
+  /** HTTP method, for network calls. */
+  method?: string;
+  /** HTTP status, for network calls. */
+  status?: number;
+  /** Raw content-type header, for network calls. */
+  contentType?: string;
+  /** Short preview of a JSON body, so an API row is readable at a glance. */
+  preview?: string;
   /** Bytes, when the origin reported a content-length. */
   bytes?: number;
   /** Intrinsic size when the markup declared it. The client refines this on load. */
@@ -58,7 +68,28 @@ export interface ScanPage {
   error?: string;
 }
 
+/** A colour the page actually paints with, and how often it does so. */
+export interface Swatch {
+  hex: string;
+  count: number;
+  /** Where it was seen most: text, background, or border. */
+  role: "text" | "background" | "border" | "accent";
+}
+
+/** Type actually in use on the page, read from computed styles. */
+export interface TypeSpec {
+  family: string;
+  weights: string[];
+  sizes: string[];
+}
+
 export interface ScanResult {
+  /** Palette extracted from what the page paints, ranked by usage. */
+  palette?: Swatch[];
+  /** Font families in real use with their weights and sizes. */
+  typography?: TypeSpec[];
+  /** Design tokens the site declares as CSS custom properties. */
+  tokens?: { name: string; value: string }[];
   target: string;
   pages: ScanPage[];
   assets: Asset[];
@@ -70,6 +101,7 @@ export interface ScanResult {
 
 export const KIND_LABEL: Record<AssetKind, string> = {
   image: "Images",
+  api: "Network",
   svg: "SVG",
   video: "Video",
   audio: "Audio",
@@ -89,4 +121,5 @@ export const KIND_ORDER: AssetKind[] = [
   "document",
   "data",
   "code",
+  "api",
 ];

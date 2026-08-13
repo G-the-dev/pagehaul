@@ -147,7 +147,7 @@ export function AssetTile({
         </span>
         <span
           className="flex-1 truncate text-[12px] text-fg-2"
-          title={`${asset.displayName} — ${asset.url}`}
+          title={`${asset.displayName}\n${asset.url}`}
         >
           {asset.displayName}
         </span>
