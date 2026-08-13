@@ -55,7 +55,7 @@ const FAQ = [
 export function Steps() {
   return (
     <section className="border-b border-border">
-      <div className="mx-auto max-w-5xl px-6 py-20">
+      <div className="mx-auto max-w-4xl px-6 py-20">
         <div className="grid gap-12 sm:grid-cols-3 sm:gap-8">
           {STEPS.map((s) => (
             <div key={s.n}>
@@ -75,7 +75,7 @@ export function Steps() {
 export function Faq() {
   return (
     <section className="border-b border-border">
-      <div className="mx-auto max-w-3xl px-6 py-20">
+      <div className="mx-auto max-w-2xl px-6 py-20">
         <h2 className="mb-10 text-[1.75rem] font-medium tracking-tight sm:text-[2rem]">
           Questions
         </h2>
