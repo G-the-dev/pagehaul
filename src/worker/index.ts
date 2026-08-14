@@ -20,7 +20,15 @@ import { join } from "node:path";
 import { db } from "../lib/db.js";
 import { LIMITS } from "../config/limits.js";
 import { launchBrowser, renderPage } from "../engine/render.js";
+import { downloadAssets } from "../engine/download.js";
 import { UnsafeUrlError } from "../engine/safety.js";
+import {
+  createR2Client,
+  objectKeyForJob,
+  presignDownload,
+  readR2Config,
+  zipDirectoryToR2,
+} from "../storage/r2.js";
 import {
   SITE_JOB_QUEUE,
   redisConnection,
@@ -90,35 +98,95 @@ async function runJob(bullJob: BullJob<SiteJobPayload>): Promise<void> {
       },
     });
 
-    // Only files worth downloading. Tracking pixels and analytics beacons are
-    // not part of a site you want to open offline.
-    const assets = page.requestedResources.filter((u) =>
-      /\.(jpe?g|png|webp|avif|gif|svg|ico|mp4|webm|mp3|wav|woff2?|ttf|otf|css|js|mjs|json|pdf)(\?|$)/i.test(
-        u,
-      ),
+    // --- download the assets the page asked for -----------------------
+    await update(jobId, { stage: "Downloading files" });
+
+    const dl = await downloadAssets(
+      page.requestedResources,
+      workDir,
+      {
+        maxJobBytes: LIMITS.maxJobBytes,
+        maxAssetBytes: LIMITS.maxAssetBytes,
+        timeoutMs: LIMITS.assetTimeoutMs,
+        concurrency: LIMITS.assetConcurrency,
+      },
+      (p) => {
+        void update(jobId, {
+          assetsDone: p.done,
+          bytes: p.bytes,
+          stage: `Downloading files, ${p.done} of ${p.total}`,
+        });
+      },
     );
+    warnings.push(...dl.warnings);
+
+    // Save the rendered HTML alongside the assets. Link rewriting is the next
+    // engine step, so for now this is the DOM exactly as the browser had it.
+    const { writeFile: write } = await import("node:fs/promises");
+    await write(join(workDir, "index.html"), page.html, "utf8");
 
     await update(jobId, {
       pagesFound: 1,
       pagesDone: 1,
-      assetsDone: 0,
-      stage: "Rendered. Asset download arrives in step 2.",
-      warnings: JSON.stringify(warnings),
+      assetsDone: dl.saved.length,
+      bytes: dl.totalBytes,
+      warnings: JSON.stringify(warnings.slice(0, 200)),
     });
 
     console.log(
-      `[worker] ${jobId} rendered ${page.finalUrl} in ${(page.ms / 1000).toFixed(1)}s, ${assets.length} assets discovered`,
+      `[worker] ${jobId} saved ${dl.saved.length} files, ${(dl.totalBytes / 1024 / 1024).toFixed(1)}MB`,
     );
 
-    // Step 2 replaces this with a real download, zip and upload. Marking the
-    // job complete here keeps the pipeline observable end to end in the
-    // meantime, rather than leaving jobs stuck in running.
+    // --- zip straight to storage ---------------------------------------
+    const r2 = readR2Config();
+    if (!r2) {
+      // Without credentials the capture still succeeded; there is just nowhere
+      // to put it. Say that plainly rather than reporting a failure.
+      await update(jobId, {
+        status: "complete",
+        stage: `Captured ${dl.saved.length} files. Storage is not configured, so no download link was created.`,
+        finishedAt: new Date(),
+        warnings: JSON.stringify(warnings.slice(0, 200)),
+      });
+      return;
+    }
+
+    await update(jobId, { stage: "Packaging and uploading" });
+
+    const client = createR2Client(r2);
+    const host = new URL(page.finalUrl).hostname.replace(/^www\./, "");
+    const key = objectKeyForJob(jobId, host);
+
+    const zipped = await zipDirectoryToR2(client, r2.bucket, key, workDir, (b) => {
+      void update(jobId, {
+        stage: `Packaging, ${(b / 1024 / 1024).toFixed(1)}MB written`,
+      });
+    });
+
+    const ttlSeconds = LIMITS.downloadTtlHours * 3600;
+    const url = await presignDownload(
+      client,
+      r2.bucket,
+      key,
+      ttlSeconds,
+      `${host}-assets.zip`,
+    );
+
     await update(jobId, {
       status: "complete",
-      stage: "Render complete",
+      stage: "Ready to download",
+      zipKey: key,
+      zipBytes: zipped.bytes,
+      downloadUrl: url,
       finishedAt: new Date(),
-      expiresAt: new Date(Date.now() + LIMITS.downloadTtlHours * 3600_000),
+      expiresAt: new Date(Date.now() + ttlSeconds * 1000),
+      warnings: JSON.stringify(warnings.slice(0, 200)),
     });
+
+    console.log(
+      `[worker] ${jobId} uploaded ${(zipped.bytes / 1024 / 1024).toFixed(1)}MB to ${key}`,
+    );
+
   } catch (err) {
     const message =
       err instanceof UnsafeUrlError

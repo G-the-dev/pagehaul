@@ -43,7 +43,10 @@ model Job {
   // long we hold anyone's content.
   zipKey    String?
   zipBytes  Int?
-  expiresAt DateTime?
+  // The presigned link. Stored so a page refresh does not need a new one, and
+  // it stops working by itself when expiresAt passes.
+  downloadUrl String?
+  expiresAt   DateTime?
 
   // Kept so a takedown notice can be answered. This is the only reason we
   // record an address, and it is stated in the privacy policy.
