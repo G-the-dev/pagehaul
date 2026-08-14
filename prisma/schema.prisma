@@ -1,0 +1,60 @@
+// One table. There are no accounts in this product, so there is no user model
+// and nothing to join against. A job is the whole domain.
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../node_modules/.prisma/client"
+}
+
+// Where the database actually lives is set in prisma.config.ts, not here.
+datasource db {
+  provider = "sqlite"
+}
+
+model Job {
+  id String @id @default(cuid())
+
+  // What was asked for.
+  url      String
+  depth    Int    @default(1)
+  maxPages Int    @default(25)
+
+  // queued | running | complete | failed | cancelled
+  status String @default("queued")
+
+  // Live counters the worker updates as it goes. The web layer polls these.
+  pagesFound Int @default(0)
+  pagesDone  Int @default(0)
+  assetsDone Int @default(0)
+  bytes      Int @default(0)
+
+  // What the worker is doing right now, for the status line.
+  stage String?
+
+  // Non fatal problems, stored as a JSON array of strings. A 404 asset lands
+  // here rather than failing the job.
+  warnings String?
+
+  // Set only when the job actually failed.
+  error String?
+
+  // Where the finished archive lives, and when its link stops working.
+  // Retention is deliberately short: it keeps storage near zero and limits how
+  // long we hold anyone's content.
+  zipKey    String?
+  zipBytes  Int?
+  expiresAt DateTime?
+
+  // Kept so a takedown notice can be answered. This is the only reason we
+  // record an address, and it is stated in the privacy policy.
+  ip        String
+  userAgent String?
+
+  createdAt  DateTime  @default(now())
+  startedAt  DateTime?
+  finishedAt DateTime?
+
+  // Finding a submitter's recent jobs is the rate limit query, so it is indexed.
+  @@index([ip, createdAt])
+  @@index([status])
+}

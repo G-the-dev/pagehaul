@@ -24,8 +24,8 @@ const FAQ = [
     a: "Almost always because the page builds itself with JavaScript and you ran a quick scan. Quick reads the markup as delivered, so it misses anything added after load. Switch to deep, which opens the page in a real browser, scrolls it to trigger lazy loading, and records every file it requests. On a JavaScript heavy site deep commonly finds three or four times as much.",
   },
   {
-    q: "Can it get files from Instagram, X, or anything behind a login?",
-    a: "No, and no tool can do that honestly. Those sites serve their media only to signed in sessions, so an automated browser receives the page shell and nothing else. You can see those images yourself precisely because you are logged in. pagehaul says so plainly when it hits this rather than returning an empty result and calling it a success. A browser extension carrying your own session is the real answer, and it is not built yet.",
+    q: "Can it get files from X, Instagram, or anything behind a login?",
+    a: "It depends on the site, and we tested rather than guessed. Instagram serves public profile media without a session, and a scan of a public profile returns those images. X does not: a profile media page hands an automated browser an empty shell with no media at all, because X gates that content behind a login. Where a site does that, pagehaul says so plainly instead of returning nothing and calling it a success. Working around a login is not something we do, so for those sites a browser extension carrying your own session is the honest answer, and it is not built yet.",
   },
   {
     q: "What exactly does it find?",
