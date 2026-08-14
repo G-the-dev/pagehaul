@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import { ArrowRight, Loader2 } from "lucide-react";
 import { EASE } from "./ui/motion-primitives";
 import { TryExamples } from "./TryExamples";
+import { ScanProgress } from "./ScanProgress";
 
 interface Props {
   url: string;
@@ -183,7 +184,11 @@ export function Hero({
           )}
         </motion.form>
 
-        <TryExamples onPick={onPick} disabled={scanning} />
+        {scanning ? (
+          <ScanProgress deep={deep} />
+        ) : (
+          <TryExamples onPick={onPick} disabled={scanning} />
+        )}
       </div>
     </section>
   );

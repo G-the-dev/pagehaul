@@ -5,6 +5,7 @@ import type { Asset, AssetKind, ScanResult } from "@/lib/types";
 import { AssetTile } from "@/components/AssetTile";
 import { Picker } from "@/components/Picker";
 import { Hero } from "@/components/Hero";
+import { ScanProgress } from "@/components/ScanProgress";
 import { DesignPanel } from "@/components/DesignPanel";
 import { Faq, Footer } from "@/components/Sections";
 import { Features, Audience, Steps } from "@/components/Features";
@@ -45,6 +46,7 @@ export default function Home() {
   const [notice, setNotice] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<Asset | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [shown, setShown] = useState(48);
   const resultsRef = useRef<HTMLDivElement>(null);
 
   const assets = useMemo(() => {
@@ -81,6 +83,7 @@ export default function Home() {
     setMeasured({});
     setNotice(null);
     setTab("all");
+    setShown(48);
     try {
       const res = await fetch("/api/scan", {
         method: "POST",
@@ -90,6 +93,7 @@ export default function Home() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "That scan did not work.");
       setResult(data as ScanResult);
+      setShown(48);
       // Results render inline, so bring them into view without a page change.
       setTimeout(
         () => resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }),
@@ -292,7 +296,7 @@ export default function Home() {
               <NetworkTable assets={visible} onOpen={setExpanded} />
             ) : (
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6">
-                {visible.map((a) => (
+                {visible.slice(0, shown).map((a) => (
                   <AssetTile
                     key={a.id}
                     asset={a}
@@ -306,8 +310,23 @@ export default function Home() {
               </div>
             )}
 
+            {visible.length > shown && (
+              <div className="mt-8 flex justify-center">
+                <button
+                  type="button"
+                  onClick={() => setShown((n) => n + 96)}
+                  className="rounded-lg border border-border px-5 py-2.5 text-[13.5px] font-medium text-fg-2 transition-colors hover:border-border-strong hover:text-foreground"
+                >
+                  Show {Math.min(96, visible.length - shown)} more
+                  <span className="ml-2 font-mono text-[11px] text-muted-foreground">
+                    {shown} of {visible.length}
+                  </span>
+                </button>
+              </div>
+            )}
+
             {tab !== "design" && visible.length > 0 && (
-              <div className="mt-6 flex flex-wrap items-center gap-4 border-t border-border pt-5">
+              <div className="sticky bottom-4 z-30 mt-8 flex flex-wrap items-center gap-4 rounded-xl border border-border bg-surface/90 px-5 py-3.5 backdrop-blur-xl">
                 <span className="text-[13px] text-muted-foreground">
                   {visible.length} {activeTabLabel.toLowerCase()}
                   {visibleBytes > 0 && ` · ${formatBytes(visibleBytes)}`}
