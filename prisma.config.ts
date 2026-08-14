@@ -1,6 +1,6 @@
 import path from "node:path";
 import "dotenv/config";
-import { defineConfig, env } from "prisma/config";
+import { defineConfig } from "prisma/config";
 
 /**
  * Prisma 7 moved the database location out of schema.prisma and into this file.
@@ -12,5 +12,8 @@ import { defineConfig, env } from "prisma/config";
 export default defineConfig({
   schema: path.join("prisma", "schema.prisma"),
   migrations: { path: path.join("prisma", "migrations") },
-  datasource: { url: env("DATABASE_URL") },
+  // A plain fallback rather than env(), which throws when the variable is
+  // missing. The build machine has no database and does not need one: it only
+  // generates the client types. The real URL is supplied at runtime.
+  datasource: { url: process.env.DATABASE_URL ?? "file:./dev.db" },
 });
