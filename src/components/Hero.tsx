@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { ArrowRight, Loader2 } from "lucide-react";
-import { HeroReveal } from "./HeroReveal";
+import { HeroBackdrop } from "./HeroBackdrop";
+import { EASE } from "./ui/motion-primitives";
 
 interface Props {
   url: string;
@@ -16,16 +17,8 @@ interface Props {
 }
 
 const MODES = [
-  {
-    id: "quick" as const,
-    label: "Quick",
-    hint: "Reads the markup and stylesheets. Takes a few seconds.",
-  },
-  {
-    id: "deep" as const,
-    label: "Deep",
-    hint: "Runs the page in a real browser. Finds far more, takes longer.",
-  },
+  { id: "quick" as const, label: "Quick", hint: "Reads the markup and stylesheets. A few seconds." },
+  { id: "deep" as const, label: "Deep", hint: "Runs the page in a real browser. Finds far more." },
 ];
 
 export function Hero({
@@ -38,46 +31,58 @@ export function Hero({
   error,
 }: Props) {
   const [index, setIndex] = useState(0);
-  // Kept to a similar character count so the inline slot stays a stable width
-  // and the headline never reflows mid-rotation.
   const words = useMemo(() => ["image", "icon", "video", "font", "asset"], []);
 
   useEffect(() => {
     const t = setTimeout(
       () => setIndex((n) => (n === words.length - 1 ? 0 : n + 1)),
-      2200,
+      2400,
     );
     return () => clearTimeout(t);
   }, [index, words]);
 
-  const activeHint = MODES[deep ? 1 : 0].hint;
-
   return (
-    <section className="relative overflow-hidden border-b border-border">
-      {/* Subtle light fall from the top. Neutral, so it reads as depth rather
-          than colour. */}
+    <section className="relative isolate min-h-[92vh] overflow-hidden">
+      <HeroBackdrop />
+
+      {/* Scrim: the backdrop stays legible at the edges while the centre column
+          keeps the contrast the headline needs. */}
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-x-0 top-0 h-[520px]"
+        className="pointer-events-none absolute inset-0 z-10"
         style={{
           background:
-            "radial-gradient(ellipse 55% 60% at 50% -10%, rgba(255,255,255,0.07), transparent 70%)",
+            "radial-gradient(ellipse 46% 52% at 50% 42%, rgba(10,10,10,0.94) 30%, rgba(10,10,10,0.7) 55%, transparent 78%)",
         }}
       />
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-x-0 top-0 h-px"
-        style={{
-          background:
-            "linear-gradient(to right, transparent, rgba(255,255,255,0.14), transparent)",
-        }}
+        className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-40 bg-gradient-to-t from-background to-transparent"
       />
 
-      <div className="relative mx-auto max-w-2xl px-6 pt-24 text-center sm:pt-32">
-        <h1 className="text-balance text-[2.25rem] font-medium leading-[1.08] tracking-tight sm:text-[3.25rem]">
+      <div className="pointer-events-none relative z-20 mx-auto flex min-h-[92vh] max-w-3xl flex-col items-center justify-center px-6 py-28 text-center">
+        <motion.div
+          initial={{ opacity: 0, y: 14 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.7, ease: EASE }}
+          className="pointer-events-auto mb-8 inline-flex items-center gap-2.5 rounded-full border border-border bg-surface/70 py-1.5 pl-2 pr-3.5 backdrop-blur-md"
+        >
+          <span className="relative flex h-1.5 w-1.5">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-foreground opacity-40" />
+            <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-foreground" />
+          </span>
+          <span className="font-mono text-[10.5px] uppercase tracking-[0.13em] text-muted-foreground">
+            Move your cursor over the page behind
+          </span>
+        </motion.div>
+
+        <motion.h1
+          initial={{ opacity: 0, y: 18 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8, delay: 0.08, ease: EASE }}
+          className="text-balance text-[2.4rem] font-medium leading-[1.06] tracking-[-0.035em] sm:text-[3.6rem]"
+        >
           Every{" "}
-          {/* All words share one grid cell, so the slot sizes to the widest and
-              nothing shifts as they swap. */}
           <span className="inline-grid overflow-hidden align-baseline">
             {words.map((w, i) => (
               <motion.span
@@ -89,7 +94,7 @@ export function Hero({
                 animate={
                   index === i
                     ? { y: "0%", opacity: 1 }
-                    : { y: index > i ? "-115%" : "115%", opacity: 0 }
+                    : { y: index > i ? "-118%" : "118%", opacity: 0 }
                 }
               >
                 {w}
@@ -97,19 +102,27 @@ export function Hero({
             ))}
           </span>{" "}
           on any page.
-        </h1>
+        </motion.h1>
 
-        <p className="mx-auto mt-5 max-w-md text-[15px] leading-relaxed text-muted-foreground">
-          Paste a link. See everything the page is built from, then take exactly
-          what you need.
-        </p>
+        <motion.p
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8, delay: 0.16, ease: EASE }}
+          className="mx-auto mt-6 max-w-md text-[15.5px] leading-relaxed text-muted-foreground"
+        >
+          Paste a link and see what a page is actually built from. Take one file,
+          or take everything.
+        </motion.p>
 
-        <form
+        <motion.form
+          initial={{ opacity: 0, y: 18 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8, delay: 0.24, ease: EASE }}
           onSubmit={(e) => {
             e.preventDefault();
             if (url.trim() && !scanning) onScan();
           }}
-          className="mx-auto mt-9 max-w-lg"
+          className="pointer-events-auto mx-auto mt-10 w-full max-w-lg"
         >
           <div className="flex flex-col gap-2 sm:flex-row">
             <input
@@ -120,12 +133,12 @@ export function Hero({
               placeholder="stripe.com"
               aria-label="Website link"
               disabled={scanning}
-              className="h-11 flex-1 rounded-lg border border-border bg-surface px-4 text-[15px] outline-none transition-colors placeholder:text-muted-foreground focus:border-border-strong disabled:opacity-60"
+              className="h-12 flex-1 rounded-xl border border-border bg-surface/80 px-4 text-[15px] backdrop-blur-md outline-none transition-colors placeholder:text-muted-foreground focus:border-border-strong disabled:opacity-60"
             />
             <button
               type="submit"
               disabled={!url.trim() || scanning}
-              className="inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-lg bg-accent px-6 text-sm font-semibold text-accent-fg transition-opacity hover:opacity-90 disabled:opacity-40"
+              className="inline-flex h-12 shrink-0 items-center justify-center gap-2 rounded-xl bg-foreground px-7 text-[14.5px] font-semibold text-background transition-opacity hover:opacity-90 disabled:opacity-40"
             >
               {scanning ? (
                 <>
@@ -141,13 +154,11 @@ export function Hero({
             </button>
           </div>
 
-          {/* Segmented control. The selected side is filled and light so the
-              choice is unmistakable at a glance. */}
           <div className="mt-4 flex flex-col items-center gap-2.5">
             <div
               role="radiogroup"
               aria-label="Scan depth"
-              className="inline-flex rounded-lg border border-border bg-surface p-1"
+              className="inline-flex rounded-lg border border-border bg-surface/80 p-1 backdrop-blur-md"
             >
               {MODES.map((m) => {
                 const active = (m.id === "deep") === deep;
@@ -158,7 +169,7 @@ export function Hero({
                     role="radio"
                     aria-checked={active}
                     onClick={() => setDeep(m.id === "deep")}
-                    className={`relative rounded-md px-5 py-1.5 text-[13px] font-medium transition-colors ${
+                    className={`rounded-md px-5 py-1.5 text-[13px] font-medium transition-colors ${
                       active
                         ? "bg-foreground text-background"
                         : "text-muted-foreground hover:text-foreground"
@@ -169,27 +180,18 @@ export function Hero({
                 );
               })}
             </div>
-            <p className="text-[12.5px] text-muted-foreground">{activeHint}</p>
+            <p className="text-[12.5px] text-muted-foreground">
+              {MODES[deep ? 1 : 0].hint}
+            </p>
           </div>
-        </form>
 
-        {error && (
-          <div className="mx-auto mt-6 max-w-lg rounded-lg border border-danger/30 bg-danger-soft px-4 py-3 text-left text-[13.5px] text-danger">
-            {error}
-          </div>
-        )}
+          {error && (
+            <div className="mt-6 rounded-xl border border-danger/30 bg-danger-soft px-4 py-3 text-left text-[13.5px] text-danger">
+              {error}
+            </div>
+          )}
+        </motion.form>
       </div>
-
-      {/* The demonstration sits directly under the input, so the claim and the
-          proof share one screen. */}
-      <motion.div
-        initial={{ opacity: 0, y: 28 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.7, delay: 0.15, ease: [0.2, 0.8, 0.2, 1] }}
-        className="relative mx-auto max-w-5xl px-6 pb-24 pt-14"
-      >
-        <HeroReveal />
-      </motion.div>
     </section>
   );
 }

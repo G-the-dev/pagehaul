@@ -6,8 +6,9 @@ import { AssetTile } from "@/components/AssetTile";
 import { Picker } from "@/components/Picker";
 import { Hero } from "@/components/Hero";
 import { DesignPanel } from "@/components/DesignPanel";
-import { Steps, Faq, Footer } from "@/components/Sections";
-import { Features, Audience } from "@/components/Features";
+import { Faq, Footer } from "@/components/Sections";
+import { Features, Audience, Steps } from "@/components/Features";
+import { CursorGlow } from "@/components/ui/motion-primitives";
 import {
   downloadAsZip,
   downloadEachSeparately,
@@ -157,7 +158,8 @@ export default function Home() {
   })();
 
   return (
-    <main className="min-h-screen">
+    <main id="top" className="min-h-screen">
+      <CursorGlow />
       <header className="sticky top-0 z-40 border-b border-border bg-background/80 backdrop-blur-xl">
         <div className="mx-auto flex max-w-[1400px] items-center justify-between px-6 py-3">
           <span className="text-[15px] font-semibold tracking-tight">pagehaul</span>
