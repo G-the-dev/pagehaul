@@ -231,43 +231,144 @@ export function Features() {
  * ------------------------------------------------------------------ */
 
 const STEPS = [
-  { n: "01", h: "Paste a link", p: "Any public page. Quick or deep." },
-  { n: "02", h: "See what it is built from", p: "Every file, sorted, with real names." },
-  { n: "03", h: "Take what you need", p: "One file, or a tidy archive." },
+  {
+    n: "01",
+    h: "Paste a link",
+    p: "Any public page. Choose quick, or deep for sites built with JavaScript.",
+  },
+  {
+    n: "02",
+    h: "See what it is made of",
+    p: "Images, icons, video, fonts, documents and network calls, each named so you can read it.",
+  },
+  {
+    n: "03",
+    h: "Take what you need",
+    p: "One file downloads on its own. Or pick a set and get an archive with a manifest.",
+  },
 ];
+
+/** Step one: the thing you actually do, which is type an address. */
+function PasteVisual() {
+  return (
+    <div className="flex h-full items-center">
+      <div className="flex w-full items-center gap-2 rounded-lg border border-border bg-background px-3 py-2.5">
+        <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-surface-3" />
+        <span className="font-mono text-[11.5px] text-fg-2">stripe.com</span>
+        <motion.span
+          animate={{ opacity: [1, 0, 1] }}
+          transition={{ duration: 1.1, repeat: Infinity, ease: "linear" }}
+          className="h-3.5 w-px bg-foreground"
+        />
+        <span className="ml-auto rounded-md bg-foreground px-2 py-1 text-[10px] font-semibold text-background">
+          Scan
+        </span>
+      </div>
+    </div>
+  );
+}
+
+/** Step two: what comes back, typed and counted. */
+function FoundVisual() {
+  const rows = [
+    { k: "Images", n: 206 },
+    { k: "Icons", n: 123 },
+    { k: "Fonts", n: 9 },
+  ];
+  return (
+    <div className="flex h-full flex-col justify-center gap-1.5">
+      {rows.map((r, i) => (
+        <motion.div
+          key={r.k}
+          initial={{ opacity: 0, x: -8 }}
+          whileInView={{ opacity: 1, x: 0 }}
+          viewport={{ once: true, margin: "-60px" }}
+          transition={{ duration: 0.45, delay: i * 0.1, ease: EASE }}
+          className="flex items-center gap-2.5 rounded-md border border-border bg-background px-2.5 py-2"
+        >
+          <span className="h-5 w-5 shrink-0 rounded bg-surface-3" />
+          <span className="text-[11.5px] text-fg-2">{r.k}</span>
+          <span className="ml-auto font-mono text-[10.5px] tabular-nums text-muted-foreground">
+            {r.n}
+          </span>
+        </motion.div>
+      ))}
+    </div>
+  );
+}
+
+/** Step three: one file leaving, which is the whole point. */
+function TakeVisual() {
+  return (
+    <div className="flex h-full items-center justify-center gap-2">
+      {[0, 1, 2, 3].map((i) => (
+        <motion.div
+          key={i}
+          initial={{ opacity: 0, y: 8 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-60px" }}
+          transition={{ duration: 0.4, delay: i * 0.08, ease: EASE }}
+          className={`h-14 flex-1 rounded-md ${
+            i === 1 ? "relative bg-foreground" : "bg-surface-2"
+          }`}
+        >
+          {i === 1 && (
+            <span className="absolute inset-0 grid place-items-center">
+              <svg
+                viewBox="0 0 24 24"
+                className="h-4 w-4 text-background"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M12 4v11m0 0 4-4m-4 4-4-4M5 19h14" />
+              </svg>
+            </span>
+          )}
+        </motion.div>
+      ))}
+    </div>
+  );
+}
+
+const STEP_VISUALS = [PasteVisual, FoundVisual, TakeVisual];
 
 export function Steps() {
   return (
     <Section id="how">
       <SectionHead eyebrow="How it works" title="Three steps, no account." />
 
-      <div className="relative mt-16">
-        <motion.div
-          aria-hidden
-          initial={{ scaleX: 0 }}
-          whileInView={{ scaleX: 1 }}
-          viewport={{ once: true, margin: "-100px" }}
-          transition={{ duration: 1.1, ease: EASE }}
-          className="absolute left-0 right-0 top-[25px] hidden h-px origin-left bg-gradient-to-r from-border via-border to-transparent lg:block"
-        />
-
-        <div className="grid gap-12 lg:grid-cols-3 lg:gap-8">
-          {STEPS.map((s, i) => (
-            <Reveal key={s.n} delay={i * 0.12}>
-              <div className="relative">
-                <span className="relative z-10 mb-7 grid h-[50px] w-[50px] place-items-center rounded-xl border border-border bg-surface font-mono text-[12.5px] font-semibold">
-                  {s.n}
-                </span>
-                <h3 className="mb-2 text-[16.5px] font-semibold tracking-tight">
-                  {s.h}
-                </h3>
-                <p className="max-w-xs text-[13.5px] leading-relaxed text-muted-foreground">
-                  {s.p}
-                </p>
-              </div>
+      {/* Cards, matching every other section. The previous version drew a
+          connector line that ran past the last step into empty space. */}
+      <div className="mt-14 grid gap-5 lg:grid-cols-3">
+        {STEPS.map((s, i) => {
+          const Visual = STEP_VISUALS[i];
+          return (
+            <Reveal key={s.n} delay={i * 0.1}>
+              <Card className="flex h-full flex-col">
+                <div className="h-[104px] border-b border-border p-5">
+                  <Visual />
+                </div>
+                <div className="flex flex-1 flex-col p-5">
+                  <div className="mb-3 flex items-center gap-2.5">
+                    <span className="font-mono text-[11px] font-semibold text-muted-foreground">
+                      {s.n}
+                    </span>
+                    <span className="h-px flex-1 bg-border" />
+                  </div>
+                  <h3 className="mb-2 text-[16px] font-semibold tracking-tight">
+                    {s.h}
+                  </h3>
+                  <p className="text-[13.5px] leading-relaxed text-muted-foreground">
+                    {s.p}
+                  </p>
+                </div>
+              </Card>
             </Reveal>
-          ))}
-        </div>
+          );
+        })}
       </div>
     </Section>
   );
