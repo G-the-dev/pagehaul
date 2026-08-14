@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { ArrowRight, Loader2 } from "lucide-react";
-import { HeroBackdrop } from "./HeroBackdrop";
 import { EASE } from "./ui/motion-primitives";
 import { TryExamples } from "./TryExamples";
 
@@ -45,26 +44,29 @@ export function Hero({
   }, [index, words]);
 
   return (
-    <section className="relative isolate min-h-[92vh] overflow-hidden">
-      <HeroBackdrop />
-
-      {/* Scrim: the backdrop stays legible at the edges while the centre column
-          keeps the contrast the headline needs. */}
+    <section className="relative isolate overflow-hidden">
+      {/* A quiet ground: one soft light from above and a faint grid that fades
+          out well before the copy begins. */}
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-0 z-10"
+        className="pointer-events-none absolute inset-x-0 top-0 h-[640px]"
         style={{
           background:
-            "radial-gradient(ellipse 46% 52% at 50% 42%, rgba(10,10,10,0.94) 30%, rgba(10,10,10,0.7) 55%, transparent 78%)",
+            "radial-gradient(ellipse 60% 55% at 50% -8%, rgba(255,255,255,0.055), transparent 72%)",
         }}
       />
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-72"
-        style={{ background: "linear-gradient(to top, #0a0a0a 0%, rgba(10,10,10,0.85) 35%, rgba(10,10,10,0.35) 65%, transparent 100%)" }}
+        className="bg-grid pointer-events-none absolute inset-x-0 top-0 h-[520px] opacity-40"
+        style={{
+          maskImage:
+            "radial-gradient(ellipse 55% 60% at 50% 0%, #000 10%, transparent 70%)",
+          WebkitMaskImage:
+            "radial-gradient(ellipse 55% 60% at 50% 0%, #000 10%, transparent 70%)",
+        }}
       />
 
-      <div className="pointer-events-none relative z-20 mx-auto flex min-h-[92vh] max-w-3xl flex-col items-center justify-center px-6 py-28 text-center">
+      <div className="relative z-20 mx-auto max-w-3xl px-6 pb-28 pt-36 text-center sm:pt-44">
         <motion.h1
           initial={{ opacity: 0, y: 18 }}
           animate={{ opacity: 1, y: 0 }}
@@ -111,7 +113,7 @@ export function Hero({
             e.preventDefault();
             if (url.trim() && !scanning) onScan();
           }}
-          className="pointer-events-auto mx-auto mt-10 w-full max-w-lg"
+          className="mx-auto mt-10 w-full max-w-lg"
         >
           <div className="flex flex-col gap-2 sm:flex-row">
             <input
