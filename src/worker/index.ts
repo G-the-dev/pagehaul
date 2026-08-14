@@ -21,9 +21,12 @@ import { db } from "../lib/db.js";
 import { LIMITS } from "../config/limits.js";
 import { launchBrowser, renderPage } from "../engine/render.js";
 import { downloadAssets } from "../engine/download.js";
+import { rewriteCss, rewriteHtml } from "../engine/rewrite.js";
+import { urlToLocalPath } from "../engine/paths.js";
 import { UnsafeUrlError } from "../engine/safety.js";
 import {
   createR2Client,
+  deleteObject,
   objectKeyForJob,
   presignDownload,
   readR2Config,
@@ -120,10 +123,43 @@ async function runJob(bullJob: BullJob<SiteJobPayload>): Promise<void> {
     );
     warnings.push(...dl.warnings);
 
-    // Save the rendered HTML alongside the assets. Link rewriting is the next
-    // engine step, so for now this is the DOM exactly as the browser had it.
-    const { writeFile: write } = await import("node:fs/promises");
-    await write(join(workDir, "index.html"), page.html, "utf8");
+    // --- point every reference at a local file --------------------------
+    // Without this the archive still needs the internet to open, which defeats
+    // the whole exercise.
+    await update(jobId, { stage: "Rewriting links to local paths" });
+
+    const { readFile, writeFile: write } = await import("node:fs/promises");
+    const savedUrls = new Set(dl.saved.map((a) => a.url));
+    const savedPages = new Set([page.finalUrl]);
+
+    // Stylesheets first. Their url() references resolve against the
+    // stylesheet's own address, not the page's, so each gets its own context.
+    for (const asset of dl.saved) {
+      if (!/\.css(\?|$)/i.test(asset.url)) continue;
+      const full = join(workDir, asset.localPath);
+      try {
+        const css = await readFile(full, "utf8");
+        const rewritten = rewriteCss(css, {
+          baseUrl: asset.url,
+          fromPath: asset.localPath,
+          savedUrls,
+          savedPages,
+        });
+        if (rewritten !== css) await write(full, rewritten, "utf8");
+      } catch {
+        warnings.push(`Could not rewrite ${asset.localPath}`);
+      }
+    }
+
+    // Then the page. It lives at the root of the archive so the person who
+    // unzips it has an obvious file to open.
+    const pageHtml = rewriteHtml(page.html, {
+      baseUrl: page.finalUrl,
+      fromPath: urlToLocalPath(page.finalUrl, true).split("/").slice(1).join("/"),
+      savedUrls,
+      savedPages,
+    });
+    await write(join(workDir, "index.html"), pageHtml, "utf8");
 
     await update(jobId, {
       pagesFound: 1,
@@ -163,7 +199,7 @@ async function runJob(bullJob: BullJob<SiteJobPayload>): Promise<void> {
       });
     });
 
-    const ttlSeconds = LIMITS.downloadTtlHours * 3600;
+    const ttlSeconds = LIMITS.downloadTtlMinutes * 60;
     const url = await presignDownload(
       client,
       r2.bucket,
@@ -209,6 +245,47 @@ async function runJob(bullJob: BullJob<SiteJobPayload>): Promise<void> {
   }
 }
 
+
+/**
+ * Deletes captures whose window has passed.
+ *
+ * A bucket lifecycle rule cannot do this: R2 measures lifecycle in days and the
+ * retention here is minutes. So the worker checks on a timer, removes the
+ * object, and clears the link from the row. The job record stays, because the
+ * submitted URL and timestamp are what answer a takedown notice.
+ */
+async function sweepExpired(): Promise<void> {
+  const r2 = readR2Config();
+  const expired = await db.job.findMany({
+    where: { expiresAt: { lt: new Date() }, zipKey: { not: null } },
+    select: { id: true, zipKey: true },
+    take: 100,
+  });
+  if (expired.length === 0) return;
+
+  const client = r2 ? createR2Client(r2) : null;
+
+  for (const job of expired) {
+    if (client && r2 && job.zipKey) {
+      try {
+        await deleteObject(client, r2.bucket, job.zipKey);
+      } catch (e) {
+        console.warn(`[sweep] could not delete ${job.zipKey}: ${e instanceof Error ? e.message : e}`);
+        continue;
+      }
+    }
+    await db.job.update({
+      where: { id: job.id },
+      data: { zipKey: null, downloadUrl: null, stage: "Expired and deleted" },
+    });
+  }
+  console.log(`[sweep] removed ${expired.length} expired capture(s)`);
+}
+
+const sweepTimer = setInterval(() => {
+  void sweepExpired().catch((e) => console.error("[sweep]", e));
+}, LIMITS.sweepIntervalMs);
+
 const worker = new Worker<SiteJobPayload>(SITE_JOB_QUEUE, runJob, {
   connection: redisConnection,
   concurrency: LIMITS.workerConcurrency,
@@ -228,6 +305,7 @@ worker.on("failed", (job, err) => {
 for (const signal of ["SIGINT", "SIGTERM"] as const) {
   process.on(signal, async () => {
     console.log(`[worker] ${signal} received, finishing current jobs`);
+    clearInterval(sweepTimer);
     await worker.close();
     await db.$disconnect();
     process.exit(0);

@@ -58,11 +58,19 @@ export const LIMITS = {
   /* ---- storage ---- */
 
   /**
-   * How long a finished archive stays downloadable. Short on purpose: it keeps
-   * storage cost near zero and limits how long anyone's content sits on our
-   * disk. The bucket lifecycle rule must be set to the same number.
+   * How long a finished archive stays downloadable, in minutes.
+   *
+   * Deliberately very short. It keeps storage near zero and limits how long a
+   * copy of someone else's site exists anywhere in our systems.
+   *
+   * A bucket lifecycle rule cannot do this: R2 lifecycle granularity is days.
+   * So the worker sweeps expired objects itself on a timer, and the presigned
+   * link expires at the same moment.
    */
-  downloadTtlHours: num("DOWNLOAD_TTL_HOURS", 24),
+  downloadTtlMinutes: num("DOWNLOAD_TTL_MINUTES", 5),
+
+  /** How often the worker looks for expired captures to delete. */
+  sweepIntervalMs: num("SWEEP_INTERVAL_MS", 60_000),
 
   /* ---- who we refuse ---- */
 
