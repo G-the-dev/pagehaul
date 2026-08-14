@@ -8,7 +8,6 @@ import { Hero } from "@/components/Hero";
 import { DesignPanel } from "@/components/DesignPanel";
 import { Faq, Footer } from "@/components/Sections";
 import { Features, Audience, Steps } from "@/components/Features";
-import { CursorGlow } from "@/components/ui/motion-primitives";
 import {
   downloadAsZip,
   downloadEachSeparately,
@@ -159,19 +158,34 @@ export default function Home() {
 
   return (
     <main id="top" className="min-h-screen">
-      <CursorGlow />
-      <header className="sticky top-0 z-40 border-b border-border bg-background/80 backdrop-blur-xl">
-        <div className="mx-auto flex max-w-[1400px] items-center justify-between px-6 py-3">
-          <span className="text-[15px] font-semibold tracking-tight">pagehaul</span>
+      <header className="pointer-events-none fixed inset-x-0 top-0 z-50 flex justify-center px-4 pt-4">
+        <nav className="pointer-events-auto flex items-center gap-1 rounded-full border border-border bg-surface/70 py-1.5 pl-4 pr-1.5 backdrop-blur-xl">
+          <a href="#top" className="pr-3 text-[14px] font-semibold tracking-tight">
+            pagehaul
+          </a>
+          <span className="mr-1 h-4 w-px bg-border" />
+          {[
+            ["What you get", "#what"],
+            ["How", "#how"],
+            ["FAQ", "#faq"],
+          ].map(([label, href]) => (
+            <a
+              key={href}
+              href={href}
+              className="rounded-full px-3 py-1.5 text-[13px] text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground"
+            >
+              {label}
+            </a>
+          ))}
           <a
             href="https://github.com/G-the-dev/pagehaul"
             target="_blank"
             rel="noreferrer"
-            className="font-mono text-[11px] text-muted-foreground transition-colors hover:text-foreground"
+            className="ml-1 rounded-full bg-foreground px-4 py-1.5 text-[13px] font-semibold text-background transition-opacity hover:opacity-90"
           >
             GitHub
           </a>
-        </div>
+        </nav>
       </header>
 
       <Hero
@@ -180,6 +194,10 @@ export default function Home() {
         deep={deep}
         setDeep={setDeep}
         onScan={() => runScan(url, deep)}
+        onPick={(host) => {
+          setUrl(host);
+          runScan(host, deep);
+        }}
         scanning={scanning}
         error={error}
       />
@@ -187,7 +205,7 @@ export default function Home() {
       {/* Results live on the same page, directly under the input, so a new
           link is always one scroll away. */}
       {result && (
-        <section ref={resultsRef} className="border-b border-border">
+        <section ref={resultsRef} className="relative">
           <div className="mx-auto max-w-[1400px] px-6 py-10">
             <div className="mb-6 flex flex-wrap items-baseline justify-between gap-3">
               <h2 className="text-[1.6rem] font-medium tracking-tight">

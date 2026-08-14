@@ -45,12 +45,12 @@ function FaqRow({ q, a, index }: { q: string; a: string; index: number }) {
   const [open, setOpen] = useState(index === 0);
   return (
     <Reveal delay={index * 0.04}>
-      <div className="border-b border-border">
+      <div className="border-b border-border/50 last:border-b-0">
         <button
           type="button"
           onClick={() => setOpen((v) => !v)}
           aria-expanded={open}
-          className="group flex w-full items-start justify-between gap-6 py-6 text-left"
+          className="group flex w-full items-start justify-between gap-6 py-5 text-left"
         >
           <span className="text-[16px] font-medium leading-snug text-fg-2 transition-colors group-hover:text-foreground">
             {q}
@@ -85,12 +85,29 @@ function FaqRow({ q, a, index }: { q: string; a: string; index: number }) {
 
 export function Faq() {
   return (
-    <Section width="narrow">
-      <SectionHead eyebrow="Questions" title="The things people ask first." />
-      <div className="mt-14 border-t border-border">
-        {FAQ.map((f, i) => (
-          <FaqRow key={f.q} q={f.q} a={f.a} index={i} />
-        ))}
+    <Section id="faq">
+      <div className="grid gap-12 lg:grid-cols-[minmax(0,0.75fr)_minmax(0,1.25fr)] lg:gap-20">
+        <Reveal>
+          <div className="lg:sticky lg:top-28">
+            <span className="inline-flex rounded-full border border-border bg-surface px-3 py-1 font-mono text-[10.5px] uppercase tracking-[0.14em] text-muted-foreground">
+              FAQ
+            </span>
+            <h2 className="mt-6 text-[2rem] font-medium leading-[1.12] tracking-tight sm:text-[2.5rem]">
+              Your questions,
+              <br />
+              answered plainly.
+            </h2>
+            <p className="mt-5 max-w-xs text-[14.5px] leading-relaxed text-muted-foreground">
+              Including the ones where the honest answer is no.
+            </p>
+          </div>
+        </Reveal>
+
+        <div className="rounded-2xl border border-border bg-surface/50 px-6 py-2 sm:px-8">
+          {FAQ.map((f, i) => (
+            <FaqRow key={f.q} q={f.q} a={f.a} index={i} />
+          ))}
+        </div>
       </div>
     </Section>
   );
@@ -98,7 +115,8 @@ export function Faq() {
 
 export function Footer() {
   return (
-    <footer className="relative overflow-hidden border-t border-border bg-surface/30">
+    <footer className="relative overflow-hidden">
+      <div aria-hidden className="h-px w-full bg-gradient-to-r from-transparent via-border to-transparent" />
       <div className="mx-auto max-w-6xl px-6 pt-20 sm:px-8">
         <Reveal>
           <div className="grid gap-10 pb-16 sm:grid-cols-[1.5fr_1fr_1fr]">

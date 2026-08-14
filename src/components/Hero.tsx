@@ -4,7 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { ArrowRight, Loader2 } from "lucide-react";
 import { HeroBackdrop } from "./HeroBackdrop";
-import { EASE } from "./ui/motion-primitives";
+import { EASE, CursorGlow } from "./ui/motion-primitives";
+import { TryExamples } from "./TryExamples";
 
 interface Props {
   url: string;
@@ -12,6 +13,7 @@ interface Props {
   deep: boolean;
   setDeep: (v: boolean) => void;
   onScan: () => void;
+  onPick: (host: string) => void;
   scanning: boolean;
   error: string | null;
 }
@@ -27,6 +29,7 @@ export function Hero({
   deep,
   setDeep,
   onScan,
+  onPick,
   scanning,
   error,
 }: Props) {
@@ -44,6 +47,7 @@ export function Hero({
   return (
     <section className="relative isolate min-h-[92vh] overflow-hidden">
       <HeroBackdrop />
+      <CursorGlow scoped size={460} intensity={0.05} />
 
       {/* Scrim: the backdrop stays legible at the edges while the centre column
           keeps the contrast the headline needs. */}
@@ -191,6 +195,8 @@ export function Hero({
             </div>
           )}
         </motion.form>
+
+        <TryExamples onPick={onPick} disabled={scanning} />
       </div>
     </section>
   );

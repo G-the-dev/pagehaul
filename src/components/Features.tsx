@@ -162,7 +162,7 @@ export function Features() {
   const [hovered, setHovered] = useState<number | null>(null);
 
   return (
-    <Section tone="raised">
+    <Section tone="raised" id="what">
       <SectionHead
         eyebrow="What you get"
         title={
@@ -231,7 +231,7 @@ const STEPS = [
 
 export function Steps() {
   return (
-    <Section>
+    <Section id="how">
       <SectionHead eyebrow="How it works" title="Three steps, no account." />
 
       <div className="relative mt-16">

@@ -24,9 +24,12 @@ export const EASE = [0.16, 1, 0.3, 1] as const;
 export function CursorGlow({
   size = 520,
   intensity = 0.06,
+  scoped = false,
 }: {
   size?: number;
   intensity?: number;
+  /** Confine the light to the nearest positioned ancestor. */
+  scoped?: boolean;
 }) {
   const reduce = useReducedMotion();
   const x = useMotionValue(-9999);
@@ -50,7 +53,7 @@ export function CursorGlow({
   return (
     <motion.div
       aria-hidden
-      className="pointer-events-none fixed inset-0 z-30"
+      className={`pointer-events-none ${scoped ? "absolute" : "fixed"} inset-0 z-30`}
       style={{ background: bg }}
     />
   );
@@ -196,12 +199,41 @@ export function Section({
         : "max-w-6xl";
 
   return (
-    <section
-      id={id}
-      className={`relative ${tone === "raised" ? "bg-surface/40" : ""} ${className}`}
-    >
-      <div className={`mx-auto ${max} px-6 py-24 sm:px-8 sm:py-32`}>{children}</div>
+    <section id={id} className={`relative ${className}`}>
+      {/* A raised section fades in and out at its edges, so no hard cut ever
+          appears between one section and the next. */}
+      {tone === "raised" && (
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-0"
+          style={{
+            background:
+              "linear-gradient(to bottom, transparent 0%, rgba(255,255,255,0.022) 22%, rgba(255,255,255,0.022) 78%, transparent 100%)",
+          }}
+        />
+      )}
+      <div className={`relative mx-auto ${max} px-6 py-28 sm:px-8 sm:py-36`}>
+        {children}
+      </div>
     </section>
+  );
+}
+
+/**
+ * A soft band used where one visual world ends and another begins, in place of
+ * a border. Nothing on this page should terminate in a hard line.
+ */
+export function Seam({ flip = false }: { flip?: boolean }) {
+  return (
+    <div
+      aria-hidden
+      className="pointer-events-none relative h-24 w-full"
+      style={{
+        background: flip
+          ? "linear-gradient(to top, rgba(255,255,255,0.03), transparent)"
+          : "linear-gradient(to bottom, rgba(255,255,255,0.03), transparent)",
+      }}
+    />
   );
 }
 
