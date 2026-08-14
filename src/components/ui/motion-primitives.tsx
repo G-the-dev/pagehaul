@@ -112,60 +112,18 @@ export function Stagger({
  * Card with a spotlight that tracks the pointer inside it
  * ------------------------------------------------------------------ */
 
-export function SpotlightCard({
+export function Card({
   children,
   className = "",
 }: {
   children: ReactNode;
   className?: string;
 }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const reduce = useReducedMotion();
-  const mx = useMotionValue(-200);
-  const my = useMotionValue(-200);
-  const [inside, setInside] = useState(false);
-
-  const bg = useMotionTemplate`radial-gradient(340px circle at ${mx}px ${my}px, rgba(255,255,255,0.09), transparent 72%)`;
-  const ring = useMotionTemplate`radial-gradient(280px circle at ${mx}px ${my}px, rgba(255,255,255,0.32), transparent 70%)`;
-
   return (
     <div
-      ref={ref}
-      onPointerMove={(e) => {
-        if (reduce) return;
-        const r = ref.current?.getBoundingClientRect();
-        if (!r) return;
-        mx.set(e.clientX - r.left);
-        my.set(e.clientY - r.top);
-      }}
-      onPointerEnter={() => setInside(true)}
-      onPointerLeave={() => setInside(false)}
-      className={`group relative overflow-hidden rounded-2xl border border-border bg-surface ${className}`}
+      className={`group relative overflow-hidden rounded-xl border border-border bg-surface transition-colors duration-300 hover:border-border-strong ${className}`}
     >
-      {/* Border glow, drawn as a masked ring so only the edge lights up. */}
-      {!reduce && (
-        <motion.div
-          aria-hidden
-          className="pointer-events-none absolute inset-0 rounded-2xl opacity-0 transition-opacity duration-300 group-hover:opacity-100"
-          style={{
-            background: ring,
-            WebkitMask:
-              "linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0)",
-            WebkitMaskComposite: "xor",
-            maskComposite: "exclude",
-            padding: 1,
-          }}
-        />
-      )}
-      {!reduce && (
-        <motion.div
-          aria-hidden
-          className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-100"
-          style={{ background: bg }}
-        />
-      )}
-      <div className="relative z-10">{children}</div>
-      {inside && <span className="sr-only" />}
+      {children}
     </div>
   );
 }
@@ -237,6 +195,23 @@ export function Seam({ flip = false }: { flip?: boolean }) {
   );
 }
 
+/** The single eyebrow treatment. Every section opens with one of these. */
+export function Chip({
+  children,
+  className = "",
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <span
+      className={`inline-flex rounded-full border border-border bg-surface px-3 py-1 font-mono text-[10.5px] uppercase tracking-[0.14em] text-muted-foreground ${className}`}
+    >
+      {children}
+    </span>
+  );
+}
+
 /** Eyebrow plus heading, so section openings are consistent everywhere. */
 export function SectionHead({
   eyebrow,
@@ -251,11 +226,7 @@ export function SectionHead({
 }) {
   return (
     <Reveal className={align === "center" ? "mx-auto max-w-2xl text-center" : "max-w-2xl"}>
-      <div className="mb-5 flex items-center gap-2.5">
-        {align === "center" && <span className="h-px flex-1 bg-border sm:hidden" />}
-        <span className="label-mono">{eyebrow}</span>
-        <span className="h-px flex-1 bg-gradient-to-r from-border to-transparent" />
-      </div>
+      <Chip className="mb-6">{eyebrow}</Chip>
       <h2 className="text-[2rem] font-medium leading-[1.12] tracking-tight sm:text-[2.75rem]">
         {title}
       </h2>

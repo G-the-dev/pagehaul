@@ -158,12 +158,12 @@ export default function Home() {
 
   return (
     <main id="top" className="min-h-screen">
-      <header className="pointer-events-none fixed inset-x-0 top-0 z-50 flex justify-center px-4 pt-4">
-        <nav className="pointer-events-auto flex items-center gap-1 rounded-full border border-border bg-surface/70 py-1.5 pl-4 pr-1.5 backdrop-blur-xl">
-          <a href="#top" className="pr-3 text-[14px] font-semibold tracking-tight">
+      <header className="pointer-events-none fixed inset-x-0 top-0 z-50 flex justify-center px-4 pt-6">
+        <nav className="pointer-events-auto flex items-center gap-1.5 rounded-full border border-border bg-surface/70 py-2 pl-6 pr-2 backdrop-blur-xl">
+          <a href="#top" className="pr-4 text-[14px] font-semibold tracking-tight">
             pagehaul
           </a>
-          <span className="mr-1 h-4 w-px bg-border" />
+          <span className="mr-1.5 h-4 w-px bg-border" />
           {[
             ["What you get", "#what"],
             ["How", "#how"],
@@ -172,7 +172,7 @@ export default function Home() {
             <a
               key={href}
               href={href}
-              className="rounded-full px-3 py-1.5 text-[13px] text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground"
+              className="rounded-full px-3.5 py-2 text-[13px] text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground"
             >
               {label}
             </a>
@@ -181,7 +181,7 @@ export default function Home() {
             href="https://github.com/G-the-dev/pagehaul"
             target="_blank"
             rel="noreferrer"
-            className="ml-1 rounded-full bg-foreground px-4 py-1.5 text-[13px] font-semibold text-background transition-opacity hover:opacity-90"
+            className="ml-1.5 rounded-full bg-foreground px-5 py-2 text-[13px] font-semibold text-background transition-opacity hover:opacity-90"
           >
             GitHub
           </a>

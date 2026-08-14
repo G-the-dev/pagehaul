@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Plus } from "lucide-react";
-import { EASE, Reveal, Section, SectionHead } from "./ui/motion-primitives";
+import { EASE, Reveal, Section, Chip } from "./ui/motion-primitives";
 
 /**
  * Ordered the way a first time visitor actually asks: what does it cost, is it
@@ -89,9 +89,7 @@ export function Faq() {
       <div className="grid gap-12 lg:grid-cols-[minmax(0,0.75fr)_minmax(0,1.25fr)] lg:gap-20">
         <Reveal>
           <div className="lg:sticky lg:top-28">
-            <span className="inline-flex rounded-full border border-border bg-surface px-3 py-1 font-mono text-[10.5px] uppercase tracking-[0.14em] text-muted-foreground">
-              FAQ
-            </span>
+            <Chip>FAQ</Chip>
             <h2 className="mt-6 text-[2rem] font-medium leading-[1.12] tracking-tight sm:text-[2.5rem]">
               Your questions,
               <br />
@@ -103,7 +101,7 @@ export function Faq() {
           </div>
         </Reveal>
 
-        <div className="rounded-2xl border border-border bg-surface/50 px-6 py-2 sm:px-8">
+        <div className="rounded-xl border border-border bg-surface/50 px-6 py-2 sm:px-8">
           {FAQ.map((f, i) => (
             <FaqRow key={f.q} q={f.q} a={f.a} index={i} />
           ))}

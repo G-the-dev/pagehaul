@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { ArrowRight, Loader2 } from "lucide-react";
 import { HeroBackdrop } from "./HeroBackdrop";
-import { EASE, CursorGlow } from "./ui/motion-primitives";
+import { EASE } from "./ui/motion-primitives";
 import { TryExamples } from "./TryExamples";
 
 interface Props {
@@ -47,7 +47,6 @@ export function Hero({
   return (
     <section className="relative isolate min-h-[92vh] overflow-hidden">
       <HeroBackdrop />
-      <CursorGlow scoped size={460} intensity={0.05} />
 
       {/* Scrim: the backdrop stays legible at the edges while the centre column
           keeps the contrast the headline needs. */}
@@ -61,25 +60,11 @@ export function Hero({
       />
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-40 bg-gradient-to-t from-background to-transparent"
+        className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-72"
+        style={{ background: "linear-gradient(to top, #0a0a0a 0%, rgba(10,10,10,0.85) 35%, rgba(10,10,10,0.35) 65%, transparent 100%)" }}
       />
 
       <div className="pointer-events-none relative z-20 mx-auto flex min-h-[92vh] max-w-3xl flex-col items-center justify-center px-6 py-28 text-center">
-        <motion.div
-          initial={{ opacity: 0, y: 14 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.7, ease: EASE }}
-          className="pointer-events-auto mb-8 inline-flex items-center gap-2.5 rounded-full border border-border bg-surface/70 py-1.5 pl-2 pr-3.5 backdrop-blur-md"
-        >
-          <span className="relative flex h-1.5 w-1.5">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-foreground opacity-40" />
-            <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-foreground" />
-          </span>
-          <span className="font-mono text-[10.5px] uppercase tracking-[0.13em] text-muted-foreground">
-            Move your cursor over the page behind
-          </span>
-        </motion.div>
-
         <motion.h1
           initial={{ opacity: 0, y: 18 }}
           animate={{ opacity: 1, y: 0 }}
@@ -137,12 +122,12 @@ export function Hero({
               placeholder="stripe.com"
               aria-label="Website link"
               disabled={scanning}
-              className="h-12 flex-1 rounded-xl border border-border bg-surface/80 px-4 text-[15px] backdrop-blur-md outline-none transition-colors placeholder:text-muted-foreground focus:border-border-strong disabled:opacity-60"
+              className="h-12 flex-1 rounded-lg border border-border bg-surface/80 px-4 text-[15px] backdrop-blur-md outline-none transition-colors placeholder:text-muted-foreground focus:border-border-strong disabled:opacity-60"
             />
             <button
               type="submit"
               disabled={!url.trim() || scanning}
-              className="inline-flex h-12 shrink-0 items-center justify-center gap-2 rounded-xl bg-foreground px-7 text-[14.5px] font-semibold text-background transition-opacity hover:opacity-90 disabled:opacity-40"
+              className="inline-flex h-12 shrink-0 items-center justify-center gap-2 rounded-lg bg-foreground px-7 text-[14.5px] font-semibold text-background transition-opacity hover:opacity-90 disabled:opacity-40"
             >
               {scanning ? (
                 <>
@@ -190,7 +175,7 @@ export function Hero({
           </div>
 
           {error && (
-            <div className="mt-6 rounded-xl border border-danger/30 bg-danger-soft px-4 py-3 text-left text-[13.5px] text-danger">
+            <div className="mt-6 rounded-lg border border-danger/30 bg-danger-soft px-4 py-3 text-left text-[13.5px] text-danger">
               {error}
             </div>
           )}
