@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
 import { ArrowRight, Loader2 } from "lucide-react";
+import { HeroReveal } from "./HeroReveal";
 
 interface Props {
   url: string;
@@ -72,7 +73,7 @@ export function Hero({
         }}
       />
 
-      <div className="relative mx-auto max-w-2xl px-6 pb-20 pt-24 text-center sm:pt-32">
+      <div className="relative mx-auto max-w-2xl px-6 pt-24 text-center sm:pt-32">
         <h1 className="text-balance text-[2.25rem] font-medium leading-[1.08] tracking-tight sm:text-[3.25rem]">
           Every{" "}
           {/* All words share one grid cell, so the slot sizes to the widest and
@@ -178,6 +179,17 @@ export function Hero({
           </div>
         )}
       </div>
+
+      {/* The demonstration sits directly under the input, so the claim and the
+          proof share one screen. */}
+      <motion.div
+        initial={{ opacity: 0, y: 28 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.7, delay: 0.15, ease: [0.2, 0.8, 0.2, 1] }}
+        className="relative mx-auto max-w-5xl px-6 pb-24 pt-14"
+      >
+        <HeroReveal />
+      </motion.div>
     </section>
   );
 }

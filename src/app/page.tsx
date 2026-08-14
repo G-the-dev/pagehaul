@@ -7,6 +7,7 @@ import { Picker } from "@/components/Picker";
 import { Hero } from "@/components/Hero";
 import { DesignPanel } from "@/components/DesignPanel";
 import { Steps, Faq, Footer } from "@/components/Sections";
+import { Features, Audience } from "@/components/Features";
 import {
   downloadAsZip,
   downloadEachSeparately,
@@ -331,6 +332,8 @@ export default function Home() {
         </section>
       )}
 
+      <Features />
+      <Audience />
       <Steps />
       <Faq />
       <Footer />
