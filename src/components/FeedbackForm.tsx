@@ -202,21 +202,13 @@ export function FeedbackForm() {
         </p>
       )}
 
-      <div className="flex flex-wrap items-center gap-4">
-        <button
-          type="submit"
-          disabled={state === "sending" || message.trim().length < 10}
-          className="inline-flex h-11 items-center justify-center rounded-lg bg-foreground px-6 text-[14px] font-semibold text-background transition-opacity hover:opacity-90 disabled:opacity-40"
-        >
-          {state === "sending" ? "Sending" : "Send"}
-        </button>
-        <span className="text-[12.5px] text-muted-foreground">
-          Or email{" "}
-          <a href={`mailto:${SITE.contactEmail}`} className="underline underline-offset-2">
-            {SITE.contactEmail}
-          </a>
-        </span>
-      </div>
+      <button
+        type="submit"
+        disabled={state === "sending" || message.trim().length < 10}
+        className="inline-flex h-11 items-center justify-center rounded-lg bg-foreground px-6 text-[14px] font-semibold text-background transition-opacity hover:opacity-90 disabled:opacity-40"
+      >
+        {state === "sending" ? "Sending" : "Send"}
+      </button>
     </form>
   );
 }
