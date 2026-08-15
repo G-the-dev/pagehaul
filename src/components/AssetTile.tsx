@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { memo, useMemo, useState } from "react";
 import type { Asset } from "@/lib/types";
 import { thumbnailUrl } from "@/lib/variants";
 import { formatBytes } from "@/lib/download";
@@ -23,7 +23,12 @@ function cornerLabel(a: Asset): string | null {
   return null;
 }
 
-export function AssetTile({
+/**
+ * Memoised because the virtualiser re-renders the row list on every scroll
+ * step, and a tile whose asset has not changed has nothing to redo. The
+ * callbacks it receives are stable, so the comparison actually holds.
+ */
+export const AssetTile = memo(function AssetTile({
   asset,
   selected,
   onToggle,
@@ -77,6 +82,7 @@ export function AssetTile({
         className="block w-full cursor-pointer text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-background"
       >
         <div
+          data-tile-media
           className={`relative aspect-[4/3] w-full overflow-hidden ${
             asset.transparent && showsImage ? "bg-checker" : "bg-surface-2"
           }`}
@@ -212,7 +218,7 @@ export function AssetTile({
       </div>
     </div>
   );
-}
+});
 
 /** Types with no natural picture get something more useful than a file icon. */
 function TypePlaceholder({ asset, failed }: { asset: Asset; failed: boolean }) {

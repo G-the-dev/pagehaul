@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Check, ChevronLeft, ChevronRight } from "lucide-react";
 import type { Asset, AssetKind, ScanResult } from "@/lib/types";
-import { AssetTile } from "@/components/AssetTile";
+import { TileGrid } from "@/components/TileGrid";
 import { Hero } from "@/components/Hero";
 import { ScanProgress } from "@/components/ScanProgress";
 import { Faq, Footer } from "@/components/Sections";
@@ -550,19 +550,11 @@ export default function Home() {
             ) : tab === "api" || tab === "code" || tab === "data" ? (
               <NetworkTable assets={visible} onOpen={setExpanded} />
             ) : (
-              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6">
-                {visible.slice(0, shown).map((a) => (
-                  <div key={a.id} data-tile className="tile-skip">
-                    <AssetTile
-                      asset={a}
-                      selected={false}
-                      selectable={false}
-                      onToggle={() => setExpanded(a)}
-                      onMeasure={onMeasure}
-                    />
-                  </div>
-                ))}
-              </div>
+              <TileGrid
+                assets={visible.slice(0, shown)}
+                onOpen={setExpanded}
+                onMeasure={onMeasure}
+              />
             )}
 
             {visible.length > shown && (
