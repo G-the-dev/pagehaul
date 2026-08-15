@@ -148,6 +148,7 @@ export function Hero({
               onChange={(e) => setUrl(e.target.value)}
               onBlur={() => setTouched(true)}
               aria-invalid={!!inputError}
+              aria-describedby={inputError || error ? "scan-error" : undefined}
               placeholder="stripe.com"
               aria-label="Website link"
               disabled={scanning}
@@ -173,6 +174,18 @@ export function Hero({
               )}
             </button>
           </div>
+
+          {/* Sits against the field it describes. Below the mode toggle it was
+              two controls away from the thing that was wrong. */}
+          {(inputError || error) && (
+            <p
+              id="scan-error"
+              role="alert"
+              className="mt-2 text-left text-[13px] text-danger"
+            >
+              {inputError ?? error}
+            </p>
+          )}
 
           <div className="mt-4 flex flex-col items-center gap-2.5">
             <div
@@ -205,11 +218,6 @@ export function Hero({
             </p>
           </div>
 
-          {(inputError || error) && (
-            <p className="mt-3 text-left text-[13px] text-danger">
-              {inputError ?? error}
-            </p>
-          )}
         </motion.form>
 
         {scanning ? (
