@@ -618,7 +618,60 @@ export async function deepScan(rawUrl: string): Promise<ScanResult> {
         }))
         .slice(0, 6);
 
-      return { media, palette, typography, tokens, title: document.title };
+      // Every @font-face the page actually applied, mapped from the file it
+      // loads to the family it declares. The browser has already parsed these,
+      // so there is nothing to match with a regular expression — and unlike a
+      // filename, the family name is what a person is looking for.
+      const fontFaces: { url: string; label: string }[] = [];
+      const seenFace = new Set<string>();
+      for (const sheet of Array.from(document.styleSheets)) {
+        let rules: CSSRuleList | undefined;
+        try {
+          rules = sheet.cssRules;
+        } catch {
+          // A cross-origin stylesheet will not open. The static read covers it.
+          continue;
+        }
+        for (const rule of Array.from(rules ?? [])) {
+          if (rule.constructor.name !== "CSSFontFaceRule") continue;
+          const style = (rule as CSSFontFaceRule).style;
+          const family = (style.getPropertyValue("font-family") || "")
+            .replace(/['"]/g, "")
+            .trim();
+          if (!family) continue;
+          const weight = (style.getPropertyValue("font-weight") || "").trim();
+          const italic = /italic|oblique/i.test(
+            style.getPropertyValue("font-style") || "",
+          );
+          // A variable font declares a range ("1 1000"), which is not a
+          // weight anybody wants read out, and a family called "Input Mono
+          // Bold" does not need 700 after it.
+          const ranged = /\s/.test(weight);
+          const spelled = /\b(thin|extralight|light|regular|book|medium|semibold|demibold|bold|extrabold|black|heavy)\b/i.test(family);
+          const useWeight =
+            weight && weight !== "normal" && weight !== "400" && !ranged && !spelled
+              ? weight
+              : "";
+          const label = [family, useWeight, italic ? "Italic" : ""]
+            .filter(Boolean)
+            .join(" ");
+          const src = style.getPropertyValue("src") || "";
+          const re = /url\(\s*['"]?([^'")]+)['"]?\s*\)/gi;
+          let m: RegExpExecArray | null;
+          while ((m = re.exec(src))) {
+            try {
+              const abs = new URL(m[1].trim(), sheet.href || location.href).toString();
+              if (seenFace.has(abs)) continue;
+              seenFace.add(abs);
+              fontFaces.push({ url: abs, label });
+            } catch {
+              /* a malformed src is not worth failing the scan over */
+            }
+          }
+        }
+      }
+
+      return { media, palette, typography, tokens, fontFaces, title: document.title };
     });
 
     // Merge rendered detail onto the network log. The final pass adds anything
@@ -670,6 +723,19 @@ export async function deepScan(rawUrl: string): Promise<ScanResult> {
         transparent: ALPHA.has(ext),
         noise: isPixel || undefined,
       });
+    }
+
+    // Name fonts by the family they declare rather than by their file.
+    const faceByUrl = new Map<string, string>(
+      (pageData.fontFaces as { url: string; label: string }[]).map((f) => [
+        f.url,
+        f.label,
+      ]),
+    );
+    for (const a of assets) {
+      if (a.kind !== "font") continue;
+      const label = faceByUrl.get(a.url);
+      if (label) a.fontFamily = label;
     }
 
     // One entry per picture rather than one per size. Payload mining in

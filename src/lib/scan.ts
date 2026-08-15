@@ -300,9 +300,14 @@ function extractFontFamilies(css: string, cssUrl: string): Map<string, string> {
     if (!fam) continue;
     const weight = /font-weight\s*:\s*([^;]+)/i.exec(b)?.[1]?.trim();
     const style = /font-style\s*:\s*(italic|oblique)/i.exec(b)?.[1];
-    const label = [fam, weight && weight !== "normal" ? weight : "", style ? "Italic" : ""]
-      .filter(Boolean)
-      .join(" ");
+    // Matches the deep scan: no variable-font ranges, and no weight number
+    // after a family that already spells the weight out.
+    const ranged = weight ? /\s/.test(weight) : false;
+    const spelled =
+      /\b(thin|extralight|light|regular|book|medium|semibold|demibold|bold|extrabold|black|heavy)\b/i.test(fam);
+    const useWeight =
+      weight && weight !== "normal" && weight !== "400" && !ranged && !spelled ? weight : "";
+    const label = [fam, useWeight, style ? "Italic" : ""].filter(Boolean).join(" ");
     const urlRe = /url\(\s*(['"]?)([^'")]+)\1\s*\)/gi;
     let u: RegExpExecArray | null;
     while ((u = urlRe.exec(b))) {
