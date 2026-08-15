@@ -1,4 +1,3 @@
-import { zip } from "fflate";
 import type { Asset } from "./types";
 import { downloadNameFor } from "./naming";
 
@@ -175,6 +174,11 @@ export async function downloadAsZip(
       ),
   ].join("\n");
   files["manifest.csv"] = new TextEncoder().encode(manifest);
+
+  // Fetched when somebody actually asks for an archive. At module scope this
+  // put a DEFLATE implementation in the bundle every visitor downloads,
+  // including anyone who only ever reads the privacy policy.
+  const { zip } = await import("fflate");
 
   const bytes = await new Promise<Uint8Array>((resolve, reject) => {
     zip(files, { level: 6 }, (err, data) => (err ? reject(err) : resolve(data)));
