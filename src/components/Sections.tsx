@@ -13,54 +13,74 @@ import { EASE, Reveal, Section, Chip } from "./ui/motion-primitives";
 const FAQ = [
   {
     q: "Is it free?",
-    a: "Yes, and there is no account. Paste a link and scan. Nothing is metered, nothing is gated, and you are not asked for an email before you find out whether it works on your site.",
+    a: "Yes. No account, no email, nothing metered.",
   },
   {
-    q: "Do you store the files, or my scans?",
-    a: "No. A scan returns a list of file addresses and details, not the files themselves. Your browser fetches each file directly from the original site and builds any archive on your own machine. Nothing is uploaded to us, and there is no scan history to leak because we never keep one.",
+    q: "Do you keep my files or scans?",
+    a: "No. Your browser fetches files straight from the original site and builds any archive locally. We keep no history.",
   },
   {
     q: "It only found a handful of files. Why?",
-    a: "Almost always because the page builds itself with JavaScript and you ran a quick scan. Quick reads the markup as delivered, so it misses anything added after load. Switch to deep, which opens the page in a real browser, scrolls it to trigger lazy loading, and records every file it requests. On a JavaScript heavy site deep commonly finds three or four times as much.",
+    a: "You ran a quick scan on a page built with JavaScript. Switch to deep, which runs the page in a real browser and usually finds three to four times as much.",
   },
   {
-    q: "Can it get files from X, Instagram, or anything behind a login?",
-    a: "It depends on the site, and we tested rather than guessed. Instagram serves public profile media without a session, and a scan of a public profile returns those images. X does not: a profile media page hands an automated browser an empty shell with no media at all, because X gates that content behind a login. Where a site does that, pagehaul says so plainly instead of returning nothing and calling it a success. Working around a login is not something we do, so for those sites a browser extension carrying your own session is the honest answer, and it is not built yet.",
+    q: "Does it work on X or Instagram?",
+    a: "Instagram public profiles, yes. X, no. X serves media only to signed in sessions, and we say so rather than handing back nothing.",
   },
   {
-    q: "What exactly does it find?",
-    a: "Images in every format, including each size in a srcset. SVG icons whether linked or written inline. Video and audio sources with their posters and caption tracks. Web fonts with their real family names. PDFs and documents. Stylesheets and scripts. And the API calls the page makes, with their method, status and response. A deep scan also reads the palette the page paints with and the design tokens it declares.",
+    q: "What does it find?",
+    a: "Images and every srcset size, SVG icons, video, fonts, documents, scripts, and the API calls a page makes. Deep scans also read its palette and type.",
   },
   {
-    q: "A file would not download. What happened?",
-    a: "Some servers refuse to let another site read their files, and browsers enforce that. Previews still work, because displaying a file is permitted even when reading its bytes is not. When a download is refused pagehaul opens that file in a new tab so you can save it manually, rather than failing quietly.",
+    q: "A file would not download.",
+    a: "Some servers refuse to let another site read their files. We open those in a new tab so you can save them yourself.",
   },
   {
-    q: "Am I allowed to use what I download?",
-    a: "Downloading a file gives you no rights to it. Images, fonts and video usually carry licences, and putting a brand's assets into your own commercial work can infringe them. This is built for sites you own, for migrations and backups, for rebuilding something you lost, and for reference. What you do with what you take is your responsibility.",
+    q: "Can I use what I download?",
+    a: "Downloading gives you no rights to a file. Fonts, images and video carry licences. Built for sites you own, migrations, backups and reference.",
   },
 ];
 
-function FaqRow({ q, a, index }: { q: string; a: string; index: number }) {
-  const [open, setOpen] = useState(index === 0);
+/**
+ * One row may be open at a time, and the state lives in the parent so opening
+ * one closes the last. Each row owning its own state is what let them stack up
+ * into a wall of text.
+ */
+function FaqRow({
+  q,
+  a,
+  index,
+  open,
+  onToggle,
+}: {
+  q: string;
+  a: string;
+  index: number;
+  open: boolean;
+  onToggle: () => void;
+}) {
   return (
     <Reveal delay={index * 0.04}>
       <div className="border-b border-border/50 last:border-b-0">
         <button
           type="button"
-          onClick={() => setOpen((v) => !v)}
+          onClick={onToggle}
           aria-expanded={open}
-          className="group flex w-full items-start justify-between gap-6 py-5 text-left"
+          className="group flex w-full items-center justify-between gap-6 py-4 text-left"
         >
-          <span className="text-[16px] font-medium leading-snug text-fg-2 transition-colors group-hover:text-foreground">
+          <span
+            className={`text-[15px] font-medium leading-snug transition-colors ${
+              open ? "text-foreground" : "text-fg-2 group-hover:text-foreground"
+            }`}
+          >
             {q}
           </span>
           <motion.span
             animate={{ rotate: open ? 45 : 0 }}
-            transition={{ duration: 0.35, ease: EASE }}
-            className="mt-0.5 grid h-7 w-7 shrink-0 place-items-center rounded-full border border-border text-muted-foreground transition-colors group-hover:border-border-strong group-hover:text-foreground"
+            transition={{ duration: 0.3, ease: EASE }}
+            className="grid h-6 w-6 shrink-0 place-items-center rounded-full border border-border text-muted-foreground transition-colors group-hover:border-border-strong group-hover:text-foreground"
           >
-            <Plus className="h-3.5 w-3.5" />
+            <Plus className="h-3 w-3" />
           </motion.span>
         </button>
         <AnimatePresence initial={false}>
@@ -69,10 +89,10 @@ function FaqRow({ q, a, index }: { q: string; a: string; index: number }) {
               initial={{ height: 0, opacity: 0 }}
               animate={{ height: "auto", opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0.4, ease: EASE }}
+              transition={{ duration: 0.32, ease: EASE }}
               className="overflow-hidden"
             >
-              <p className="max-w-2xl pb-7 pr-10 text-[14.5px] leading-[1.75] text-muted-foreground">
+              <p className="max-w-xl pb-5 pr-10 text-[14px] leading-relaxed text-muted-foreground">
                 {a}
               </p>
             </motion.div>
@@ -84,6 +104,10 @@ function FaqRow({ q, a, index }: { q: string; a: string; index: number }) {
 }
 
 export function Faq() {
+  // Nothing is open to begin with, so the section reads as a list of questions
+  // rather than an essay.
+  const [openIndex, setOpenIndex] = useState<number | null>(null);
+
   return (
     <Section id="faq">
       <div className="grid gap-12 lg:grid-cols-[minmax(0,0.75fr)_minmax(0,1.25fr)] lg:gap-20">
@@ -103,7 +127,14 @@ export function Faq() {
 
         <div className="rounded-xl border border-border bg-surface/50 px-6 py-2 sm:px-8">
           {FAQ.map((f, i) => (
-            <FaqRow key={f.q} q={f.q} a={f.a} index={i} />
+            <FaqRow
+              key={f.q}
+              q={f.q}
+              a={f.a}
+              index={i}
+              open={openIndex === i}
+              onToggle={() => setOpenIndex(openIndex === i ? null : i)}
+            />
           ))}
         </div>
       </div>
