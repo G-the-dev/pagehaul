@@ -13,12 +13,11 @@ export const SITE = {
   /**
    * CHANGE THIS BEFORE LAUNCH.
    *
-   * A takedown notice has to reach a real inbox or the policy that promises to
-   * answer one is worthless. Use an address on your own domain rather than a
-   * personal one, so it can be handed over or filtered later.
+   * This address carries everything, including takedown notices, so it has to
+   * reach a real inbox before launch. The terms promise a response and that
+   * promise is worthless pointing at a mailbox that does not exist.
    */
   contactEmail: "hello@pagehaul.com",
-  abuseEmail: "abuse@pagehaul.com",
 
   repo: "https://github.com/G-the-dev/pagehaul",
 

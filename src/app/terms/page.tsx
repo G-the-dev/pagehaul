@@ -80,7 +80,7 @@ export default function TermsPage() {
         <p>
           If you believe material was copied through this service in a way that
           infringes your rights, write to{" "}
-          <a href={`mailto:${SITE.abuseEmail}`}>{SITE.abuseEmail}</a> with the
+          <a href={`mailto:${SITE.contactEmail}`}>{SITE.contactEmail}</a> with the
           address concerned, what was infringed, and how to reach you.
         </p>
         <p>
