@@ -10,10 +10,11 @@ import { SITE } from "@/lib/site";
  * useless without the address it happened on, feedback rarely needs one.
  */
 
+// Two options, because a third called "Something else" only makes people stop
+// and wonder which one they are. Anything that is not a bug is feedback.
 const KINDS = [
   { id: "bug", label: "Report a bug" },
   { id: "feedback", label: "Give feedback" },
-  { id: "other", label: "Something else" },
 ] as const;
 
 type Kind = (typeof KINDS)[number]["id"];
@@ -107,9 +108,7 @@ export function FeedbackForm() {
   const label =
     kind === "bug"
       ? "What happened, and what did you expect instead?"
-      : kind === "feedback"
-        ? "What would make this better?"
-        : "What is on your mind?";
+      : "What would make this better?";
 
   return (
     <form

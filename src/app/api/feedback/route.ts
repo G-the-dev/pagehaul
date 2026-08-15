@@ -38,7 +38,7 @@ function tooMany(ip: string): boolean {
   return hits.length > MAX_PER_WINDOW;
 }
 
-const KINDS = new Set(["bug", "feedback", "other"]);
+const KINDS = new Set(["bug", "feedback"]);
 
 export async function POST(req: NextRequest) {
   const ip =
@@ -71,7 +71,7 @@ export async function POST(req: NextRequest) {
   // gets no signal about why it failed.
   if (body.website) return NextResponse.json({ ok: true });
 
-  const kind = KINDS.has(body.kind ?? "") ? body.kind! : "other";
+  const kind = KINDS.has(body.kind ?? "") ? body.kind! : "feedback";
   const message = (body.message ?? "").trim();
   const email = (body.email ?? "").trim();
   const pageUrl = (body.url ?? "").trim().slice(0, 300);
@@ -108,7 +108,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const label = kind === "bug" ? "Bug report" : kind === "feedback" ? "Feedback" : "Message";
+  const label = kind === "bug" ? "Bug report" : "Feedback";
 
   const lines = [
     `Type: ${label}`,
