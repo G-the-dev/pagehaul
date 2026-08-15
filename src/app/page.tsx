@@ -61,6 +61,7 @@ export default function Home() {
   const [expiredHost, setExpiredHost] = useState<string | null>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
   const expiredRef = useRef<HTMLDivElement>(null);
+  const heroRef = useRef<HTMLDivElement>(null);
 
   const assets = useMemo(() => {
     if (!result) return [];
@@ -295,19 +296,21 @@ export default function Home() {
         </nav>
       </header>
 
-      <Hero
-        url={url}
-        setUrl={setUrl}
-        deep={deep}
-        setDeep={setDeep}
-        onScan={() => runScan(url, deep)}
-        onPick={(host) => {
-          setUrl(host);
-          runScan(host, deep);
-        }}
-        scanning={scanning}
-        error={error}
-      />
+      <div ref={heroRef}>
+        <Hero
+          url={url}
+          setUrl={setUrl}
+          deep={deep}
+          setDeep={setDeep}
+          onScan={() => runScan(url, deep)}
+          onPick={(host) => {
+            setUrl(host);
+            runScan(host, deep);
+          }}
+          scanning={scanning}
+          error={error}
+        />
+      </div>
 
       {/* Results live on the same page, directly under the input, so a new
           link is always one scroll away. */}
@@ -502,8 +505,15 @@ export default function Home() {
             </p>
             <button
               type="button"
+              // Progress is drawn in the hero, and this button is several
+              // screens below it. Starting a scan from here without moving
+              // meant the card vanished and left you watching nothing happen.
               onClick={() => {
                 setUrl(expiredHost);
+                heroRef.current?.scrollIntoView({
+                  behavior: "smooth",
+                  block: "start",
+                });
                 runScan(expiredHost, deep);
               }}
               className="mt-6 inline-flex h-10 items-center rounded-lg bg-accent px-5 text-[13.5px] font-semibold text-accent-fg transition-all hover:brightness-110"
