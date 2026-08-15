@@ -31,8 +31,21 @@ export function FeedbackForm() {
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (state === "sending") return;
-    setState("sending");
     setError(null);
+
+    const body = message.trim();
+    if (body.length < 10) {
+      setError("Please say a little more so we can act on it.");
+      setState("error");
+      return;
+    }
+    if (email.trim() && !/^[^@\s]+@[^@\s]+\.[a-z]{2,}$/i.test(email.trim())) {
+      setError("That email address does not look right.");
+      setState("error");
+      return;
+    }
+
+    setState("sending");
 
     try {
       const res = await fetch("/api/feedback", {
@@ -101,6 +114,7 @@ export function FeedbackForm() {
   return (
     <form
       onSubmit={submit}
+      noValidate
       className="rounded-xl border border-border bg-surface p-6 sm:p-7"
     >
       <fieldset className="mb-6">
@@ -152,8 +166,8 @@ export function FeedbackForm() {
       <label className="mb-5 block">
         <span className="mb-2 block text-[13.5px] font-medium">{label}</span>
         <textarea
-          required
           value={message}
+          aria-invalid={!!error}
           onChange={(e) => setMessage(e.target.value)}
           rows={6}
           maxLength={4000}
@@ -204,7 +218,7 @@ export function FeedbackForm() {
 
       <button
         type="submit"
-        disabled={state === "sending" || message.trim().length < 10}
+        disabled={state === "sending"}
         className="inline-flex h-11 items-center justify-center rounded-lg bg-foreground px-6 text-[14px] font-semibold text-background transition-opacity hover:opacity-90 disabled:opacity-40"
       >
         {state === "sending" ? "Sending" : "Send"}
