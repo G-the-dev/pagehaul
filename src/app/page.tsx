@@ -77,33 +77,30 @@ export default function Home() {
   /**
    * Whether the action bar is drawn in.
    *
-   * Scrolling down the grid is heading toward the buttons, so the bar is full
-   * width and reads clearly. Scrolling back up is reviewing the files, and a
-   * bar spanning the whole width is then just covering them, so it shrinks to a
-   * pill. Small movements are ignored, otherwise it flickers on every nudge.
+   * Not scroll direction — that flickers on every nudge and says nothing about
+   * whether the bar is actually in the way. What matters is where the bar is:
+   * stuck over the grid while you read it, or resting at the end of the list
+   * once you have got there. A sentinel sitting just below it answers that
+   * directly. Stuck means squeezed, arrived means full width.
    */
   const [barCompact, setBarCompact] = useState(false);
+  const barEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    let last = window.scrollY;
-    let frame = 0;
-    const onScroll = () => {
-      if (frame) return;
-      frame = requestAnimationFrame(() => {
-        frame = 0;
-        const y = window.scrollY;
-        const delta = y - last;
-        if (Math.abs(delta) < 24) return;
-        last = y;
-        setBarCompact(delta < 0);
-      });
-    };
-    window.addEventListener("scroll", onScroll, { passive: true });
-    return () => {
-      window.removeEventListener("scroll", onScroll);
-      if (frame) cancelAnimationFrame(frame);
-    };
-  }, []);
+    const el = barEndRef.current;
+    if (!el) {
+      setBarCompact(false);
+      return;
+    }
+    const io = new IntersectionObserver(
+      ([entry]) => setBarCompact(!entry.isIntersecting),
+      // Extends the root below the fold, so the bar opens out as you arrive
+      // rather than a beat after.
+      { rootMargin: "0px 0px 40px 0px", threshold: 0 },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [result, tab]);
 
   const assets = useMemo(() => {
     if (!result) return [];
@@ -552,14 +549,24 @@ export default function Home() {
               // Full width while you are heading down the grid toward the
               // buttons, and drawn in to a pill while you are scrolling back up
               // through the files, where it is only in the way.
-              <motion.div
-                layout
-                transition={{ type: "spring", stiffness: 420, damping: 38 }}
-                className={`sticky bottom-4 z-30 mx-auto mt-8 flex flex-wrap items-center gap-4 rounded-xl border border-border bg-surface/90 backdrop-blur-xl ${
-                  barCompact ? "w-fit px-4 py-2.5" : "w-full px-5 py-3.5"
+              /*
+                 Plain CSS transition rather than framer's layout animation.
+                 That one measures every child on every frame to interpolate
+                 positions, which on a bar of buttons over a grid of hundreds of
+                 tiles is exactly the stutter it was producing. One element
+                 easing its own max-width is something the compositor can do
+                 without asking the layout engine anything about the rest.
+              */
+              <div
+                className="sticky bottom-4 z-30 mx-auto mt-8 w-full transition-[max-width] duration-[420ms] ease-[cubic-bezier(0.16,1,0.3,1)]"
+                style={{ maxWidth: barCompact ? 560 : 1400 }}
+              >
+              <div
+                className={`flex flex-wrap items-center gap-4 rounded-xl border border-border bg-surface/90 backdrop-blur-xl transition-[padding] duration-300 ${
+                  barCompact ? "px-4 py-2.5" : "px-5 py-3.5"
                 }`}
               >
-                <motion.span layout="position" className="text-[13px] text-muted-foreground">
+                <span className="text-[13px] text-muted-foreground">
                   {visible.length} {activeTabLabel.toLowerCase()}
                   {visibleBytes > 0 && ` · ${formatBytes(visibleBytes)}`}
                   {/* Said where the download buttons are, because that is the
@@ -569,7 +576,7 @@ export default function Home() {
                       · clears after {SITE.resultsMinutes} min
                     </span>
                   )}
-                </motion.span>
+                </span>
                 {progress && (
                   <div className="flex items-center gap-2.5">
                     <div className="h-1 w-24 overflow-hidden rounded-full bg-surface-3">
@@ -583,7 +590,7 @@ export default function Home() {
                     </span>
                   </div>
                 )}
-                <motion.div layout="position" className={`flex gap-2.5 ${barCompact ? "" : "ml-auto"}`}>
+                <div className="ml-auto flex gap-2.5">
                   <button
                     type="button"
                     disabled={busy}
@@ -604,8 +611,16 @@ export default function Home() {
                         ? `Download ${visible.length}`
                         : `Download all ${visible.length}`}
                   </button>
-                </motion.div>
-              </motion.div>
+                </div>
+              </div>
+              </div>
+            )}
+
+            {/* Marks the end of the list. While this is off screen the bar is
+                stuck over the grid and squeezes; once it scrolls into view the
+                bar has arrived and opens back out. */}
+            {tab !== "design" && visible.length > 0 && (
+              <div ref={barEndRef} aria-hidden className="h-px w-full" />
             )}
           </div>
         </section>
@@ -925,14 +940,11 @@ function DetailDialog({
             </p>
           </div>
           <div className="flex shrink-0 items-center gap-2">
-            {/* Says both where you are and that the arrows will move you. */}
+            {/* The chevrons either side of the panel already say the arrows
+                work; spelling the keys out as well was clutter. */}
             {position && total && total > 1 && (
-              <span className="hidden items-center gap-1.5 font-mono text-[11px] text-muted-foreground sm:flex">
-                <Key>←</Key>
-                <Key>→</Key>
-                <span className="ml-0.5 tabular-nums">
-                  {position} of {total}
-                </span>
+              <span className="hidden font-mono text-[11px] tabular-nums text-muted-foreground sm:inline">
+                {position} of {total}
               </span>
             )}
             <button

@@ -25,8 +25,17 @@ const SIZE_SEGMENT =
 const SIZE_SUFFIX =
   /(?:[-_](?:\d{2,4}x\d{2,4}|\d{2,4}w|\d{2,4}h)|@[23]x|[-_](?:thumb|thumbnail|small|medium|large|scaled|mini|tiny|preview))+$/i;
 
-/** Query keys that only change the rendering of an otherwise identical file. */
-const SIZE_PARAM = /^(?:w|h|width|height|size|s|q|quality|dpr|fit|crop|fm|auto|format|resize|rect|ixlib|ixid|cs|blur|sharp|tr)$/i;
+/**
+ * Query keys that only change the rendering of an otherwise identical file.
+ *
+ * Matched loosely as well as exactly, because services invent their own names
+ * for the same idea: Framer asks for ?scale-down-to=512, which is a size by any
+ * reading, and treating it as identity split every picture on that site into
+ * one family per size.
+ */
+const SIZE_PARAM =
+  /^(?:w|h|width|height|size|s|q|quality|dpr|fit|crop|fm|auto|format|resize|rect|ixlib|ixid|cs|blur|sharp|tr|lossless|compress|density|zoom)$/i;
+const SIZE_PARAM_LOOSE = /(?:width|height|scale|size|quality|format|resize|dpr|crop|fit)/i;
 
 /**
  * A key shared by every size of one picture, or undefined when the address
@@ -70,7 +79,8 @@ export function variantFamily(rawUrl: string): string | undefined {
   // describe how to render it. Sorted so parameter order cannot split a family.
   const params: string[] = [];
   u.searchParams.forEach((value, key) => {
-    if (!SIZE_PARAM.test(key)) params.push(`${key}=${value}`);
+    if (SIZE_PARAM.test(key) || SIZE_PARAM_LOOSE.test(key)) return;
+    params.push(`${key}=${value}`);
   });
   params.sort();
 
@@ -109,10 +119,13 @@ export function sizeHint(rawUrl: string): number {
     best = Math.max(best, Number(m[1]));
   }
 
-  for (const key of ["w", "width", "size", "s"]) {
-    const v = Number(u.searchParams.get(key));
-    if (Number.isFinite(v)) best = Math.max(best, v);
-  }
+  u.searchParams.forEach((value, key) => {
+    if (!SIZE_PARAM.test(key) && !SIZE_PARAM_LOOSE.test(key)) return;
+    // Only width-ish keys carry a number worth ranking on.
+    if (/height|quality|dpr|format|fit|crop/i.test(key)) return;
+    const v = Number(value);
+    if (Number.isFinite(v) && v > 0) best = Math.max(best, v);
+  });
   if (/@3x\./i.test(u.pathname)) best = Math.max(best, 3);
   else if (/@2x\./i.test(u.pathname)) best = Math.max(best, 2);
 

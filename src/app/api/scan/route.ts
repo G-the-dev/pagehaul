@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { scan } from "@/lib/scan";
 import { deepScan } from "@/lib/deepscan";
+import { mergeScans } from "@/lib/merge";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -26,12 +27,29 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const result = body.deep
-      ? await deepScan(normalise(body.url))
-      : await scan(normalise(body.url), {
-          depth: body.depth === 2 ? 2 : 1,
-          maxPages: typeof body.maxPages === "number" ? body.maxPages : undefined,
-        });
+    let result: Awaited<ReturnType<typeof deepScan>>;
+
+    if (body.deep) {
+      // Run both and merge. A browser only knows what it fetched, so it never
+      // sees the srcset candidates it passed over or any inline SVG; reading
+      // the markup sees those but nothing drawn after load. Choosing deep
+      // should never mean losing files that quick would have found.
+      //
+      // They run concurrently, so this costs the difference between them
+      // rather than the sum, and a failure on the static side is not allowed
+      // to take the whole scan down with it.
+      const target = normalise(body.url);
+      const [deepResult, quickResult] = await Promise.all([
+        deepScan(target),
+        scan(target, { depth: 1, skipSizes: true }).catch(() => null),
+      ]);
+      result = quickResult ? mergeScans(deepResult, quickResult) : deepResult;
+    } else {
+      result = await scan(normalise(body.url), {
+        depth: body.depth === 2 ? 2 : 1,
+        maxPages: typeof body.maxPages === "number" ? body.maxPages : undefined,
+      });
+    }
     return NextResponse.json(result, {
       headers: { "cache-control": "no-store" },
     });

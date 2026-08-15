@@ -5,7 +5,7 @@ import type {
   Swatch,
   TypeSpec,
 } from "./types";
-import { displayNameFor } from "./naming";
+import { assignDisplayNames } from "./naming";
 import { groupVariants } from "./variants";
 import { assertPublicHttpUrl } from "./scan";
 
@@ -677,12 +677,7 @@ export async function deepScan(rawUrl: string): Promise<ScanResult> {
     // thumbnail it might need.
     groupVariants(assets);
 
-    const counters = new Map<string, number>();
-    for (const a of assets) {
-      const n = (counters.get(a.kind) ?? 0) + 1;
-      counters.set(a.kind, n);
-      a.displayName = displayNameFor(a, n);
-    }
+    assignDisplayNames(assets);
 
     const RANK: Record<string, number> = {
       image: 0, video: 1, svg: 2, font: 3, document: 4,

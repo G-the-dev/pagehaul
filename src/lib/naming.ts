@@ -216,6 +216,34 @@ export function displayNameFor(
   return `${noun} ${indexWithinKind}`;
 }
 
+/**
+ * Labels a whole scan at once, and makes sure no two labels are identical.
+ *
+ * displayNameFor judges one file in isolation, which is right until a page
+ * turns out to hold ninety-one inline icons that all reduce to "Inline Svg", or
+ * thirty screenshots sharing one line of alt text. Ninety-one identically named
+ * files are ninety-one files nobody can tell apart, so repeats are numbered.
+ */
+export function assignDisplayNames(
+  assets: Pick<
+    Asset,
+    "kind" | "name" | "alt" | "section" | "format" | "fontFamily" | "url" | "displayName"
+  >[],
+): void {
+  const perKind = new Map<string, number>();
+  const used = new Map<string, number>();
+
+  for (const a of assets) {
+    const n = (perKind.get(a.kind) ?? 0) + 1;
+    perKind.set(a.kind, n);
+
+    const base = displayNameFor(a, n);
+    const seen = used.get(base) ?? 0;
+    used.set(base, seen + 1);
+    a.displayName = seen === 0 ? base : `${base} ${seen + 1}`;
+  }
+}
+
 /** Filename used on download — readable, but still carrying the real extension. */
 export function downloadNameFor(a: Asset): string {
   const ext = a.format.toLowerCase();

@@ -110,6 +110,20 @@ export function AssetTile({
               onLoadedMetadata={(e) => {
                 const el = e.currentTarget;
                 if (el.videoWidth) onMeasure(asset.id, el.videoWidth, el.videoHeight);
+                // The fragment alone only guarantees metadata: dimensions
+                // arrive, no frame is decoded, and the tile stays blank. Asking
+                // for a seek is what makes the browser fetch and paint one.
+                // Early enough to be cheap, late enough to miss a black lead-in.
+                if (el.readyState < 2) {
+                  const at = Number.isFinite(el.duration)
+                    ? Math.min(1, el.duration / 4)
+                    : 0.1;
+                  try {
+                    el.currentTime = at;
+                  } catch {
+                    /* seeking needs range requests; the play badge still shows */
+                  }
+                }
               }}
               className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
             />

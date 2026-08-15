@@ -1,7 +1,7 @@
 import * as cheerio from "cheerio";
 import type { Element } from "domhandler";
 import type { Asset, AssetKind, Origin, ScanPage, ScanResult } from "./types";
-import { displayNameFor } from "./naming";
+import { assignDisplayNames } from "./naming";
 import { groupVariants } from "./variants";
 
 const UA =
@@ -645,13 +645,9 @@ export async function scan(rawUrl: string, opts: ScanOptions = {}): Promise<Scan
   // shape of the address.
   groupVariants(assets);
 
-  // Readable labels, numbered within their kind so fallbacks stay distinct.
-  const counters = new Map<string, number>();
-  for (const a of assets) {
-    const n = (counters.get(a.kind) ?? 0) + 1;
-    counters.set(a.kind, n);
-    a.displayName = displayNameFor(a, n);
-  }
+  // Readable labels, numbered within their kind so fallbacks stay distinct,
+  // and de-duplicated so repeats are still tellable apart.
+  assignDisplayNames(assets);
 
   // Most useful first: real imagery before chrome, big before small.
   const KIND_RANK: Record<string, number> = {
