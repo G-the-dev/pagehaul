@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Check, ChevronLeft, ChevronRight } from "lucide-react";
+import { motion } from "framer-motion";
 import type { Asset, AssetKind, ScanResult } from "@/lib/types";
 import { AssetTile } from "@/components/AssetTile";
 import { Picker } from "@/components/Picker";
@@ -72,6 +73,37 @@ export default function Home() {
   const heroRef = useRef<HTMLDivElement>(null);
   /** Lets a scan in flight be abandoned. A deep scan can run most of a minute. */
   const abortRef = useRef<AbortController | null>(null);
+
+  /**
+   * Whether the action bar is drawn in.
+   *
+   * Scrolling down the grid is heading toward the buttons, so the bar is full
+   * width and reads clearly. Scrolling back up is reviewing the files, and a
+   * bar spanning the whole width is then just covering them, so it shrinks to a
+   * pill. Small movements are ignored, otherwise it flickers on every nudge.
+   */
+  const [barCompact, setBarCompact] = useState(false);
+
+  useEffect(() => {
+    let last = window.scrollY;
+    let frame = 0;
+    const onScroll = () => {
+      if (frame) return;
+      frame = requestAnimationFrame(() => {
+        frame = 0;
+        const y = window.scrollY;
+        const delta = y - last;
+        if (Math.abs(delta) < 24) return;
+        last = y;
+        setBarCompact(delta < 0);
+      });
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      if (frame) cancelAnimationFrame(frame);
+    };
+  }, []);
 
   const assets = useMemo(() => {
     if (!result) return [];
@@ -495,16 +527,27 @@ export default function Home() {
             )}
 
             {tab !== "design" && visible.length > 0 && (
-              <div className="sticky bottom-4 z-30 mt-8 flex flex-wrap items-center gap-4 rounded-xl border border-border bg-surface/90 px-5 py-3.5 backdrop-blur-xl">
-                <span className="text-[13px] text-muted-foreground">
+              // Full width while you are heading down the grid toward the
+              // buttons, and drawn in to a pill while you are scrolling back up
+              // through the files, where it is only in the way.
+              <motion.div
+                layout
+                transition={{ type: "spring", stiffness: 420, damping: 38 }}
+                className={`sticky bottom-4 z-30 mx-auto mt-8 flex flex-wrap items-center gap-4 rounded-xl border border-border bg-surface/90 backdrop-blur-xl ${
+                  barCompact ? "w-fit px-4 py-2.5" : "w-full px-5 py-3.5"
+                }`}
+              >
+                <motion.span layout="position" className="text-[13px] text-muted-foreground">
                   {visible.length} {activeTabLabel.toLowerCase()}
                   {visibleBytes > 0 && ` · ${formatBytes(visibleBytes)}`}
                   {/* Said where the download buttons are, because that is the
                       moment it matters: take what you want now. */}
-                  <span className="ml-2 hidden text-muted-foreground/70 sm:inline">
-                    · clears after {SITE.resultsMinutes} min
-                  </span>
-                </span>
+                  {!barCompact && (
+                    <span className="ml-2 hidden text-muted-foreground/70 sm:inline">
+                      · clears after {SITE.resultsMinutes} min
+                    </span>
+                  )}
+                </motion.span>
                 {progress && (
                   <div className="flex items-center gap-2.5">
                     <div className="h-1 w-24 overflow-hidden rounded-full bg-surface-3">
@@ -518,14 +561,14 @@ export default function Home() {
                     </span>
                   </div>
                 )}
-                <div className="ml-auto flex gap-2.5">
+                <motion.div layout="position" className={`flex gap-2.5 ${barCompact ? "" : "ml-auto"}`}>
                   <button
                     type="button"
                     disabled={busy}
                     onClick={() => setPickerOpen(true)}
                     className="h-9 rounded-lg border border-border px-4 text-[13px] font-medium transition-colors hover:border-accent disabled:opacity-40"
                   >
-                    Choose files
+                    {barCompact ? "Choose" : "Choose files"}
                   </button>
                   <button
                     type="button"
@@ -533,10 +576,14 @@ export default function Home() {
                     onClick={() => runDownload(visible, true)}
                     className="h-9 rounded-lg bg-accent px-4 text-[13px] font-semibold text-accent-fg transition-all hover:brightness-110 disabled:opacity-40"
                   >
-                    {busy ? "Working" : `Download all ${visible.length}`}
+                    {busy
+                      ? "Working"
+                      : barCompact
+                        ? `Download ${visible.length}`
+                        : `Download all ${visible.length}`}
                   </button>
-                </div>
-              </div>
+                </motion.div>
+              </motion.div>
             )}
           </div>
         </section>

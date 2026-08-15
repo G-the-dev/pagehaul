@@ -10,11 +10,43 @@ const HEX_ONLY = /^[0-9a-f]{12,}$/i;
 const HASH_SUFFIX = /^(.*?)[-_.][0-9a-f]{8,}$/i;
 const BASE64ISH = /^[A-Za-z0-9_-]{22,}$/;
 
-/** True when a filename is a hash, id, or otherwise tells a person nothing. */
+/**
+ * True when a filename is a hash, id, or otherwise tells a person nothing.
+ *
+ * The hard cases are the base62 ids CDNs generate — EX9NZExSFA4eodl7ZJOzgSOmf0,
+ * hlpxQq1a2zZi2B0UH9nlvggCYZY — which have vowels, mixed case and a low digit
+ * ratio, so every obvious test says "word". What actually separates them from
+ * ConnectBentoBackground or DatavizStatic3x is where the digits fall: a person
+ * writing a name puts a number at the end if at all, while a generated id
+ * sprinkles them right through. Counting the separate runs of digits catches
+ * every one of them in a scan of framer.com, linear.app and stripe.com without
+ * touching a single real name.
+ */
 export function isOpaqueName(name: string): boolean {
   const n = name.trim();
   if (!n) return true;
   if (HEX_ONLY.test(n)) return true;
+
+  // Judge the last path segment: "pixel/HMDVDhZ4AOv68bhkrpOC" is a route
+  // followed by an id, and the id is the part that has to be assessed.
+  const core = n.split("/").pop() ?? n;
+
+  // Written names use separators; generated ids run together.
+  if (core && !/[-_. ]/.test(core)) {
+    const digitRuns = core.match(/\d+/g)?.length ?? 0;
+    if (digitRuns >= 3) return true;
+
+    // Digits buried between letters, more than once. A person appends a number
+    // (DatavizStatic3x, HeroBanner2024) — one interior run at most. A generator
+    // scatters them.
+    const interiorRuns = core.match(/(?<=[a-z])\d+(?=[a-z])/gi)?.length ?? 0;
+    if (interiorRuns >= 2) return true;
+
+    // Long, unbroken, mixed case and carrying digits. Real names that long
+    // (ConnectMobileBackground) have no digits in them at all.
+    const mixedCase = /[a-z]/.test(core) && /[A-Z]/.test(core);
+    if (core.length >= 20 && mixedCase && digitRuns > 0) return true;
+  }
 
   // No vowels across a long string is a strong hash signal.
   if (n.length >= 14 && !/[aeiou]/i.test(n)) return true;

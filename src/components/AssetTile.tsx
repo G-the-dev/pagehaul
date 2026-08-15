@@ -35,6 +35,8 @@ export function AssetTile({
   const corner = cornerLabel(asset);
   const showsImage =
     !failed && (asset.kind === "image" || asset.kind === "svg" || !!asset.poster);
+  /** A video with no poster still has frames; use one rather than a blank box. */
+  const showsVideoFrame = !failed && asset.kind === "video" && !asset.poster;
 
   return (
     <div
@@ -87,6 +89,29 @@ export function AssetTile({
                   ? "absolute inset-0 m-auto max-h-[78%] max-w-[78%] object-contain"
                   : "h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
               }
+            />
+          ) : showsVideoFrame ? (
+            /*
+              A frame from the video itself, rather than a play button on an
+              empty square.
+
+              Done with a media fragment and preload="metadata" instead of
+              drawing to a canvas: the file belongs to another origin, so
+              canvas would taint and reading it back would throw. Asking the
+              browser to seek to one second and render that is both cheaper and
+              subject to no such restriction.
+            */
+            <video
+              src={`${asset.url}#t=1`}
+              preload="metadata"
+              muted
+              playsInline
+              onError={() => setFailed(true)}
+              onLoadedMetadata={(e) => {
+                const el = e.currentTarget;
+                if (el.videoWidth) onMeasure(asset.id, el.videoWidth, el.videoHeight);
+              }}
+              className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
             />
           ) : (
             <TypePlaceholder asset={asset} failed={failed} />
