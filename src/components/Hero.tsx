@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { motion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import { ArrowRight, Loader2 } from "lucide-react";
 import { EASE } from "./ui/motion-primitives";
 import { TryExamples } from "./TryExamples";
@@ -75,23 +75,38 @@ export function Hero({
           className="text-balance text-[2.4rem] font-medium leading-[1.06] tracking-[-0.035em] sm:text-[3.6rem]"
         >
           Every{" "}
+          {/*
+            Only one word is animated at a time, so it always enters from below
+            and leaves upward. Positioning words by their index made the motion
+            reverse on the wrap from the last word back to the first, because
+            the first was sitting above rather than below.
+
+            The invisible copies share the same grid cell purely to hold the
+            slot at the width of the longest word, so the headline never
+            reflows mid rotation.
+          */}
           <span className="inline-grid overflow-hidden align-baseline">
-            {words.map((w, i) => (
-              <motion.span
+            {words.map((w) => (
+              <span
                 key={w}
-                aria-hidden={index !== i}
-                className="col-start-1 row-start-1 whitespace-nowrap font-semibold"
-                initial={false}
-                transition={{ type: "spring", stiffness: 70, damping: 15 }}
-                animate={
-                  index === i
-                    ? { y: "0%", opacity: 1 }
-                    : { y: index > i ? "-118%" : "118%", opacity: 0 }
-                }
+                aria-hidden
+                className="invisible col-start-1 row-start-1 whitespace-nowrap font-semibold"
               >
                 {w}
-              </motion.span>
+              </span>
             ))}
+            <AnimatePresence mode="popLayout" initial={false}>
+              <motion.span
+                key={index}
+                initial={{ y: "110%", opacity: 0 }}
+                animate={{ y: "0%", opacity: 1 }}
+                exit={{ y: "-110%", opacity: 0 }}
+                transition={{ type: "spring", stiffness: 90, damping: 17 }}
+                className="col-start-1 row-start-1 whitespace-nowrap font-semibold"
+              >
+                {words[index]}
+              </motion.span>
+            </AnimatePresence>
           </span>{" "}
           on any page.
         </motion.h1>
