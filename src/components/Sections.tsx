@@ -6,6 +6,7 @@ import { Plus } from "lucide-react";
 import Link from "next/link";
 import { EASE, Reveal, Section, Chip } from "./ui/motion-primitives";
 import { SITE } from "@/lib/site";
+import { FooterWordmark } from "./FooterWordmark";
 
 /**
  * Ordered the way a first time visitor actually asks: what does it cost, is it
@@ -214,19 +215,7 @@ export function Footer() {
           </div>
         </Reveal>
 
-        {/* Sized to the container rather than the viewport, so it ends exactly
-            where the columns above it end. */}
-        <div aria-hidden className="select-none" style={{ lineHeight: 0.74 }}>
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: "-60px" }}
-            transition={{ duration: 1, ease: EASE }}
-            className="w-full bg-gradient-to-b from-foreground/55 via-foreground/16 to-transparent bg-clip-text text-center text-[clamp(3rem,15.5vw,13.5rem)] font-semibold tracking-[-0.055em] text-transparent"
-          >
-            pagehaul
-          </motion.div>
-        </div>
+        <FooterWordmark />
       </div>
     </footer>
   );

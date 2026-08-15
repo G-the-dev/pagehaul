@@ -97,6 +97,10 @@ export async function POST(req: NextRequest) {
 
   const apiKey = process.env.RESEND_API_KEY;
   const from = process.env.FEEDBACK_FROM ?? "pagehaul <onboarding@resend.dev>";
+  // Where reports actually land. Distinct from the address shown on the site:
+  // Resend refuses any recipient outside a verified domain, so until
+  // pagehaul.com is verified this has to be the account owner's own address.
+  const to = process.env.FEEDBACK_TO ?? SITE.contactEmail;
 
   if (!apiKey) {
     return NextResponse.json(
@@ -128,7 +132,7 @@ export async function POST(req: NextRequest) {
       },
       body: JSON.stringify({
         from,
-        to: [SITE.contactEmail],
+        to: [to],
         // Replying goes straight back to the person, when they left an address.
         reply_to: email || undefined,
         subject: `${label} via ${SITE.name}`,
