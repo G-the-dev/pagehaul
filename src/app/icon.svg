@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+  <!--
+    The mark is the download glyph the product already uses: something coming
+    off a page and landing. At 16px nothing more detailed survives, so the
+    strokes are deliberately heavy and the shape is left uncrowded.
+
+    The colours invert with the browser's theme, because a tab strip is light
+    in one and near black in the other, and a fixed dark square disappears
+    against a dark strip.
+  -->
+  <style>
+    .bg { fill: #0a0a0a; }
+    .fg { stroke: #fafafa; }
+    @media (prefers-color-scheme: dark) {
+      .bg { fill: #fafafa; }
+      .fg { stroke: #0a0a0a; }
+    }
+  </style>
+
+  <rect class="bg" width="32" height="32" rx="7" />
+
+  <g
+    class="fg"
+    fill="none"
+    stroke-width="3"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  >
+    <!-- the stem, falling -->
+    <path d="M16 7v10" />
+    <!-- the arrowhead -->
+    <path d="M11.5 13.5 16 18l4.5-4.5" />
+    <!-- the ground it lands on -->
+    <path d="M8 24h16" />
+  </g>
+</svg>
