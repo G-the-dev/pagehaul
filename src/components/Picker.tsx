@@ -71,7 +71,6 @@ export function Picker({ assets, tabLabel, onClose, onConfirm }: Props) {
         {/* header */}
         <div className="flex flex-wrap items-center gap-4 border-b border-border px-6 py-4">
           <div className="min-w-0">
-            <div className="label-mono mb-1.5 text-accent">Select</div>
             <h2 className="text-[17px] font-semibold leading-none">
               Choose what to download
             </h2>

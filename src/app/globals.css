@@ -270,6 +270,49 @@
   padding: 0.1em 0.36em;
 }
 
+/* The expiry indicator.
+
+   A countdown sitting in a row of grey metadata reads as one more fact about
+   the scan, and nobody reads facts about the scan. A light that breathes reads
+   as something running, which is what it is. Kept to a slow cycle on purpose:
+   a fast blink is an alarm, and there is no emergency until the last minute. */
+@keyframes ph-breathe {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.4;
+    transform: scale(0.78);
+  }
+}
+
+/* A ring leaving the dot, the way a radar sweep does. */
+@keyframes ph-halo {
+  0% {
+    opacity: 0.5;
+    transform: scale(1);
+  }
+  70%,
+  100% {
+    opacity: 0;
+    transform: scale(3.2);
+  }
+}
+
+.live-dot {
+  animation: ph-breathe 2.4s ease-in-out infinite;
+}
+.live-halo {
+  animation: ph-halo 2.4s ease-out infinite;
+}
+/* The last minute earns a quicker pulse. */
+.live-urgent .live-dot,
+.live-urgent .live-halo {
+  animation-duration: 1.1s;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
