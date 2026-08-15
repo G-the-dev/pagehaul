@@ -96,12 +96,16 @@ export function DesignPanel({ palette, typography, tokens }: Props) {
             {palette.map((s) => {
               const justCopied = copied === s.hex;
               return (
-                <Tooltip key={s.hex} label={`${s.hex} · ${s.count}× · ${s.role}`}>
+                <Tooltip
+                  key={s.hex}
+                  label={`${s.hex} · ${s.count}× · ${s.role}`}
+                  className="w-full"
+                >
                 <button
                   type="button"
                   onClick={() => copyHex(s.hex)}
                   aria-label={`Copy ${s.hex}`}
-                  className="group overflow-hidden rounded-lg border border-border text-left transition-transform hover:scale-[1.04]"
+                  className="group w-full overflow-hidden rounded-lg border border-border text-left transition-transform hover:scale-[1.04]"
                 >
                   {/* The colour itself carries the confirmation: a click puts a
                       tick on the swatch you clicked, so there is no doubt which

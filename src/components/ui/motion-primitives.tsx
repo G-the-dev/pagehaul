@@ -158,7 +158,9 @@ export function Section({
         : "max-w-6xl";
 
   return (
-    <section id={id} className={`relative ${className}`}>
+    // defer-paint lets the browser skip styling and painting a section it
+    // cannot see. Every one of these sits below the fold on arrival.
+    <section id={id} className={`defer-paint relative ${className}`}>
       <div className={`relative mx-auto ${max} px-6 py-28 sm:px-8 sm:py-36`}>
         {children}
       </div>

@@ -7,6 +7,43 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
 
+/**
+ * Recently finished scans, so asking for the same page twice is instant.
+ *
+ * Deep scans drive a real browser and take tens of seconds; a second look at
+ * the same address should not pay that again. Held in the instance rather than
+ * anywhere shared, which is enough — a warm function serves many requests, and
+ * a cold one simply misses.
+ *
+ * Kept shorter than the seven minutes results live in the browser, so a repeat
+ * scan can never hand back something older than the copy it replaces.
+ */
+const CACHE_TTL_MS = 5 * 60_000;
+const CACHE_MAX = 24;
+const cache = new Map<string, { at: number; body: string }>();
+
+function cacheGet(key: string): string | null {
+  const hit = cache.get(key);
+  if (!hit) return null;
+  if (Date.now() - hit.at > CACHE_TTL_MS) {
+    cache.delete(key);
+    return null;
+  }
+  // Refresh recency so a page being worked on stays warm.
+  cache.delete(key);
+  cache.set(key, hit);
+  return hit.body;
+}
+
+function cacheSet(key: string, body: string): void {
+  cache.set(key, { at: Date.now(), body });
+  while (cache.size > CACHE_MAX) {
+    const oldest = cache.keys().next().value;
+    if (oldest === undefined) break;
+    cache.delete(oldest);
+  }
+}
+
 function normalise(input: string): string {
   const t = input.trim();
   if (!t) throw new Error("Enter a web address to scan.");
@@ -27,6 +64,14 @@ export async function POST(req: NextRequest) {
   }
 
   try {
+    const cacheKey = `${body.deep ? "deep" : "quick"}:${normalise(body.url)}`;
+    const cached = cacheGet(cacheKey);
+    if (cached) {
+      return new NextResponse(cached, {
+        headers: { "content-type": "application/json", "cache-control": "no-store", "x-scan-cache": "hit" },
+      });
+    }
+
     let result: Awaited<ReturnType<typeof deepScan>>;
 
     if (body.deep) {
@@ -50,8 +95,10 @@ export async function POST(req: NextRequest) {
         maxPages: typeof body.maxPages === "number" ? body.maxPages : undefined,
       });
     }
-    return NextResponse.json(result, {
-      headers: { "cache-control": "no-store" },
+    const payload = JSON.stringify(result);
+    cacheSet(cacheKey, payload);
+    return new NextResponse(payload, {
+      headers: { "content-type": "application/json", "cache-control": "no-store", "x-scan-cache": "miss" },
     });
   } catch (e) {
     const message =

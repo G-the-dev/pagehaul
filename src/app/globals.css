@@ -270,15 +270,22 @@
   padding: 0.1em 0.36em;
 }
 
-/* Tiles below the fold.
+/* The nav is fixed at the top, so an anchor jump would otherwise put the
+   heading you asked for underneath it. */
+[id="top"],
+[id="what"],
+[id="how"],
+[id="faq"] {
+  scroll-margin-top: 96px;
+}
 
-   The browser is told it may skip styling, laying out and painting a tile it
-   cannot see, and roughly how tall to assume it is so the scrollbar stays
-   honest. On a grid of hundreds this is the difference between recalculating
-   style for everything on every scroll and recalculating for a screenful. */
-.tile-skip {
+/* Sections far below the fold. The browser may skip styling, laying out and
+   painting what it cannot see, and is told roughly how tall to assume they are
+   so the scrollbar stays honest. The grid does not need this any more — it
+   only mounts the rows in view. */
+.defer-paint {
   content-visibility: auto;
-  contain-intrinsic-size: auto 240px;
+  contain-intrinsic-size: auto 720px;
 }
 
 /* The expiry indicator.
