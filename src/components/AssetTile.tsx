@@ -74,7 +74,13 @@ export function AssetTile({
               onError={() => setFailed(true)}
               onLoad={(e) => {
                 const el = e.currentTarget;
-                if (el.naturalWidth) onMeasure(asset.id, el.naturalWidth, el.naturalHeight);
+                // Only believe the measurement when what loaded is the file
+                // itself. The preview is deliberately the smallest variant of
+                // the family, so its dimensions describe the thumbnail — that
+                // is how a 1200px original ends up labelled 236x314.
+                if (el.naturalWidth && previewSrc === asset.url) {
+                  onMeasure(asset.id, el.naturalWidth, el.naturalHeight);
+                }
               }}
               className={
                 asset.transparent

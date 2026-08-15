@@ -790,37 +790,30 @@ function DetailDialog({
           ))}
         </dl>
 
-        {/* Collapsing a family must not make its members unreachable: every
-            size the scan found is listed here, with the one on the card
-            marked. */}
+        {/* Collapsing a family must not make its members unreachable, but the
+            answer is a few useful sizes on one line, not the CDN's whole
+            ladder. The one on the card is marked. */}
         {asset.variants && asset.variants.length > 1 && (
-          <div className="mt-5">
-            <div className="label-mono mb-2 text-[9.5px]">
-              Available sizes {asset.variants.length}
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {asset.variants.map((v) => {
-                const current = v.url === asset.url;
-                return (
-                  <a
-                    key={v.url}
-                    href={v.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 font-mono text-[11px] transition-colors ${
-                      current
-                        ? "border-accent-line text-foreground"
-                        : "border-border text-muted-foreground hover:border-border-strong hover:text-foreground"
-                    }`}
-                  >
-                    {v.label}
-                    {v.bytes ? (
-                      <span className="opacity-60">{formatBytes(v.bytes)}</span>
-                    ) : null}
-                  </a>
-                );
-              })}
-            </div>
+          <div className="mt-5 flex flex-wrap items-center gap-2">
+            <span className="label-mono text-[9.5px]">Size</span>
+            {asset.variants.map((v) => {
+              const current = v.url === asset.url;
+              return (
+                <a
+                  key={v.url}
+                  href={v.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 font-mono text-[11px] transition-colors ${
+                    current
+                      ? "border-accent-line text-foreground"
+                      : "border-border text-muted-foreground hover:border-border-strong hover:text-foreground"
+                  }`}
+                >
+                  {v.label}
+                </a>
+              );
+            })}
           </div>
         )}
 

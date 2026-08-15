@@ -144,6 +144,47 @@ function variantLabel(a: Groupable): string {
 }
 
 /**
+ * Sizes worth offering, out of however many the CDN happens to publish.
+ *
+ * Pinterest exposes about thirty rungs of a resize ladder for one photograph,
+ * several of them the same width by different routes. Listing all of it fills
+ * four rows with chips reading 400px, 400px, 200px, 200px, 70px, 70px and
+ * answers a question nobody asked: what is wanted is the real file, and
+ * occasionally something small enough to use as a thumbnail.
+ *
+ * So: drop duplicates, then keep the largest, the smallest, and a couple spread
+ * between them.
+ */
+const MAX_OFFERED = 4;
+
+function chooseOfferedSizes(
+  ordered: Groupable[],
+): { url: string; label: string; bytes?: number }[] {
+  const seen = new Set<string>();
+  const unique: Groupable[] = [];
+  for (const a of ordered) {
+    const label = variantLabel(a);
+    if (seen.has(label)) continue;
+    seen.add(label);
+    unique.push(a);
+  }
+
+  const pick =
+    unique.length <= MAX_OFFERED
+      ? unique
+      : Array.from({ length: MAX_OFFERED }, (_, i) =>
+          // Evenly spaced, so the ends are always the true largest and smallest.
+          unique[Math.round((i * (unique.length - 1)) / (MAX_OFFERED - 1))],
+        );
+
+  return pick.map((a) => ({
+    url: a.url,
+    label: variantLabel(a),
+    bytes: a.bytes,
+  }));
+}
+
+/**
  * Groups an asset list into families and marks the best of each.
  *
  * Only pictures are grouped. Two stylesheets that differ by a number in the
@@ -174,9 +215,14 @@ export function groupVariants(assets: Groupable[]): void {
       continue;
     }
 
-    // Prefer measured evidence, fall back to what the address claims.
+    // Both kinds of evidence are widths, so compare them as widths.
+    //
+    // Weighting measured pixels above the address put a 474px copy ahead of the
+    // untouched original, because the original was never rendered and scored
+    // zero on the term that dominated. Whichever source claims more wins, and
+    // bytes only settle a tie.
     const score = (a: Groupable) =>
-      (a.width ?? 0) * 1_000_000 + sizeHint(a.url) * 1_000 + (a.bytes ?? 0) / 1_000;
+      Math.max(a.width ?? 0, sizeHint(a.url)) * 1_000 + (a.bytes ?? 0) / 1_000;
 
     const ordered = [...list].sort((x, y) => score(y) - score(x));
     for (const a of ordered) a.isLargest = false;
@@ -184,11 +230,7 @@ export function groupVariants(assets: Groupable[]): void {
     const best = ordered[0];
     best.isLargest = true;
     best.variantCount = ordered.length;
-    best.variants = ordered.map((a) => ({
-      url: a.url,
-      label: variantLabel(a),
-      bytes: a.bytes,
-    }));
+    best.variants = chooseOfferedSizes(ordered);
 
     // The smallest is the cheapest thing to show while browsing.
     const worst = ordered[ordered.length - 1];
