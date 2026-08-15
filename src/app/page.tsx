@@ -11,6 +11,9 @@ import { DesignPanel } from "@/components/DesignPanel";
 import { Faq, Footer } from "@/components/Sections";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Toast, type ToastMessage, type ToastTone } from "@/components/Toast";
+import { Countdown } from "@/components/Countdown";
+import { Dissolve, DISSOLVE_MS } from "@/components/Dissolve";
+import { SITE } from "@/lib/site";
 import { humaniseScanError } from "@/lib/url-input";
 import { Features, Audience, Steps } from "@/components/Features";
 import {
@@ -51,7 +54,13 @@ export default function Home() {
   const [expanded, setExpanded] = useState<Asset | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [shown, setShown] = useState(48);
+  /** When this set of results stops being shown. Null before the first scan. */
+  const [expiresAt, setExpiresAt] = useState<number | null>(null);
+  /** True while the tiles are dissolving, before the list is cleared. */
+  const [expiring, setExpiring] = useState(false);
+  const [expiredHost, setExpiredHost] = useState<string | null>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
+  const expiredRef = useRef<HTMLDivElement>(null);
 
   const assets = useMemo(() => {
     if (!result) return [];
@@ -99,6 +108,8 @@ export default function Home() {
     setToast(null);
     setTab("all");
     setShown(48);
+    setExpiring(false);
+    setExpiredHost(null);
     try {
       const res = await fetch("/api/scan", {
         method: "POST",
@@ -109,6 +120,7 @@ export default function Home() {
       if (!res.ok) throw new Error(humaniseScanError(data.error ?? "That scan did not work."));
       setResult(data as ScanResult);
       setShown(48);
+      setExpiresAt(Date.now() + SITE.resultsMinutes * 60_000);
       // Results render inline, so bring them into view without a page change.
       setTimeout(
         () => resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }),
@@ -129,6 +141,43 @@ export default function Home() {
   const onMeasure = useCallback((id: string, w: number, h: number) => {
     setMeasured((prev) => (prev[id] ? prev : { ...prev, [id]: { w, h } }));
   }, []);
+
+  /**
+   * The window closes. Scatter the tiles first, then drop the list.
+   *
+   * Deliberately two steps: clearing state immediately would unmount the tiles
+   * and there would be nothing left to animate.
+   */
+  const beginExpiry = useCallback(() => {
+    setExpiring(true);
+    setExpanded(null);
+    setPickerOpen(false);
+    setTimeout(() => {
+      setResult((r) => {
+        if (r) {
+          try {
+            setExpiredHost(new URL(r.target).hostname.replace(/^www\./, ""));
+          } catch {
+            setExpiredHost(null);
+          }
+        }
+        return null;
+      });
+      setExpiring(false);
+      setExpiresAt(null);
+      setMeasured({});
+    }, DISSOLVE_MS);
+  }, []);
+
+  /**
+   * Losing a long grid takes several screens of page with it, so whoever was
+   * reading the bottom of it is left looking at blank space with no idea what
+   * happened. Follow the content up to the message that explains it.
+   */
+  useEffect(() => {
+    if (result || !expiredHost) return;
+    expiredRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [result, expiredHost]);
 
   /** The id is a counter so the same sentence twice still reads as two events. */
   const say = useCallback((text: string, tone: ToastTone = "done") => {
@@ -278,6 +327,12 @@ export default function Home() {
                 <span>{(result.ms / 1000).toFixed(1)}s</span>
                 <span className="h-3 w-px bg-border" />
                 <span>{deep ? "deep" : "quick"}</span>
+                {expiresAt && !expiring && (
+                  <>
+                    <span className="h-3 w-px bg-border" />
+                    <Countdown expiresAt={expiresAt} onExpire={beginExpiry} />
+                  </>
+                )}
               </div>
             </div>
 
@@ -350,15 +405,21 @@ export default function Home() {
               <NetworkTable assets={visible} onOpen={setExpanded} />
             ) : (
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6">
-                {visible.slice(0, shown).map((a) => (
-                  <AssetTile
+                {visible.slice(0, shown).map((a, i) => (
+                  <Dissolve
                     key={a.id}
-                    asset={a}
-                    selected={false}
-                    selectable={false}
-                    onToggle={() => setExpanded(a)}
-                    onMeasure={onMeasure}
-                  />
+                    active={expiring}
+                    src={a.thumbUrl ?? a.poster ?? a.url}
+                    seed={i * 31}
+                  >
+                    <AssetTile
+                      asset={a}
+                      selected={false}
+                      selectable={false}
+                      onToggle={() => setExpanded(a)}
+                      onMeasure={onMeasure}
+                    />
+                  </Dissolve>
                 ))}
               </div>
             )}
@@ -383,6 +444,11 @@ export default function Home() {
                 <span className="text-[13px] text-muted-foreground">
                   {visible.length} {activeTabLabel.toLowerCase()}
                   {visibleBytes > 0 && ` · ${formatBytes(visibleBytes)}`}
+                  {/* Said where the download buttons are, because that is the
+                      moment it matters: take what you want now. */}
+                  <span className="ml-2 hidden text-muted-foreground/70 sm:inline">
+                    · clears after {SITE.resultsMinutes} min
+                  </span>
                 </span>
                 {progress && (
                   <div className="flex items-center gap-2.5">
@@ -417,6 +483,33 @@ export default function Home() {
                 </div>
               </div>
             )}
+          </div>
+        </section>
+      )}
+
+      {/* Where the results were. Said plainly, with the way back in reach —
+          an empty page after a countdown reads as something having gone wrong. */}
+      {!result && expiredHost && (
+        <section ref={expiredRef as React.RefObject<HTMLElement>} className="mx-auto max-w-[1400px] px-6 py-14">
+          <div className="rounded-xl border border-dashed border-border px-6 py-14 text-center">
+            <p className="text-[16px] font-semibold">
+              Those results have cleared.
+            </p>
+            <p className="mx-auto mt-2.5 max-w-md text-[14px] leading-relaxed text-muted-foreground">
+              A scan is held for {SITE.resultsMinutes} minutes and then dropped.
+              Nothing was stored on our side to begin with, so scanning again
+              costs you only the wait.
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                setUrl(expiredHost);
+                runScan(expiredHost, deep);
+              }}
+              className="mt-6 inline-flex h-10 items-center rounded-lg bg-accent px-5 text-[13.5px] font-semibold text-accent-fg transition-all hover:brightness-110"
+            >
+              Scan {expiredHost} again
+            </button>
           </div>
         </section>
       )}
