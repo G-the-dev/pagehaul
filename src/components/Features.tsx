@@ -449,11 +449,98 @@ export function Steps() {
  * Audience
  * ------------------------------------------------------------------ */
 
+/**
+ * Each audience gets a small drawn mark of what they actually take away. Four
+ * text blocks in a row read as filler; showing the thing gives the section a
+ * reason to exist.
+ */
+function DesignerMark() {
+  return (
+    <div className="flex gap-1.5">
+      {["#fafafa", "#a1a1a1", "#525252", "#2e2e2e"].map((c) => (
+        <span
+          key={c}
+          className="h-6 w-6 rounded-md border border-border"
+          style={{ background: c }}
+        />
+      ))}
+    </div>
+  );
+}
+
+function DeveloperMark() {
+  return (
+    <div className="flex w-full max-w-[130px] flex-col gap-1.5">
+      {[100, 62, 82].map((w, i) => (
+        <span
+          key={i}
+          style={{ width: `${w}%` }}
+          className={`h-1.5 rounded-full ${i === 1 ? "bg-foreground/55" : "bg-surface-3"}`}
+        />
+      ))}
+    </div>
+  );
+}
+
+function MotionMark() {
+  return (
+    <div className="flex items-center gap-1.5">
+      {[0, 1, 2].map((i) => (
+        <span
+          key={i}
+          className={`h-6 rounded-md ${i === 1 ? "w-9 bg-foreground/70" : "w-6 bg-surface-3"}`}
+        />
+      ))}
+      <span className="ml-0.5 border-y-[5px] border-l-[8px] border-y-transparent border-l-foreground/60" />
+    </div>
+  );
+}
+
+function MigrateMark() {
+  return (
+    <div className="flex items-center gap-2">
+      <span className="grid h-6 w-6 grid-cols-2 grid-rows-2 gap-[2px]">
+        {[0, 1, 2, 3].map((i) => (
+          <span key={i} className="rounded-[2px] bg-surface-3" />
+        ))}
+      </span>
+      <svg
+        viewBox="0 0 24 24"
+        className="h-3.5 w-3.5 text-muted-foreground"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <path d="M5 12h14m0 0-5-5m5 5-5 5" />
+      </svg>
+      <span className="h-6 w-6 rounded-md bg-foreground/70" />
+    </div>
+  );
+}
+
 const AUDIENCE = [
-  { who: "Designers", what: "Palettes, type, icons and imagery." },
-  { who: "Developers", what: "Scripts, payloads and every network call." },
-  { who: "Video and motion", what: "Sources and posters a right click misses." },
-  { who: "Anyone migrating", what: "A whole site, in one pass." },
+  {
+    who: "Designers",
+    what: "Palettes, type, icons and imagery.",
+    Mark: DesignerMark,
+  },
+  {
+    who: "Developers",
+    what: "Scripts, payloads and every network call.",
+    Mark: DeveloperMark,
+  },
+  {
+    who: "Video and motion",
+    what: "Sources and posters a right click misses.",
+    Mark: MotionMark,
+  },
+  {
+    who: "Anyone migrating",
+    what: "A whole site, in one pass.",
+    Mark: MigrateMark,
+  },
 ];
 
 export function Audience() {
@@ -468,8 +555,11 @@ export function Audience() {
         <div className="grid gap-4 sm:grid-cols-2">
           {AUDIENCE.map((a, i) => (
             <Reveal key={a.who} delay={i * 0.08}>
-              <Card className="h-full p-6">
-                <div className="mb-2 text-[15px] font-semibold">{a.who}</div>
+              <Card className="flex h-full flex-col p-6">
+                <div className="mb-6 flex h-8 items-center">
+                  <a.Mark />
+                </div>
+                <div className="mb-1.5 text-[15px] font-semibold">{a.who}</div>
                 <p className="text-[13.5px] leading-relaxed text-muted-foreground">
                   {a.what}
                 </p>

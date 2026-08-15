@@ -45,7 +45,7 @@ export function Hero({
   }, [index, words]);
 
   return (
-    <section className="relative isolate overflow-hidden">
+    <section className="relative isolate flex min-h-[100svh] flex-col justify-center overflow-hidden">
       {/* A quiet ground: one soft light from above and a faint grid that fades
           out well before the copy begins. */}
       <div
@@ -67,7 +67,7 @@ export function Hero({
         }}
       />
 
-      <div className="relative z-20 mx-auto max-w-3xl px-6 pb-28 pt-36 text-center sm:pt-44">
+      <div className="relative z-20 mx-auto w-full max-w-3xl px-6 py-24 text-center">
         <motion.h1
           initial={{ opacity: 0, y: 18 }}
           animate={{ opacity: 1, y: 0 }}

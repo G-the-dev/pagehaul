@@ -152,7 +152,7 @@ export function Footer() {
           before, which is why nothing aligned. */}
       <div className="mx-auto max-w-6xl px-6 pt-20 sm:px-8">
         <Reveal>
-          <div className="grid gap-10 pb-20 sm:grid-cols-3">
+          <div className="grid gap-10 pb-20 sm:grid-cols-[1fr_auto_auto] sm:gap-x-24">
             <div>
               <div className="mb-3 text-[15px] font-semibold tracking-tight">
                 pagehaul
