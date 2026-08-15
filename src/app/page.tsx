@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Check } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight } from "lucide-react";
 import type { Asset, AssetKind, ScanResult } from "@/lib/types";
 import { AssetTile } from "@/components/AssetTile";
 import { Picker } from "@/components/Picker";
@@ -70,6 +70,8 @@ export default function Home() {
   const resultsRef = useRef<HTMLDivElement>(null);
   const expiredRef = useRef<HTMLDivElement>(null);
   const heroRef = useRef<HTMLDivElement>(null);
+  /** Lets a scan in flight be abandoned. A deep scan can run most of a minute. */
+  const abortRef = useRef<AbortController | null>(null);
 
   const assets = useMemo(() => {
     if (!result) return [];
@@ -105,12 +107,37 @@ export default function Home() {
     return deduped.filter((a) => a.kind === tab);
   }, [deduped, tab]);
 
+  /**
+   * Where the open preview sits in the list behind it, so the arrows can move
+   * along it without closing. Recomputed by id rather than held as an index,
+   * because switching tab or letting results expire reshuffles the list.
+   */
+  const expandedIndex = expanded
+    ? visible.findIndex((a) => a.id === expanded.id)
+    : -1;
+
+  const stepPreview = useCallback(
+    (delta: number) => {
+      setExpanded((current) => {
+        if (!current) return current;
+        const i = visible.findIndex((a) => a.id === current.id);
+        return i < 0 ? current : (visible[i + delta] ?? current);
+      });
+    },
+    [visible],
+  );
+
   const visibleBytes = visible.reduce((n, a) => n + (a.bytes ?? 0), 0);
   const activeTabLabel = TABS.find((t) => t.id === tab)?.label ?? "Files";
   const hasDesign =
     (result?.palette?.length ?? 0) > 0 || (result?.typography?.length ?? 0) > 0;
 
   const runScan = useCallback(async (target: string, useDeep: boolean) => {
+    // A second scan supersedes the first rather than racing it.
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     setScanning(true);
     setError(null);
     setMeasured({});
@@ -124,6 +151,7 @@ export default function Home() {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ url: target, deep: useDeep }),
+        signal: controller.signal,
       });
       const data = await res.json();
       if (!res.ok) throw new Error(humaniseScanError(data.error ?? "That scan did not work."));
@@ -137,6 +165,9 @@ export default function Home() {
         80,
       );
     } catch (e) {
+      // Abandoning on purpose is not a failure, and saying "Something went
+      // wrong" to someone who just pressed Cancel is a lie.
+      if (e instanceof DOMException && e.name === "AbortError") return;
       setError(
         e instanceof Error
           ? humaniseScanError(e.message)
@@ -144,8 +175,19 @@ export default function Home() {
       );
       setResult(null);
     } finally {
-      setScanning(false);
+      // A superseded scan must not clear the spinner belonging to the new one.
+      if (abortRef.current === controller) {
+        abortRef.current = null;
+        setScanning(false);
+      }
     }
+  }, []);
+
+  /** Give up on the running scan and hand the field back. */
+  const cancelScan = useCallback(() => {
+    abortRef.current?.abort();
+    abortRef.current = null;
+    setScanning(false);
   }, []);
 
   const onMeasure = useCallback((id: string, w: number, h: number) => {
@@ -316,6 +358,7 @@ export default function Home() {
             setUrl(host);
             runScan(host, deep);
           }}
+          onCancel={cancelScan}
           scanning={scanning}
           error={error}
         />
@@ -556,6 +599,14 @@ export default function Home() {
           asset={expanded}
           onClose={() => setExpanded(null)}
           onDownload={() => runDownload([expanded], false)}
+          position={expandedIndex >= 0 ? expandedIndex + 1 : undefined}
+          total={expandedIndex >= 0 ? visible.length : undefined}
+          onPrev={expandedIndex > 0 ? () => stepPreview(-1) : undefined}
+          onNext={
+            expandedIndex >= 0 && expandedIndex < visible.length - 1
+              ? () => stepPreview(1)
+              : undefined
+          }
         />
       )}
 
@@ -672,10 +723,20 @@ function DetailDialog({
   asset,
   onClose,
   onDownload,
+  position,
+  total,
+  onPrev,
+  onNext,
 }: {
   asset: Asset;
   onClose: () => void;
   onDownload: () => void;
+  /** 1-based place in the list behind the dialog, for "12 of 214". */
+  position?: number;
+  total?: number;
+  /** Undefined at the ends of the list, which also disables the control. */
+  onPrev?: () => void;
+  onNext?: () => void;
 }) {
   const [copied, setCopied] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -729,11 +790,19 @@ function DetailDialog({
           e.preventDefault();
           openInNewTab(asset);
           break;
+        case "ArrowLeft":
+          e.preventDefault();
+          onPrev?.();
+          break;
+        case "ArrowRight":
+          e.preventDefault();
+          onNext?.();
+          break;
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [asset, onClose, onDownload, copy]);
+  }, [asset, onClose, onDownload, copy, onPrev, onNext]);
 
   return (
     <div
@@ -743,6 +812,36 @@ function DetailDialog({
       onClick={onClose}
       className="fixed inset-0 z-50 grid place-items-center bg-black/75 p-5 backdrop-blur-sm"
     >
+      {/* Stepping through the list without closing first. Sat outside the
+          panel so they never cover the thing being looked at, and hidden at
+          the ends rather than shown dead. */}
+      {onPrev && (
+        <button
+          type="button"
+          aria-label="Previous file"
+          onClick={(e) => {
+            e.stopPropagation();
+            onPrev();
+          }}
+          className="absolute left-3 top-1/2 z-10 hidden h-11 w-11 -translate-y-1/2 place-items-center rounded-full border border-border bg-surface/80 text-muted-foreground backdrop-blur-md transition-colors hover:border-border-strong hover:text-foreground md:grid"
+        >
+          <ChevronLeft className="h-5 w-5" />
+        </button>
+      )}
+      {onNext && (
+        <button
+          type="button"
+          aria-label="Next file"
+          onClick={(e) => {
+            e.stopPropagation();
+            onNext();
+          }}
+          className="absolute right-3 top-1/2 z-10 hidden h-11 w-11 -translate-y-1/2 place-items-center rounded-full border border-border bg-surface/80 text-muted-foreground backdrop-blur-md transition-colors hover:border-border-strong hover:text-foreground md:grid"
+        >
+          <ChevronRight className="h-5 w-5" />
+        </button>
+      )}
+
       <div
         ref={panelRef}
         tabIndex={-1}
@@ -756,14 +855,26 @@ function DetailDialog({
               {asset.url.slice(0, 140)}
             </p>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close"
-            className="shrink-0 rounded-lg border border-border px-2.5 py-1.5 font-mono text-[11px] text-muted-foreground transition-colors hover:border-border-strong hover:text-foreground"
-          >
-            ESC
-          </button>
+          <div className="flex shrink-0 items-center gap-2">
+            {/* Says both where you are and that the arrows will move you. */}
+            {position && total && total > 1 && (
+              <span className="hidden items-center gap-1.5 font-mono text-[11px] text-muted-foreground sm:flex">
+                <Key>←</Key>
+                <Key>→</Key>
+                <span className="ml-0.5 tabular-nums">
+                  {position} of {total}
+                </span>
+              </span>
+            )}
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Close"
+              className="rounded-lg border border-border px-2.5 py-1.5 font-mono text-[11px] text-muted-foreground transition-colors hover:border-border-strong hover:text-foreground"
+            >
+              ESC
+            </button>
+          </div>
         </div>
 
         {(asset.kind === "image" || asset.kind === "svg") && (

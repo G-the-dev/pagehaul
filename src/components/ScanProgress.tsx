@@ -19,7 +19,15 @@ const STAGES = [
   "Sorting and naming what was found",
 ];
 
-export function ScanProgress({ deep }: { deep: boolean }) {
+export function ScanProgress({
+  deep,
+  onCancel,
+}: {
+  deep: boolean;
+  /** Stops the scan. A deep scan can run the better part of a minute, and a
+   *  mistyped address should not have to be waited out. */
+  onCancel?: () => void;
+}) {
   const [i, setI] = useState(0);
   const [elapsed, setElapsed] = useState(0);
 
@@ -65,6 +73,19 @@ export function ScanProgress({ deep }: { deep: boolean }) {
         <span className="shrink-0 font-mono text-[11px] tabular-nums text-muted-foreground">
           {elapsed}s
         </span>
+
+        {onCancel && (
+          <>
+            <span aria-hidden className="h-4 w-px shrink-0 bg-border" />
+            <button
+              type="button"
+              onClick={onCancel}
+              className="shrink-0 rounded-md px-2 py-1 text-[12.5px] font-medium text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground"
+            >
+              Cancel
+            </button>
+          </>
+        )}
       </div>
     </div>
   );

@@ -15,6 +15,7 @@ interface Props {
   setDeep: (v: boolean) => void;
   onScan: () => void;
   onPick: (host: string) => void;
+  onCancel: () => void;
   scanning: boolean;
   error: string | null;
 }
@@ -31,6 +32,7 @@ export function Hero({
   setDeep,
   onScan,
   onPick,
+  onCancel,
   scanning,
   error,
 }: Props) {
@@ -228,7 +230,7 @@ export function Hero({
         </motion.form>
 
         {scanning ? (
-          <ScanProgress deep={deep} />
+          <ScanProgress deep={deep} onCancel={onCancel} />
         ) : (
           <TryExamples onPick={onPick} disabled={scanning} />
         )}
