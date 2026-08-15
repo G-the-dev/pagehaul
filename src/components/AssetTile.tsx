@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import type { Asset } from "@/lib/types";
 import { thumbnailUrl } from "@/lib/variants";
 import { formatBytes } from "@/lib/download";
+import { Tooltip } from "./ui/Tooltip";
 
 interface Props {
   asset: Asset;
@@ -197,16 +198,14 @@ export function AssetTile({
         <span className="shrink-0 rounded border border-border bg-surface-2 px-1.5 py-px font-mono text-[9.5px] font-semibold tracking-wide text-fg-2">
           {asset.format}
         </span>
-        <span
-          className="flex-1 truncate text-[12px] text-fg-2"
-          /* The name only. A CDN address runs to hundreds of characters and
-             turns a tooltip into a wall of text over the thing you are trying
-             to look at; the preview shows it properly, and Copy URL hands it
-             over. */
-          title={asset.displayName}
-        >
-          {asset.displayName}
-        </span>
+        {/* The name only. A CDN address runs to hundreds of characters and
+            turns a hint into a wall of text over the thing you are trying to
+            look at; the preview shows it properly, and Copy URL hands it over. */}
+        <Tooltip label={asset.displayName} className="min-w-0 flex-1">
+          <span className="block w-full truncate text-[12px] text-fg-2">
+            {asset.displayName}
+          </span>
+        </Tooltip>
         <span className="shrink-0 font-mono text-[10px] tabular-nums text-muted-foreground">
           {formatBytes(asset.bytes)}
         </span>

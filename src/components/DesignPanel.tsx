@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Check, Copy } from "lucide-react";
 import type { Swatch, TypeSpec } from "@/lib/types";
+import { Tooltip } from "./ui/Tooltip";
 
 interface Props {
   palette?: Swatch[];
@@ -95,12 +96,11 @@ export function DesignPanel({ palette, typography, tokens }: Props) {
             {palette.map((s) => {
               const justCopied = copied === s.hex;
               return (
+                <Tooltip key={s.hex} label={`${s.hex} · ${s.count}× · ${s.role}`}>
                 <button
-                  key={s.hex}
                   type="button"
                   onClick={() => copyHex(s.hex)}
                   aria-label={`Copy ${s.hex}`}
-                  title={`${s.hex} · ${s.count}× · ${s.role}`}
                   className="group overflow-hidden rounded-lg border border-border text-left transition-transform hover:scale-[1.04]"
                 >
                   {/* The colour itself carries the confirmation: a click puts a
@@ -136,6 +136,7 @@ export function DesignPanel({ palette, typography, tokens }: Props) {
                     </span>
                   </span>
                 </button>
+                </Tooltip>
               );
             })}
           </div>

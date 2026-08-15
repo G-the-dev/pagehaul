@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { SITE } from "@/lib/site";
+import { Tooltip } from "./ui/Tooltip";
 
 /**
  * How long these results have left.
@@ -49,13 +50,13 @@ export function Countdown({
   const urgent = left <= 60_000;
 
   return (
+    <Tooltip label={`Results clear ${SITE.resultsMinutes} minutes after a scan`}>
     <span
       className={`inline-flex items-center gap-2 rounded-full border px-2.5 py-1 font-mono text-[11px] transition-colors ${
         urgent
           ? "live-urgent border-warn/40 bg-warn-soft text-warn"
           : "border-border bg-surface-2/50 text-fg-2"
       }`}
-      title={`Results clear ${SITE.resultsMinutes} minutes after a scan`}
     >
       {/* The dot glows and the ring leaves it, so the chip reads as running
           rather than as a printed value. */}
@@ -75,5 +76,6 @@ export function Countdown({
       <span className="tabular-nums">{clock(left)}</span>
       <span className="hidden sm:inline opacity-70">left</span>
     </span>
+    </Tooltip>
   );
 }
