@@ -34,13 +34,26 @@ function noise(seed: number): number {
   return x - Math.floor(x);
 }
 
+/** Most cells a single tile may shed at once, before it becomes a cost. */
+const MAX_SHED = 6;
+
 export function Dissolve({
   active,
+  shedding = 0,
   src,
   seed = 0,
   children,
 }: {
   active: boolean;
+  /**
+   * How hard the tile is evaporating, 0 to 1, before the end.
+   *
+   * The point is a warning you feel rather than read, so the tile itself never
+   * fades and never stops responding — it just starts giving off pixels, more
+   * of them as the time goes. Somebody still downloading in the last seconds
+   * can carry on doing it.
+   */
+  shedding?: number;
   /** The picture to shatter. Without one the cells carry the tile's own tint. */
   src?: string;
   seed?: number;
@@ -93,6 +106,34 @@ export function Dissolve({
 
   const dissolving = active && cells.length > 0;
 
+  // A few cells lifting off and drifting away, over and over, while the tile
+  // underneath carries on as normal. Positions come from the same deterministic
+  // noise so they do not jump between renders.
+  const shed = useMemo(() => {
+    if (active || reduce || !onScreen || shedding <= 0) return [];
+    const count = Math.max(1, Math.round(shedding * MAX_SHED));
+    return Array.from({ length: count }, (_, i) => {
+      const a = noise(seed + i * 31 + 7);
+      const b = noise(seed + i * 31 + 401);
+      const col = Math.floor(a * COLS);
+      const row = Math.floor(b * ROWS);
+      return {
+        key: i,
+        left: `${(col / COLS) * 100}%`,
+        top: `${(row / ROWS) * 100}%`,
+        width: `${100 / COLS}%`,
+        height: `${100 / ROWS}%`,
+        posX: `${(col / (COLS - 1)) * 100}%`,
+        posY: `${(row / (ROWS - 1)) * 100}%`,
+        dx: (a - 0.5) * 26,
+        // Faster and further as the end approaches.
+        dy: -22 - shedding * 30,
+        duration: 2.4 - shedding * 0.9,
+        delay: b * 2.2,
+      };
+    });
+  }, [active, reduce, onScreen, shedding, seed]);
+
   return (
     <div ref={ref} className="relative">
       {/* The tile itself goes first, quickly, so the particles are what you
@@ -103,6 +144,37 @@ export function Dissolve({
       >
         {children}
       </motion.div>
+
+      {shed.length > 0 && (
+        <div aria-hidden className="pointer-events-none absolute inset-0 overflow-visible">
+          {shed.map((cell) => (
+            <motion.span
+              key={cell.key}
+              className="absolute rounded-[1px]"
+              style={{
+                left: cell.left,
+                top: cell.top,
+                width: cell.width,
+                height: cell.height,
+                backgroundImage: src ? `url(${src})` : undefined,
+                backgroundColor: src ? undefined : "rgb(var(--raise) / 0.4)",
+                backgroundSize: `${COLS * 100}% ${ROWS * 100}%`,
+                backgroundPosition: `${cell.posX} ${cell.posY}`,
+              }}
+              initial={{ opacity: 0, y: 0, scale: 1 }}
+              animate={{ opacity: [0, 0.75, 0], y: cell.dy, scale: 0.3 }}
+              transition={{
+                duration: cell.duration,
+                delay: cell.delay,
+                repeat: Infinity,
+                repeatDelay: 0.8,
+                ease: "easeOut",
+                times: [0, 0.25, 1],
+              }}
+            />
+          ))}
+        </div>
+      )}
 
       {dissolving && (
         <div aria-hidden className="pointer-events-none absolute inset-0 overflow-visible">

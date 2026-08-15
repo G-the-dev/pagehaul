@@ -67,12 +67,42 @@ export default function Home() {
   const [ranDeep, setRanDeep] = useState(false);
   /** True while the tiles are dissolving, before the list is cleared. */
   const [expiring, setExpiring] = useState(false);
+  /**
+   * How hard the tiles are evaporating, 0 to 1, over the last thirty seconds.
+   *
+   * Nothing happens until then, and even then the tiles stay solid and
+   * clickable — they only start shedding pixels, harder as the time goes. The
+   * warning should be felt without anybody being hurried off a download they
+   * are in the middle of.
+   */
+  const [shedding, setShedding] = useState(0);
   const [expiredHost, setExpiredHost] = useState<string | null>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
   const expiredRef = useRef<HTMLDivElement>(null);
   const heroRef = useRef<HTMLDivElement>(null);
   /** Lets a scan in flight be abandoned. A deep scan can run most of a minute. */
   const abortRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    if (!expiresAt) {
+      setShedding(0);
+      return;
+    }
+    const WINDOW_MS = 30_000;
+    const tick = () => {
+      const left = expiresAt - Date.now();
+      // Quantised to tenths so this re-renders ten times over the window
+      // rather than thirty, with the grid animating underneath it.
+      const next =
+        left > WINDOW_MS
+          ? 0
+          : Math.round(Math.min(1, Math.max(0, (WINDOW_MS - left) / WINDOW_MS)) * 10) / 10;
+      setShedding((prev) => (prev === next ? prev : next));
+    };
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [expiresAt]);
 
   /**
    * Whether the action bar is drawn in.
@@ -515,6 +545,7 @@ export default function Home() {
                   <Dissolve
                     key={a.id}
                     active={expiring}
+                    shedding={shedding}
                     src={a.thumbUrl ?? a.poster ?? a.url}
                     seed={i * 31}
                   >
