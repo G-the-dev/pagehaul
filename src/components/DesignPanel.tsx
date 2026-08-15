@@ -100,7 +100,7 @@ export function DesignPanel({ palette, typography, tokens }: Props) {
                   type="button"
                   onClick={() => copyHex(s.hex)}
                   aria-label={`Copy ${s.hex}`}
-                  title={`${s.hex} · used ${s.count} times · mostly ${s.role}`}
+                  title={`${s.hex} · ${s.count}× · ${s.role}`}
                   className="group overflow-hidden rounded-lg border border-border text-left transition-transform hover:scale-[1.04]"
                 >
                   {/* The colour itself carries the confirmation: a click puts a

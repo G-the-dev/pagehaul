@@ -199,7 +199,11 @@ export function AssetTile({
         </span>
         <span
           className="flex-1 truncate text-[12px] text-fg-2"
-          title={`${asset.displayName}\n${asset.url}`}
+          /* The name only. A CDN address runs to hundreds of characters and
+             turns a tooltip into a wall of text over the thing you are trying
+             to look at; the preview shows it properly, and Copy URL hands it
+             over. */
+          title={asset.displayName}
         >
           {asset.displayName}
         </span>

@@ -55,7 +55,7 @@ export function Countdown({
           ? "live-urgent border-warn/40 bg-warn-soft text-warn"
           : "border-border bg-surface-2/50 text-fg-2"
       }`}
-      title={`These results clear ${SITE.resultsMinutes} minutes after a scan. Nothing is stored on our side; the list is addresses and your browser fetches each file from the site it came from.`}
+      title={`Results clear ${SITE.resultsMinutes} minutes after a scan`}
     >
       {/* The dot glows and the ring leaves it, so the chip reads as running
           rather than as a printed value. */}

@@ -986,10 +986,7 @@ function DetailDialog({
             {/* Two lines, hard stop. A CDN address can run to hundreds of
                 characters and was pushing the whole panel down before the
                 picture even appeared. */}
-            <p
-              title={asset.url}
-              className="mt-1 line-clamp-2 break-all font-mono text-[11px] leading-[1.5] text-muted-foreground"
-            >
+            <p className="mt-1 line-clamp-2 break-all font-mono text-[11px] leading-[1.5] text-muted-foreground">
               {asset.url}
             </p>
           </div>
