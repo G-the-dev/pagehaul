@@ -115,6 +115,22 @@ export default function Home() {
    */
   const [barCompact, setBarCompact] = useState(false);
   const barEndRef = useRef<HTMLDivElement>(null);
+  /**
+   * True for the moment the bar is changing width.
+   *
+   * The frosted look is worth having, but blurring a strip this wide means
+   * recompositing everything behind it on every frame — over a grid of
+   * photographs that is exactly what made the resize stutter. So the blur is
+   * on whenever the bar is sitting still, which is nearly always, and off for
+   * the four hundred milliseconds it is actually moving.
+   */
+  const [barResizing, setBarResizing] = useState(false);
+
+  useEffect(() => {
+    setBarResizing(true);
+    const t = setTimeout(() => setBarResizing(false), 460);
+    return () => clearTimeout(t);
+  }, [barCompact]);
 
   useEffect(() => {
     const el = barEndRef.current;
@@ -593,14 +609,10 @@ export default function Home() {
                 className="sticky bottom-4 z-30 mx-auto mt-8 w-full transition-[max-width] duration-[420ms] ease-[cubic-bezier(0.16,1,0.3,1)]"
                 style={{ maxWidth: barCompact ? 560 : 1400 }}
               >
-              {/* No backdrop blur here. Blurring a strip this wide means the
-                  compositor re-blurs everything behind it on every frame of the
-                  width change, over a grid of photographs — which is what made
-                  the resize stutter. A near-opaque surface costs nothing. */}
               <div
-                className={`flex flex-wrap items-center gap-4 rounded-xl border border-border bg-surface/[0.97] transition-[padding] duration-300 ${
+                className={`flex flex-wrap items-center gap-4 rounded-xl border border-border bg-surface/85 transition-[padding] duration-300 ${
                   barCompact ? "px-4 py-2.5" : "px-5 py-3.5"
-                }`}
+                } ${barResizing ? "" : "backdrop-blur-xl"}`}
               >
                 <span className="text-[13px] text-muted-foreground">
                   {visible.length} {activeTabLabel.toLowerCase()}
