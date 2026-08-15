@@ -9,7 +9,6 @@ interface Props {
   selected: boolean;
   onToggle: (id: string) => void;
   onMeasure: (id: string, w: number, h: number) => void;
-  onExpand: (asset: Asset) => void;
   /** Picker mode: click means select, so the preview affordance is hidden. */
   compact?: boolean;
   /** Results mode shows no checkbox — a click downloads instead. */
@@ -27,7 +26,6 @@ export function AssetTile({
   selected,
   onToggle,
   onMeasure,
-  onExpand,
   compact,
   selectable = true,
 }: Props) {
@@ -53,7 +51,7 @@ export function AssetTile({
         aria-label={
           selectable
             ? `${selected ? "Deselect" : "Select"} ${asset.displayName}`
-            : `Download ${asset.displayName}`
+            : `Preview ${asset.displayName}`
         }
         className="block w-full cursor-pointer text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-background"
       >
@@ -126,20 +124,6 @@ export function AssetTile({
           )}
         </div>
       </button>
-
-      {!compact && (
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            onExpand(asset);
-          }}
-          aria-label={`Preview ${asset.displayName}`}
-          className="absolute bottom-[46px] left-2 z-20 hidden rounded-md bg-black/55 px-2 py-1 font-mono text-[10px] text-white/90 backdrop-blur-sm hover:bg-black/75 group-hover:block focus:block focus:outline-none"
-        >
-          preview
-        </button>
-      )}
 
       <div className="flex items-center gap-2 border-t border-border px-2.5 py-2">
         <span className="shrink-0 rounded border border-border bg-surface-2 px-1.5 py-px font-mono text-[9.5px] font-semibold tracking-wide text-fg-2">

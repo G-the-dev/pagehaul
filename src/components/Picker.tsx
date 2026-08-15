@@ -141,7 +141,6 @@ export function Picker({ assets, tabLabel, onClose, onConfirm }: Props) {
                     onMeasure={(id, w, h) =>
                       setMeasured((p) => (p[id] ? p : { ...p, [id]: { w, h } }))
                     }
-                    onExpand={() => {}}
                     compact
                   />
                 );

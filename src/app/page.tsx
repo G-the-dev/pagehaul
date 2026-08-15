@@ -302,9 +302,8 @@ export default function Home() {
                     asset={a}
                     selected={false}
                     selectable={false}
-                    onToggle={() => runDownload([a], false)}
+                    onToggle={() => setExpanded(a)}
                     onMeasure={onMeasure}
-                    onExpand={setExpanded}
                   />
                 ))}
               </div>
