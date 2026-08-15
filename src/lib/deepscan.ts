@@ -22,8 +22,21 @@ import { assertPublicHttpUrl } from "./scan";
 const NAV_TIMEOUT_MS = 35_000;
 const IDLE_TIMEOUT_MS = 12_000;
 const SETTLE_MS = 2_500;
-const MAX_SCROLLS = 18;
 const MAX_ASSETS = 1_400;
+
+/**
+ * Scrolling exists to make lazy content load, so it has to move the way a
+ * reader moves. Jumping straight to the bottom scrolls past every loader
+ * without any of them ever being on screen, and grids that mount their tiles
+ * on intersection stay empty.
+ */
+const SCROLL_STEPS = 45;
+/** Long enough for a lazy tile to start fetching before we move again. */
+const SCROLL_DWELL_MS = 600;
+/** Ceiling on the whole scroll, well inside the route's 120s. */
+const SCROLL_BUDGET_MS = 30_000;
+/** Screens with no new height and no new media before we call it the end. */
+const SCROLL_QUIET_STEPS = 3;
 
 const EXT_KIND: Record<string, AssetKind> = {
   jpg: "image", jpeg: "image", png: "image", webp: "image", avif: "image",
@@ -119,6 +132,73 @@ async function launchBrowser() {
   });
 }
 
+interface MediaRec {
+  url: string;
+  alt?: string;
+  w?: number;
+  h?: number;
+  section?: string;
+}
+
+/**
+ * Everything mounted right now, with the section each thing sits in.
+ *
+ * Run repeatedly while scrolling, because a grid that recycles its tiles holds
+ * maybe twenty nodes no matter how far you scroll. Reading once at the end sees
+ * only the last screen; reading as we go sees all of it.
+ *
+ * Passed as a string on purpose. The build injects small helper functions into
+ * compiled code, and those helpers do not exist inside the browser.
+ */
+const COLLECT_MEDIA = `(() => {
+  const sectionOf = (el) => {
+    let n = el, hops = 0;
+    while (n && hops < 12) {
+      const tag = n.tagName.toLowerCase();
+      if (tag === 'header') return 'header';
+      if (tag === 'footer') return 'footer';
+      if (tag === 'nav') return 'nav';
+      if (tag === 'main' || tag === 'article') return 'main';
+      const hay = (n.className + ' ' + n.id).toLowerCase();
+      if (/hero|banner|masthead/.test(hay)) return 'hero';
+      if (/footer/.test(hay)) return 'footer';
+      if (/header|topbar/.test(hay)) return 'header';
+      n = n.parentElement; hops++;
+    }
+    return undefined;
+  };
+  const out = [];
+  document.querySelectorAll('img').forEach((im) => {
+    const src = im.currentSrc || im.src;
+    if (!src || src.startsWith('data:')) return;
+    out.push({
+      url: src,
+      alt: (im.alt || '').trim() || undefined,
+      w: im.naturalWidth || undefined,
+      h: im.naturalHeight || undefined,
+      section: sectionOf(im),
+    });
+  });
+  document.querySelectorAll('video').forEach((v) => {
+    const src = v.currentSrc || v.src;
+    if (src && !src.startsWith('data:')) out.push({ url: src, section: sectionOf(v) });
+    if (v.poster) out.push({ url: v.poster, alt: 'poster frame', section: sectionOf(v) });
+  });
+  return out;
+})()`;
+
+/** One screen down, then report whether the page grew and where we are. */
+const SCROLL_STEP = `(async () => {
+  const measure = () => Math.max(
+    document.documentElement.scrollHeight,
+    document.body ? document.body.scrollHeight : 0,
+  );
+  window.scrollBy(0, Math.round(window.innerHeight * 0.8));
+  await new Promise((r) => setTimeout(r, ${SCROLL_DWELL_MS}));
+  const height = measure();
+  return { height, atBottom: window.scrollY + window.innerHeight >= height - 64 };
+})()`;
+
 interface Seen {
   url: string;
   kind: AssetKind;
@@ -142,18 +222,26 @@ export async function deepScan(rawUrl: string): Promise<ScanResult> {
     browser = await launchBrowser();
     const page = await browser.newPage();
     await page.setViewport({ width: 1512, height: 950, deviceScaleFactor: 2 });
+    // Say who we actually are, minus the word "Headless".
+    //
+    // Chrome sends its own sec-ch-ua client hints on every request and we
+    // cannot suppress them, so any user agent we invent is checked against a
+    // version we did not choose. Claiming Chrome 126 from a Chrome 151 binary
+    // is not a disguise, it is a contradiction, and it is precisely what bot
+    // checks look for: Pinterest answers it with a stripped page holding three
+    // images where the real one has dozens. Deriving both strings from the
+    // browser in hand means there is nothing to disagree with.
+    const product = (await browser.version()).replace(/^HeadlessChrome/, "Chrome");
+    const uaPlatform =
+      process.platform === "darwin"
+        ? "Macintosh; Intel Mac OS X 10_15_7"
+        : process.platform === "win32"
+          ? "Windows NT 10.0; Win64; x64"
+          : "X11; Linux x86_64";
     await page.setUserAgent(
-      "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
+      `Mozilla/5.0 (${uaPlatform}) AppleWebKit/537.36 (KHTML, like Gecko) ${product} Safari/537.36`,
     );
-    // A plain automated browser advertises itself in ways ordinary bot checks
-    // look for. Presenting like a normal Chrome session keeps public pages from
-    // serving us a challenge page instead of their content.
-    await page.setExtraHTTPHeaders({
-      "accept-language": "en-US,en;q=0.9",
-      "sec-ch-ua": '"Chromium";v="126", "Google Chrome";v="126", "Not-A.Brand";v="24"',
-      "sec-ch-ua-platform": '"macOS"',
-      "upgrade-insecure-requests": "1",
-    });
+    await page.setExtraHTTPHeaders({ "accept-language": "en-US,en;q=0.9" });
     await page.evaluateOnNewDocument(() => {
       Object.defineProperty(navigator, "webdriver", { get: () => undefined });
       Object.defineProperty(navigator, "languages", { get: () => ["en-US", "en"] });
@@ -236,24 +324,54 @@ export async function deepScan(rawUrl: string): Promise<ScanResult> {
       .waitForNetworkIdle({ idleTime: 900, timeout: IDLE_TIMEOUT_MS })
       .catch(() => {});
 
-    await page.evaluate(async (maxScrolls: number) => {
-      const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-      let last = 0;
-      for (let i = 0; i < maxScrolls; i++) {
-        window.scrollTo(0, document.body.scrollHeight);
-        await sleep(450);
-        const h = document.body.scrollHeight;
-        if (h === last) break;
-        last = h;
+    // Walk the page down a screen at a time, reading what is mounted after each
+    // step. Two things stop us: reaching the bottom of a page that has stopped
+    // growing and stopped producing media, or running out of budget.
+    const media = new Map<string, MediaRec>();
+    const absorb = (list: MediaRec[]) => {
+      for (const m of list) {
+        const prev = media.get(m.url);
+        if (!prev) {
+          media.set(m.url, m);
+          continue;
+        }
+        // A tile read before its image decoded reports no size. Keep whichever
+        // pass actually learned something.
+        prev.w ??= m.w;
+        prev.h ??= m.h;
+        prev.alt ??= m.alt;
+        prev.section ??= m.section;
       }
-      window.scrollTo(0, 0);
-      await sleep(300);
-    }, MAX_SCROLLS);
+    };
+
+    absorb((await page.evaluate(COLLECT_MEDIA)) as MediaRec[]);
+
+    const scrollDeadline = Date.now() + SCROLL_BUDGET_MS;
+    let lastHeight = 0;
+    let quiet = 0;
+    for (let i = 0; i < SCROLL_STEPS && Date.now() < scrollDeadline; i++) {
+      const step = (await page.evaluate(SCROLL_STEP)) as {
+        height: number;
+        atBottom: boolean;
+      };
+      const before = media.size;
+      absorb((await page.evaluate(COLLECT_MEDIA)) as MediaRec[]);
+
+      const grew = media.size > before || step.height !== lastHeight;
+      lastHeight = step.height;
+      if (step.atBottom && !grew) {
+        if (++quiet >= SCROLL_QUIET_STEPS) break;
+      } else {
+        quiet = 0;
+      }
+    }
 
     await page
       .waitForNetworkIdle({ idleTime: 800, timeout: 6000 })
       .catch(() => {});
     await new Promise((r) => setTimeout(r, SETTLE_MS));
+    absorb((await page.evaluate(COLLECT_MEDIA)) as MediaRec[]);
+    await page.evaluate("window.scrollTo(0, 0)");
 
     // Read the rendered page: media detail, plus the design data the user asked
     // for. Computed styles are the only honest source for what a page paints.
@@ -393,9 +511,11 @@ export async function deepScan(rawUrl: string): Promise<ScanResult> {
       return { media, palette, typography, tokens, title: document.title };
     });
 
-    // Merge rendered detail onto the network log.
-    const meta = new Map(pageData.media.map((d) => [d.url, d]));
-    for (const d of pageData.media) {
+    // Merge rendered detail onto the network log. The final pass adds anything
+    // reachable only through computed styles, chiefly CSS background images.
+    absorb(pageData.media as MediaRec[]);
+    const meta = media;
+    for (const d of media.values()) {
       if (found.has(d.url)) continue;
       const ext = extOf(d.url);
       found.set(d.url, {

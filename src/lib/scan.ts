@@ -674,6 +674,30 @@ export async function scan(rawUrl: string, opts: ScanOptions = {}): Promise<Scan
     return (y.bytes ?? 0) - (x.bytes ?? 0);
   });
 
+  // A page whose pictures arrive by JavaScript looks, in the markup we read
+  // here, like a page with almost no pictures and a lot of script. Reporting
+  // that as a complete result is how someone ends up staring at a gallery on
+  // screen and a handful of files in the list. Say what is happening instead.
+  //
+  // The tell is not how many pictures we found, it is where they came from.
+  // These sections are the ones we synthesise when a picture was dug out of
+  // embedded JSON, a meta tag or a stylesheet rather than read off a real tag
+  // in the markup. A page that renders its own gallery leaves dozens of real
+  // tags behind; a page that draws one after loading leaves none.
+  const SYNTHETIC = new Set(["embedded", "stylesheet", "head", "social", "noscript"]);
+  const scripts = assets.filter((a) => a.kind === "code" && /js/i.test(a.format)).length;
+  const inMarkup = assets.filter(
+    (a) =>
+      !a.noise &&
+      (a.kind === "image" || a.kind === "video") &&
+      !SYNTHETIC.has(a.section ?? ""),
+  ).length;
+  if (scripts >= 8 && inMarkup < 5) {
+    notes.push(
+      "This page draws its images with JavaScript after loading, so they are not in the markup a quick scan reads. Run a deep scan to open the page properly and get the rest.",
+    );
+  }
+
   return {
     target: target.toString(),
     pages,
