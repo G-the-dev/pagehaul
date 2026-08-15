@@ -8,6 +8,7 @@ import { Hero } from "@/components/Hero";
 import { ScanProgress } from "@/components/ScanProgress";
 import { DesignPanel } from "@/components/DesignPanel";
 import { Faq, Footer } from "@/components/Sections";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { Features, Audience, Steps } from "@/components/Features";
 import {
   downloadAsZip,
@@ -181,11 +182,14 @@ export default function Home() {
               {label}
             </a>
           ))}
+          <span className="ml-1.5">
+            <ThemeToggle />
+          </span>
           <a
             href="https://github.com/G-the-dev/pagehaul"
             target="_blank"
             rel="noreferrer"
-            className="ml-1.5 rounded-full bg-foreground px-5 py-2 text-[13px] font-semibold text-background transition-opacity hover:opacity-90"
+            className="ml-1 rounded-full bg-foreground px-5 py-2 text-[13px] font-semibold text-background transition-opacity hover:opacity-90"
           >
             GitHub
           </a>

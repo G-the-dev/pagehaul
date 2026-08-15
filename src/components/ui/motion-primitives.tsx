@@ -47,7 +47,7 @@ export function CursorGlow({
     return () => window.removeEventListener("pointermove", onMove);
   }, [x, y, reduce]);
 
-  const bg = useMotionTemplate`radial-gradient(${size}px circle at ${sx}px ${sy}px, rgba(255,255,255,${intensity}), transparent 70%)`;
+  const bg = useMotionTemplate`radial-gradient(${size}px circle at ${sx}px ${sy}px, rgb(var(--glow) / ${intensity}), transparent 70%)`;
 
   if (reduce) return null;
   return (
@@ -166,7 +166,7 @@ export function Section({
           className="pointer-events-none absolute inset-0"
           style={{
             background:
-              "linear-gradient(to bottom, transparent 0%, rgba(255,255,255,0.022) 22%, rgba(255,255,255,0.022) 78%, transparent 100%)",
+              "linear-gradient(to bottom, transparent 0%, rgb(var(--raise) / 0.022) 22%, rgb(var(--raise) / 0.022) 78%, transparent 100%)",
           }}
         />
       )}
@@ -188,8 +188,8 @@ export function Seam({ flip = false }: { flip?: boolean }) {
       className="pointer-events-none relative h-24 w-full"
       style={{
         background: flip
-          ? "linear-gradient(to top, rgba(255,255,255,0.03), transparent)"
-          : "linear-gradient(to bottom, rgba(255,255,255,0.03), transparent)",
+          ? "linear-gradient(to top, rgb(var(--raise) / 0.03), transparent)"
+          : "linear-gradient(to bottom, rgb(var(--raise) / 0.03), transparent)",
       }}
     />
   );

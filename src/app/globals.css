@@ -6,9 +6,13 @@
 /*
   pagehaul theme
   --------------
-  Dark only, neutral greys, no hue anywhere. Emphasis comes from contrast and
-  weight rather than colour, so the single "accent" is near white and sits on a
-  dark foreground. Radius and scale follow shadcn's neutral conventions.
+  Neutral greys, no hue anywhere. Emphasis comes from contrast and weight
+  rather than colour, so the single "accent" is simply the opposite end of the
+  scale: near white on dark, near black on light.
+
+  Dark is the default and lives on :root. Light overrides the same token names
+  under .light, so every component reads one set of names and neither theme can
+  be half applied.
 */
 
 :root {
@@ -43,6 +47,10 @@
   --checker-a: #1c1c1c;
   --checker-b: #262626;
 
+  /* Ambient light behind the hero, and the tint raised sections sit on. */
+  --glow: 255 255 255;
+  --raise: 255 255 255;
+
   /* shadcn compatibility */
   --card: var(--surface);
   --card-foreground: var(--foreground);
@@ -57,6 +65,44 @@
   --destructive: var(--danger);
   --input: #ffffff26;
   --ring: #a1a1a1;
+}
+
+.light {
+  --background: #ffffff;
+  --surface: #ffffff;
+  --surface-2: #f5f5f5;
+  --surface-3: #e5e5e5;
+
+  --foreground: #0a0a0a;
+  --foreground-2: #404040;
+  --muted-foreground: #737373;
+
+  --border: #e5e5e5;
+  --border-strong: #d4d4d4;
+
+  /* The accent inverts with the theme: dark ink on a light ground. */
+  --accent: #171717;
+  --accent-fg: #fafafa;
+  --accent-soft: #f5f5f5;
+  --accent-line: #d4d4d4;
+
+  --warn: #7c5b12;
+  --warn-soft: #faf5e8;
+  --danger: #c02626;
+  --danger-soft: #fdf0f0;
+
+  --checker-a: #f5f5f5;
+  --checker-b: #e5e5e5;
+
+  --glow: 0 0 0;
+  --raise: 0 0 0;
+
+  --card: var(--surface);
+  --popover: var(--surface);
+  --primary: #171717;
+  --primary-foreground: #fafafa;
+  --input: #e5e5e5;
+  --ring: #737373;
 }
 
 @theme inline {
@@ -107,7 +153,8 @@
     border-color: var(--border);
   }
   html {
-    color-scheme: dark;
+    /* Set by the theme script, not hard coded, so form controls and
+       scrollbars match whichever theme is active. */
     scroll-behavior: smooth;
   }
   body {
@@ -160,18 +207,29 @@
     background-size: 64px 64px;
   }
 
-  /* Elevation on a dark ground reads through a hairline plus depth, not blur. */
+  /* Depth reads differently per theme: a hairline of light on dark, a soft
+     drop shadow on light. Using one for both makes the other look flat. */
   .shadow-soft {
     box-shadow:
       0 0 0 1px #ffffff0a,
       0 2px 6px -2px #00000080,
       0 12px 28px -12px #000000b3;
   }
+  .light .shadow-soft {
+    box-shadow:
+      0 1px 2px -1px #0000001a,
+      0 4px 12px -4px #0000001f;
+  }
 
   .shadow-lift {
     box-shadow:
       0 0 0 1px #ffffff0d,
       0 24px 60px -20px #000000d9;
+  }
+  .light .shadow-lift {
+    box-shadow:
+      0 2px 8px -2px #00000014,
+      0 24px 48px -16px #00000024;
   }
 }
 

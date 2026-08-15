@@ -53,7 +53,7 @@ export function Hero({
         className="pointer-events-none absolute inset-x-0 top-0 h-[640px]"
         style={{
           background:
-            "radial-gradient(ellipse 60% 55% at 50% -8%, rgba(255,255,255,0.055), transparent 72%)",
+            "radial-gradient(ellipse 60% 55% at 50% -8%, rgb(var(--glow) / 0.055), transparent 72%)",
         }}
       />
       <div
@@ -85,7 +85,7 @@ export function Hero({
             slot at the width of the longest word, so the headline never
             reflows mid rotation.
           */}
-          <span className="inline-grid overflow-hidden align-baseline">
+          <span className="relative inline-grid overflow-hidden align-baseline">
             {words.map((w) => (
               <span
                 key={w}
