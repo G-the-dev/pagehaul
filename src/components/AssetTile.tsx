@@ -39,8 +39,12 @@ export function AssetTile({
   return (
     <div
       className={`group relative overflow-hidden rounded-xl border bg-surface transition-all duration-200 ${
+        // Selection used to draw a full-strength accent border plus a matching
+        // ring, which on a grid of many selected tiles is a wall of white with
+        // the pictures fighting through it. A soft ring reads as clearly
+        // without shouting; the tick in the corner is the unambiguous signal.
         selected
-          ? "border-accent shadow-[0_0_0_1px_var(--accent)]"
+          ? "border-accent/45 shadow-[0_0_0_1px_rgb(var(--raise)/0.22)]"
           : "border-border hover:border-border-strong hover:shadow-soft"
       }`}
     >

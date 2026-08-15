@@ -1,3 +1,4 @@
+import { looksLikeTransform } from "./naming";
 /**
  * Recognising the same picture at different sizes.
  *
@@ -46,7 +47,15 @@ export function variantFamily(rawUrl: string): string | undefined {
   const segments = u.pathname.split("/").filter(Boolean);
   if (!segments.length) return undefined;
 
-  const file = segments.pop()!;
+  let file = segments.pop()!;
+
+  // Some CDNs end the path with rendering options rather than a filename:
+  // /imagedelivery/<account>/<image-id>/f=auto,fit=scale-down,width=2560.
+  // The options are the size, so drop them and let the id identify the picture.
+  while (segments.length && looksLikeTransform(file)) {
+    file = segments.pop()!;
+  }
+
   const dot = file.lastIndexOf(".");
   const stem = dot > 0 ? file.slice(0, dot) : file;
   const ext = dot > 0 ? file.slice(dot + 1).toLowerCase() : "";
@@ -94,6 +103,11 @@ export function sizeHint(rawUrl: string): number {
   }
   const suffix = /[-_](\d{2,4})(?:x\d{2,4}|w)(?:\.[a-z0-9]+)?$/i.exec(u.pathname);
   if (suffix) best = Math.max(best, Number(suffix[1]));
+
+  // Options written into the path, e.g. .../f=auto,width=2560 or .../w_800.
+  for (const m of u.pathname.matchAll(/\b(?:width|w|h|height)[=_-](\d{2,5})\b/gi)) {
+    best = Math.max(best, Number(m[1]));
+  }
 
   for (const key of ["w", "width", "size", "s"]) {
     const v = Number(u.searchParams.get(key));

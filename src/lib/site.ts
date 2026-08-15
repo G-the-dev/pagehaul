@@ -26,6 +26,16 @@ export const SITE = {
 
   /** Must match DOWNLOAD_TTL_MINUTES in src/config/limits.ts. */
   retentionMinutes: 5,
+
+  /**
+   * How long a set of results stays on screen, in minutes.
+   *
+   * Longer than the server keeps anything, on purpose. Nothing here is stored
+   * server side to begin with — the list is addresses, and your browser fetches
+   * each file from the site it came from — so this window is about not leaving
+   * somebody else's page contents sitting in a tab indefinitely.
+   */
+  resultsMinutes: 7,
 } as const;
 
 export const LEGAL_LINKS = [

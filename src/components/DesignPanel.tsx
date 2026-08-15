@@ -39,6 +39,21 @@ function CopyChip({ value, label }: { value: string; label?: string }) {
  * the page actually renders rather than what its stylesheet claims.
  */
 export function DesignPanel({ palette, typography, tokens }: Props) {
+  /** Which swatch was last copied, so only that one confirms. */
+  const [copied, setCopied] = useState<string | null>(null);
+
+  function copyHex(hex: string) {
+    navigator.clipboard?.writeText(hex).then(
+      () => {
+        setCopied(hex);
+        setTimeout(() => setCopied((c) => (c === hex ? null : c)), 1400);
+      },
+      () => {
+        /* Clipboard can be refused; the value is still readable on the card. */
+      },
+    );
+  }
+
   const hasAny =
     (palette?.length ?? 0) > 0 ||
     (typography?.length ?? 0) > 0 ||
@@ -77,28 +92,52 @@ export function DesignPanel({ palette, typography, tokens }: Props) {
           </div>
 
           <div className="grid grid-cols-3 gap-2.5 sm:grid-cols-6 lg:grid-cols-9">
-            {palette.map((s) => (
-              <button
-                key={s.hex}
-                type="button"
-                onClick={() => navigator.clipboard?.writeText(s.hex)}
-                title={`${s.hex} · used ${s.count} times · mostly ${s.role}`}
-                className="group overflow-hidden rounded-lg border border-border transition-transform hover:scale-[1.04]"
-              >
-                <span
-                  className="block h-14 w-full"
-                  style={{ backgroundColor: s.hex }}
-                />
-                <span className="block px-1.5 py-1.5 text-left">
-                  <span className="block font-mono text-[10px] uppercase text-foreground">
-                    {s.hex}
+            {palette.map((s) => {
+              const justCopied = copied === s.hex;
+              return (
+                <button
+                  key={s.hex}
+                  type="button"
+                  onClick={() => copyHex(s.hex)}
+                  aria-label={`Copy ${s.hex}`}
+                  title={`${s.hex} · used ${s.count} times · mostly ${s.role}`}
+                  className="group overflow-hidden rounded-lg border border-border text-left transition-transform hover:scale-[1.04]"
+                >
+                  {/* The colour itself carries the confirmation: a click puts a
+                      tick on the swatch you clicked, so there is no doubt which
+                      one is now on the clipboard. */}
+                  <span
+                    className="relative block h-14 w-full"
+                    style={{ backgroundColor: s.hex }}
+                  >
+                    <span
+                      className={`absolute inset-0 grid place-items-center bg-black/45 transition-opacity duration-150 ${
+                        justCopied ? "opacity-100" : "opacity-0"
+                      }`}
+                    >
+                      <Check className="h-4 w-4 text-white" strokeWidth={3} />
+                    </span>
+                    <span
+                      className={`absolute inset-0 grid place-items-center transition-opacity duration-150 ${
+                        justCopied ? "opacity-0" : "opacity-0 group-hover:opacity-100"
+                      }`}
+                    >
+                      <span className="rounded-md bg-black/55 p-1.5">
+                        <Copy className="h-3.5 w-3.5 text-white" />
+                      </span>
+                    </span>
                   </span>
-                  <span className="block font-mono text-[9px] text-muted-foreground">
-                    {s.role}
+                  <span className="block px-1.5 py-1.5">
+                    <span className="block font-mono text-[10px] uppercase text-foreground">
+                      {justCopied ? "copied" : s.hex}
+                    </span>
+                    <span className="block font-mono text-[9px] text-muted-foreground">
+                      {s.role}
+                    </span>
                   </span>
-                </span>
-              </button>
-            ))}
+                </button>
+              );
+            })}
           </div>
         </section>
       )}
