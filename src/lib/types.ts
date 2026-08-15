@@ -55,6 +55,10 @@ export interface Asset {
   variantKey?: string;
   /** True for the highest-resolution member of a srcset family. */
   isLargest?: boolean;
+  /** How many sizes of this picture exist, counted on the largest of them. */
+  variantCount?: number;
+  /** The other sizes, largest first, so the preview can offer a choice. */
+  variants?: { url: string; label: string; bytes?: number }[];
   /** Formats that can carry an alpha channel — drives the checkerboard preview. */
   transparent?: boolean;
   /** Inline SVG serialised into a data URL rather than a network resource. */

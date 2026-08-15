@@ -2,6 +2,7 @@ import * as cheerio from "cheerio";
 import type { Element } from "domhandler";
 import type { Asset, AssetKind, Origin, ScanPage, ScanResult } from "./types";
 import { displayNameFor } from "./naming";
+import { groupVariants } from "./variants";
 
 const UA =
   "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36";
@@ -639,21 +640,10 @@ export async function scan(rawUrl: string, opts: ScanOptions = {}): Promise<Scan
 
   if (!opts.skipSizes) await fillSizes(assets);
 
-  // Largest-of-family flag for srcset groups, used by the default filter.
-  const families = new Map<string, Asset[]>();
-  for (const a of assets) {
-    if (!a.variantKey) continue;
-    const list = families.get(a.variantKey) ?? [];
-    list.push(a);
-    families.set(a.variantKey, list);
-  }
-  for (const list of families.values()) {
-    list.forEach((a) => (a.isLargest = false));
-    const best = list.reduce((acc, a) =>
-      (a.width ?? 0) * (a.bytes ?? 1) >= (acc.width ?? 0) * (acc.bytes ?? 1) ? a : acc,
-    );
-    best.isLargest = true;
-  }
+  // Collapse every size of a picture onto one entry. Handles srcset families,
+  // which arrive already keyed, and families we can only recognise from the
+  // shape of the address.
+  groupVariants(assets);
 
   // Readable labels, numbered within their kind so fallbacks stay distinct.
   const counters = new Map<string, number>();

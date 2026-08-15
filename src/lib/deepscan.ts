@@ -6,6 +6,7 @@ import type {
   TypeSpec,
 } from "./types";
 import { displayNameFor } from "./naming";
+import { groupVariants } from "./variants";
 import { assertPublicHttpUrl } from "./scan";
 
 /**
@@ -199,10 +200,41 @@ const SCROLL_STEP = `(async () => {
   return { height, atBottom: window.scrollY + window.innerHeight >= height - 64 };
 })()`;
 
+/**
+ * Media addresses written inside a payload rather than requested as one.
+ *
+ * JSON escapes its slashes, so the pattern tolerates the backslashes and they
+ * are undone afterwards. Anchored on the extension because that is the one
+ * part of a media URL that is reliably present.
+ */
+const MEDIA_URL_RE =
+  /https?:(?:\\?\/){2}[^"'\s\\<>()]+?\.(?:jpe?g|png|webp|avif|gif|svg|mp4|webm|m4v|mp3|wav|woff2?|pdf)(?:\?[^"'\s\\<>()]*)?/gi;
+
+/** Capped per response: one feed payload can name thousands of thumbnails. */
+const MINE_PER_RESPONSE = 300;
+/** The document is mined once and holds the whole page, so it gets more room. */
+const MINE_PER_DOCUMENT = 900;
+
+function mineMediaUrls(text: string, limit = MINE_PER_RESPONSE): string[] {
+  const out: string[] = [];
+  const seen = new Set<string>();
+  MEDIA_URL_RE.lastIndex = 0;
+  let m: RegExpExecArray | null;
+  while ((m = MEDIA_URL_RE.exec(text)) && out.length < limit) {
+    const raw = m[0].replace(/\\\//g, "/").replace(/&amp;/g, "&");
+    if (seen.has(raw)) continue;
+    seen.add(raw);
+    out.push(raw);
+  }
+  return out;
+}
+
 interface Seen {
   url: string;
   kind: AssetKind;
   format: string;
+  /** Named in a network payload rather than fetched, so it has no status. */
+  fromPayload?: boolean;
   bytes?: number;
   method?: string;
   status?: number;
@@ -248,6 +280,9 @@ export async function deepScan(rawUrl: string): Promise<ScanResult> {
       Object.defineProperty(navigator, "plugins", { get: () => [1, 2, 3, 4, 5] });
     });
 
+    // What the page itself answered, as opposed to any of its resources.
+    let mainStatus = 0;
+
     // Record every response, classified. This is the network log.
     page.on("response", async (res) => {
       try {
@@ -257,6 +292,13 @@ export async function deepScan(rawUrl: string): Promise<ScanResult> {
 
         const req = res.request();
         const rtype = req.resourceType();
+
+        // Redirects carry their own status; the last document response in the
+        // main frame is the one that decided what we actually got.
+        if (rtype === "document" && res.frame() === page.mainFrame() && !res.status().toString().startsWith("3")) {
+          mainStatus = res.status();
+        }
+
         const ct = (res.headers()["content-type"] ?? "").toLowerCase();
         const ext = extOf(url);
 
@@ -285,11 +327,32 @@ export async function deepScan(rawUrl: string): Promise<ScanResult> {
         const len = Number(res.headers()["content-length"] ?? 0);
 
         // A short body preview makes an API row readable without opening it.
+        // The same body is also the best source of pictures on this page.
+        //
+        // An app fetches its content as JSON and then decides what to draw. If
+        // it draws nothing — because it virtualises, because it waits for an
+        // interaction, or because a bot check quietly withheld the feed — the
+        // pictures still went past us, named in that payload. Reading it is the
+        // difference between reporting what a page chose to render and
+        // reporting what it actually holds.
         let preview: string | undefined;
-        if (kind === "api" && /json/.test(ct)) {
+        if (kind === "api" && /json|text|javascript/.test(ct)) {
           try {
             const txt = await res.text();
             preview = txt.replace(/\s+/g, " ").slice(0, 180);
+            for (const u of mineMediaUrls(txt)) {
+              if (found.size > MAX_ASSETS) break;
+              if (found.has(u)) continue;
+              const uext = extOf(u);
+              const ukind = EXT_KIND[uext];
+              if (!ukind) continue;
+              found.set(u, {
+                url: u,
+                kind: ukind,
+                format: (uext || "img").toUpperCase(),
+                fromPayload: true,
+              });
+            }
           } catch {
             /* body already consumed or streamed */
           }
@@ -372,6 +435,32 @@ export async function deepScan(rawUrl: string): Promise<ScanResult> {
     await new Promise((r) => setTimeout(r, SETTLE_MS));
     absorb((await page.evaluate(COLLECT_MEDIA)) as MediaRec[]);
     await page.evaluate("window.scrollTo(0, 0)");
+
+    // Mine the rendered document as well as the network.
+    //
+    // A server-rendered app ships its data inside the page: __NEXT_DATA__, a
+    // Nuxt state blob, an inline config object. Those addresses were never
+    // requested, so the network log cannot know about them, and the app may
+    // never draw them either. Reading the serialised DOM catches both the
+    // markup and the script blocks in one pass.
+    try {
+      const html = await page.content();
+      for (const u of mineMediaUrls(html, MINE_PER_DOCUMENT)) {
+        if (found.size > MAX_ASSETS) break;
+        if (found.has(u)) continue;
+        const uext = extOf(u);
+        const ukind = EXT_KIND[uext];
+        if (!ukind) continue;
+        found.set(u, {
+          url: u,
+          kind: ukind,
+          format: (uext || "img").toUpperCase(),
+          fromPayload: true,
+        });
+      }
+    } catch {
+      /* a page that refuses to serialise is not a failed scan */
+    }
 
     // Read the rendered page: media detail, plus the design data the user asked
     // for. Computed styles are the only honest source for what a page paints.
@@ -545,7 +634,7 @@ export async function deepScan(rawUrl: string): Promise<ScanResult> {
         height: d?.h,
         alt: d?.alt,
         fromPage: target.toString(),
-        section: d?.section,
+        section: d?.section ?? (s.fromPayload ? "payload" : undefined),
         method: s.method,
         status: s.status,
         contentType: s.contentType,
@@ -561,6 +650,11 @@ export async function deepScan(rawUrl: string): Promise<ScanResult> {
         noise: isPixel || undefined,
       });
     }
+
+    // One entry per picture rather than one per size. Payload mining in
+    // particular yields whole families at once, since a feed names every
+    // thumbnail it might need.
+    groupVariants(assets);
 
     const counters = new Map<string, number>();
     for (const a of assets) {
@@ -586,7 +680,18 @@ export async function deepScan(rawUrl: string): Promise<ScanResult> {
       (a) => !a.noise && (a.kind === "image" || a.kind === "video"),
     ).length;
 
-    if (LOGIN_WALLED.test(target.hostname) && realMedia < 5) {
+    // A refusal is not an empty page, and saying so is the difference between
+    // "this site has two files" and "this site turned us away". Sites rate
+    // limit, and the same address that worked an hour ago can answer 403.
+    if (mainStatus >= 400) {
+      const why =
+        mainStatus === 429
+          ? `${target.hostname} is rate limiting us. Waiting a few minutes usually clears it.`
+          : mainStatus === 403
+            ? `${target.hostname} refused the request (403). It blocks automated browsers, so what you see here is whatever loaded before the refusal.`
+            : `${target.hostname} answered ${mainStatus}, so the page never loaded properly. Check the address is still live.`;
+      notes.push(why);
+    } else if (LOGIN_WALLED.test(target.hostname) && realMedia < 5) {
       notes.push(
         `${target.hostname} serves its media only to signed-in sessions, so an automated browser receives the page shell and nothing more. That is access control rather than a technical limit, and it is what a browser extension carrying your own session would solve.`,
       );

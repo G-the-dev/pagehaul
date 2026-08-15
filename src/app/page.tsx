@@ -61,20 +61,31 @@ export default function Home() {
     });
   }, [result, measured]);
 
+  /**
+   * The same picture at nine sizes is one picture. A CDN serving 236, 474 and
+   * 736 pixel copies used to fill the grid with near-identical cards and bury
+   * everything else, so only the largest of each family is listed; the rest are
+   * offered as sizes inside its preview.
+   */
+  const deduped = useMemo(
+    () => assets.filter((a) => a.isLargest !== false),
+    [assets],
+  );
+
   const counts = useMemo(() => {
     const c: Record<string, number> = { all: 0 };
-    for (const a of assets) {
+    for (const a of deduped) {
       c[a.kind] = (c[a.kind] ?? 0) + 1;
       if (!a.noise) c.all += 1;
     }
     return c;
-  }, [assets]);
+  }, [deduped]);
 
   const visible = useMemo(() => {
     if (tab === "design") return [];
-    if (tab === "all") return assets.filter((a) => !a.noise);
-    return assets.filter((a) => a.kind === tab);
-  }, [assets, tab]);
+    if (tab === "all") return deduped.filter((a) => !a.noise);
+    return deduped.filter((a) => a.kind === tab);
+  }, [deduped, tab]);
 
   const visibleBytes = visible.reduce((n, a) => n + (a.bytes ?? 0), 0);
   const activeTabLabel = TABS.find((t) => t.id === tab)?.label ?? "Files";
@@ -685,6 +696,40 @@ function DetailDialog({
             </div>
           ))}
         </dl>
+
+        {/* Collapsing a family must not make its members unreachable: every
+            size the scan found is listed here, with the one on the card
+            marked. */}
+        {asset.variants && asset.variants.length > 1 && (
+          <div className="mt-5">
+            <div className="label-mono mb-2 text-[9.5px]">
+              Available sizes {asset.variants.length}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {asset.variants.map((v) => {
+                const current = v.url === asset.url;
+                return (
+                  <a
+                    key={v.url}
+                    href={v.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 font-mono text-[11px] transition-colors ${
+                      current
+                        ? "border-accent-line text-foreground"
+                        : "border-border text-muted-foreground hover:border-border-strong hover:text-foreground"
+                    }`}
+                  >
+                    {v.label}
+                    {v.bytes ? (
+                      <span className="opacity-60">{formatBytes(v.bytes)}</span>
+                    ) : null}
+                  </a>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         <div className="mt-5 flex flex-wrap items-center gap-2.5">
           <button
