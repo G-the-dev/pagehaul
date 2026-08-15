@@ -3,7 +3,9 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Plus } from "lucide-react";
+import Link from "next/link";
 import { EASE, Reveal, Section, Chip } from "./ui/motion-primitives";
+import { SITE } from "@/lib/site";
 
 /**
  * Ordered the way a first time visitor actually asks: what does it cost, is it
@@ -170,6 +172,11 @@ export function Footer() {
                     Scan a page
                   </a>
                 </li>
+                <li>
+                  <Link href="/about" className="transition-colors hover:text-foreground">
+                    About
+                  </Link>
+                </li>
                 <li className="opacity-50">Browser extension, soon</li>
               </ul>
             </div>
@@ -178,8 +185,23 @@ export function Footer() {
               <div className="label-mono mb-4">More</div>
               <ul className="space-y-2.5 text-[13.5px] text-muted-foreground">
                 <li>
+                  <Link href="/privacy" className="transition-colors hover:text-foreground">
+                    Privacy
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/terms" className="transition-colors hover:text-foreground">
+                    Terms
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/contact" className="transition-colors hover:text-foreground">
+                    Contact
+                  </Link>
+                </li>
+                <li>
                   <a
-                    href="https://github.com/G-the-dev/pagehaul"
+                    href={SITE.repo}
                     target="_blank"
                     rel="noreferrer"
                     className="transition-colors hover:text-foreground"
@@ -187,7 +209,6 @@ export function Footer() {
                     GitHub
                   </a>
                 </li>
-                <li className="opacity-50">&copy; {new Date().getFullYear()}</li>
               </ul>
             </div>
           </div>
