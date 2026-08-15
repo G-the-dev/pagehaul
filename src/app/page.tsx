@@ -9,6 +9,7 @@ import { ScanProgress } from "@/components/ScanProgress";
 import { DesignPanel } from "@/components/DesignPanel";
 import { Faq, Footer } from "@/components/Sections";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { humaniseScanError } from "@/lib/url-input";
 import { Features, Audience, Steps } from "@/components/Features";
 import {
   downloadAsZip,
@@ -92,7 +93,7 @@ export default function Home() {
         body: JSON.stringify({ url: target, deep: useDeep }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "That scan did not work.");
+      if (!res.ok) throw new Error(humaniseScanError(data.error ?? "That scan did not work."));
       setResult(data as ScanResult);
       setShown(48);
       // Results render inline, so bring them into view without a page change.
@@ -101,7 +102,11 @@ export default function Home() {
         80,
       );
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Something went wrong.");
+      setError(
+        e instanceof Error
+          ? humaniseScanError(e.message)
+          : "Something went wrong.",
+      );
       setResult(null);
     } finally {
       setScanning(false);

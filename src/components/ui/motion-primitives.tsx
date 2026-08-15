@@ -146,6 +146,7 @@ export function Section({
   children: ReactNode;
   className?: string;
   width?: "default" | "wide" | "narrow";
+  /** Retained for call sites. Section tinting was removed; see the note above. */
   tone?: "base" | "raised";
   id?: string;
 }) {
@@ -158,40 +159,10 @@ export function Section({
 
   return (
     <section id={id} className={`relative ${className}`}>
-      {/* A raised section fades in and out at its edges, so no hard cut ever
-          appears between one section and the next. */}
-      {tone === "raised" && (
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-0"
-          style={{
-            background:
-              "linear-gradient(to bottom, transparent 0%, rgb(var(--raise) / 0.022) 22%, rgb(var(--raise) / 0.022) 78%, transparent 100%)",
-          }}
-        />
-      )}
       <div className={`relative mx-auto ${max} px-6 py-28 sm:px-8 sm:py-36`}>
         {children}
       </div>
     </section>
-  );
-}
-
-/**
- * A soft band used where one visual world ends and another begins, in place of
- * a border. Nothing on this page should terminate in a hard line.
- */
-export function Seam({ flip = false }: { flip?: boolean }) {
-  return (
-    <div
-      aria-hidden
-      className="pointer-events-none relative h-24 w-full"
-      style={{
-        background: flip
-          ? "linear-gradient(to top, rgb(var(--raise) / 0.03), transparent)"
-          : "linear-gradient(to bottom, rgb(var(--raise) / 0.03), transparent)",
-      }}
-    />
   );
 }
 

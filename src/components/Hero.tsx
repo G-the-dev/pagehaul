@@ -5,6 +5,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { ArrowRight, Loader2 } from "lucide-react";
 import { EASE } from "./ui/motion-primitives";
 import { TryExamples } from "./TryExamples";
+import { checkUrlInput } from "@/lib/url-input";
 import { ScanProgress } from "./ScanProgress";
 
 interface Props {
@@ -33,6 +34,12 @@ export function Hero({
   scanning,
   error,
 }: Props) {
+  const [touched, setTouched] = useState(false);
+  const check = checkUrlInput(url);
+  // Only complain once they have left the field, so it does not shout at
+  // someone halfway through typing "stripe.c".
+  const inputError = touched && url.trim() && !check.ok ? check.message : null;
+
   const [index, setIndex] = useState(0);
   const words = useMemo(() => ["image", "icon", "video", "font", "asset"], []);
 
@@ -127,7 +134,9 @@ export function Hero({
           transition={{ duration: 0.8, delay: 0.24, ease: EASE }}
           onSubmit={(e) => {
             e.preventDefault();
-            if (url.trim() && !scanning) onScan();
+            setTouched(true);
+            // Nothing is submitted until it could plausibly resolve.
+            if (check.ok && !scanning) onScan();
           }}
           className="mx-auto mt-10 w-full max-w-lg"
         >
@@ -137,10 +146,14 @@ export function Hero({
               inputMode="url"
               value={url}
               onChange={(e) => setUrl(e.target.value)}
+              onBlur={() => setTouched(true)}
+              aria-invalid={!!inputError}
               placeholder="stripe.com"
               aria-label="Website link"
               disabled={scanning}
-              className="h-12 flex-1 rounded-lg border border-border bg-surface/80 px-4 text-[15px] backdrop-blur-md outline-none transition-colors placeholder:text-muted-foreground focus:border-border-strong disabled:opacity-60"
+              className={`h-12 flex-1 rounded-lg border bg-surface/80 px-4 text-[15px] backdrop-blur-md outline-none transition-colors placeholder:text-muted-foreground disabled:opacity-60 ${
+                inputError ? "border-danger/60" : "border-border focus:border-border-strong"
+              }`}
             />
             <button
               type="submit"
@@ -192,10 +205,10 @@ export function Hero({
             </p>
           </div>
 
-          {error && (
-            <div className="mt-6 rounded-lg border border-danger/30 bg-danger-soft px-4 py-3 text-left text-[13.5px] text-danger">
-              {error}
-            </div>
+          {(inputError || error) && (
+            <p className="mt-3 text-left text-[13px] text-danger">
+              {inputError ?? error}
+            </p>
           )}
         </motion.form>
 
