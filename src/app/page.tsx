@@ -13,7 +13,7 @@ import { Faq, Footer } from "@/components/Sections";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Toast, type ToastMessage, type ToastTone } from "@/components/Toast";
 import { Countdown } from "@/components/Countdown";
-import { Dissolve, DISSOLVE_MS } from "@/components/Dissolve";
+import { PixelDissolve, DISSOLVE_MS } from "@/components/PixelDissolve";
 import { SITE } from "@/lib/site";
 import { humaniseScanError } from "@/lib/url-input";
 import { Features, Audience, Steps } from "@/components/Features";
@@ -67,42 +67,12 @@ export default function Home() {
   const [ranDeep, setRanDeep] = useState(false);
   /** True while the tiles are dissolving, before the list is cleared. */
   const [expiring, setExpiring] = useState(false);
-  /**
-   * How hard the tiles are evaporating, 0 to 1, over the last thirty seconds.
-   *
-   * Nothing happens until then, and even then the tiles stay solid and
-   * clickable — they only start shedding pixels, harder as the time goes. The
-   * warning should be felt without anybody being hurried off a download they
-   * are in the middle of.
-   */
-  const [shedding, setShedding] = useState(0);
   const [expiredHost, setExpiredHost] = useState<string | null>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
   const expiredRef = useRef<HTMLDivElement>(null);
   const heroRef = useRef<HTMLDivElement>(null);
   /** Lets a scan in flight be abandoned. A deep scan can run most of a minute. */
   const abortRef = useRef<AbortController | null>(null);
-
-  useEffect(() => {
-    if (!expiresAt) {
-      setShedding(0);
-      return;
-    }
-    const WINDOW_MS = 30_000;
-    const tick = () => {
-      const left = expiresAt - Date.now();
-      // Quantised to tenths so this re-renders ten times over the window
-      // rather than thirty, with the grid animating underneath it.
-      const next =
-        left > WINDOW_MS
-          ? 0
-          : Math.round(Math.min(1, Math.max(0, (WINDOW_MS - left) / WINDOW_MS)) * 10) / 10;
-      setShedding((prev) => (prev === next ? prev : next));
-    };
-    tick();
-    const id = setInterval(tick, 1000);
-    return () => clearInterval(id);
-  }, [expiresAt]);
 
   /**
    * Whether the action bar is drawn in.
@@ -301,21 +271,23 @@ export default function Home() {
     setExpiring(true);
     setExpanded(null);
     setPickerOpen(false);
-    setTimeout(() => {
-      setResult((r) => {
-        if (r) {
-          try {
-            setExpiredHost(new URL(r.target).hostname.replace(/^www\./, ""));
-          } catch {
-            setExpiredHost(null);
-          }
+  }, []);
+
+  /** Called by the animation when the last particle has gone. */
+  const finishExpiry = useCallback(() => {
+    setResult((r) => {
+      if (r) {
+        try {
+          setExpiredHost(new URL(r.target).hostname.replace(/^www\./, ""));
+        } catch {
+          setExpiredHost(null);
         }
-        return null;
-      });
-      setExpiring(false);
-      setExpiresAt(null);
-      setMeasured({});
-    }, DISSOLVE_MS);
+      }
+      return null;
+    });
+    setExpiring(false);
+    setExpiresAt(null);
+    setMeasured({});
   }, []);
 
   /**
@@ -557,15 +529,8 @@ export default function Home() {
               <NetworkTable assets={visible} onOpen={setExpanded} />
             ) : (
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6">
-                {visible.slice(0, shown).map((a, i) => (
-                  <Dissolve
-                    key={a.id}
-                    className="tile-skip"
-                    active={expiring}
-                    shedding={shedding}
-                    src={a.thumbUrl ?? a.poster ?? a.url}
-                    seed={i * 31}
-                  >
+                {visible.slice(0, shown).map((a) => (
+                  <div key={a.id} data-tile className="tile-skip">
                     <AssetTile
                       asset={a}
                       selected={false}
@@ -573,7 +538,7 @@ export default function Home() {
                       onToggle={() => setExpanded(a)}
                       onMeasure={onMeasure}
                     />
-                  </Dissolve>
+                  </div>
                 ))}
               </div>
             )}
@@ -741,6 +706,8 @@ export default function Home() {
           }
         />
       )}
+
+      <PixelDissolve active={expiring} onDone={finishExpiry} />
 
       <Toast message={toast} onDismiss={hush} />
     </main>
