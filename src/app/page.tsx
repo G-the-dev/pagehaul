@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Check } from "lucide-react";
 import type { Asset, AssetKind, ScanResult } from "@/lib/types";
 import { AssetTile } from "@/components/AssetTile";
 import { Picker } from "@/components/Picker";
@@ -9,6 +10,7 @@ import { ScanProgress } from "@/components/ScanProgress";
 import { DesignPanel } from "@/components/DesignPanel";
 import { Faq, Footer } from "@/components/Sections";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { Toast, type ToastMessage, type ToastTone } from "@/components/Toast";
 import { humaniseScanError } from "@/lib/url-input";
 import { Features, Audience, Steps } from "@/components/Features";
 import {
@@ -45,7 +47,7 @@ export default function Home() {
   const [measured, setMeasured] = useState<Record<string, { w: number; h: number }>>({});
   const [progress, setProgress] = useState<ZipProgress | null>(null);
   const [busy, setBusy] = useState(false);
-  const [notice, setNotice] = useState<string | null>(null);
+  const [toast, setToast] = useState<ToastMessage | null>(null);
   const [expanded, setExpanded] = useState<Asset | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [shown, setShown] = useState(48);
@@ -83,7 +85,7 @@ export default function Home() {
     setScanning(true);
     setError(null);
     setMeasured({});
-    setNotice(null);
+    setToast(null);
     setTab("all");
     setShown(48);
     try {
@@ -117,19 +119,42 @@ export default function Home() {
     setMeasured((prev) => (prev[id] ? prev : { ...prev, [id]: { w, h } }));
   }, []);
 
+  /** The id is a counter so the same sentence twice still reads as two events. */
+  const say = useCallback((text: string, tone: ToastTone = "done") => {
+    setToast({ id: Date.now(), text, tone });
+  }, []);
+
+  /**
+   * A file's name is often its alt text, which can be a whole sentence. Cut it
+   * at a word so the notice stays one readable line, and let the ellipsis end
+   * the sentence rather than following a full stop with one.
+   */
+  const named = (a: Asset, verb: string) => {
+    const raw = a.displayName.replace(/[\s.…]+$/, "");
+    if (raw.length <= 44) return `${verb} ${raw}.`;
+    const cut = raw.slice(0, 44);
+    const space = cut.lastIndexOf(" ");
+    return `${verb} ${(space > 20 ? cut.slice(0, space) : cut).trimEnd()}…`;
+  };
+
+  const hush = useCallback(() => setToast(null), []);
+
   async function runDownload(list: Asset[], asZip: boolean) {
     if (!list.length || busy) return;
     setBusy(true);
-    setNotice(null);
+    setToast(null);
 
     if (list.length === 1) {
       const out = await downloadOne(list[0]);
-      setNotice(
-        out.ok
-          ? `Downloaded ${list[0].displayName}.`
-          : `${list[0].displayName} is blocked by its source, so it opened in a new tab instead.`,
-      );
-      if (!out.ok) openInNewTab(list[0]);
+      if (out.ok) {
+        say(named(list[0], "Downloaded"));
+      } else {
+        openInNewTab(list[0]);
+        say(
+          "Its source refused the download, so it opened in a new tab instead.",
+          "partial",
+        );
+      }
       setBusy(false);
       return;
     }
@@ -146,12 +171,21 @@ export default function Home() {
         ? await downloadAsZip(list, `${host}-assets`, setProgress)
         : await downloadEachSeparately(list, setProgress);
 
-      if (out.failed.length === 0) setNotice(`Downloaded ${out.added} files.`);
+      if (out.failed.length === 0)
+        say(
+          asZip
+            ? `Downloaded ${out.added} files as a zip.`
+            : `Downloaded ${out.added} files.`,
+        );
       else if (out.added === 0)
-        setNotice(`All ${out.failed.length} files were refused by the source.`);
-      else setNotice(`Downloaded ${out.added}. ${out.failed.length} were blocked.`);
+        say(`All ${out.failed.length} files were refused by the source.`, "failed");
+      else
+        say(
+          `Downloaded ${out.added} of ${out.added + out.failed.length}. The rest were blocked by their source.`,
+          "partial",
+        );
     } catch {
-      setNotice("The download could not be completed.");
+      say("The download could not be completed.", "failed");
     } finally {
       setBusy(false);
       setProgress(null);
@@ -370,9 +404,6 @@ export default function Home() {
                     {busy ? "Working" : `Download all ${visible.length}`}
                   </button>
                 </div>
-                {notice && (
-                  <p className="w-full text-[12.5px] text-muted-foreground">{notice}</p>
-                )}
               </div>
             )}
           </div>
@@ -404,6 +435,8 @@ export default function Home() {
           onDownload={() => runDownload([expanded], false)}
         />
       )}
+
+      <Toast message={toast} onDismiss={hush} />
     </main>
   );
 }
@@ -424,10 +457,14 @@ function TabButton({
       role="tab"
       aria-selected={active}
       onClick={onClick}
+      // The selected tab used to be #171717 on a #151515 track, which is a
+      // difference of two values and reads as nothing at all. It now lifts to
+      // the next surface up with a lit top edge, so selection is legible
+      // without colour, in either theme.
       className={`flex items-center gap-1.5 whitespace-nowrap rounded-md px-3 py-1.5 text-[13px] font-medium transition-all ${
         active
-          ? "bg-surface text-foreground shadow-soft"
-          : "text-muted-foreground hover:text-foreground"
+          ? "bg-surface-3 text-foreground shadow-lift ring-1 ring-inset ring-[rgb(var(--raise)/0.14)]"
+          : "text-muted-foreground hover:bg-[rgb(var(--raise)/0.05)] hover:text-foreground"
       }`}
     >
       {label}
@@ -497,6 +534,17 @@ function NetworkTable({
   );
 }
 
+/** Shown on a button and bound to the key. One source, so they cannot drift. */
+function Key({ children }: { children: React.ReactNode }) {
+  return (
+    // Border and ink both inherit the button's own colour, so one chip reads
+    // correctly on the filled button and the outlined ones alike.
+    <kbd className="ml-1.5 rounded border border-current px-1 font-mono text-[9.5px] leading-[1.4] opacity-45">
+      {children}
+    </kbd>
+  );
+}
+
 function DetailDialog({
   asset,
   onClose,
@@ -506,6 +554,64 @@ function DetailDialog({
   onClose: () => void;
   onDownload: () => void;
 }) {
+  const [copied, setCopied] = useState(false);
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  const copy = useCallback(() => {
+    navigator.clipboard?.writeText(asset.url).then(
+      () => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1800);
+      },
+      () => {
+        // Clipboard access can be refused. The address is selectable anyway.
+      },
+    );
+  }, [asset.url]);
+
+  // Take focus once, on open, and hold the page behind still. Kept apart from
+  // the key handler below: that one depends on props and re-subscribes freely,
+  // and if it also restored the scroll style it would save "hidden" over the
+  // real value the second time it ran, leaving the page locked after closing.
+  useEffect(() => {
+    panelRef.current?.focus();
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, []);
+
+  // The dialog advertised Esc without listening for it. Now every key it shows
+  // is bound.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      switch (e.key) {
+        case "Escape":
+          onClose();
+          break;
+        case "d":
+        case "D":
+          e.preventDefault();
+          onDownload();
+          break;
+        case "c":
+        case "C":
+          e.preventDefault();
+          copy();
+          break;
+        case "o":
+        case "O":
+          e.preventDefault();
+          openInNewTab(asset);
+          break;
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [asset, onClose, onDownload, copy]);
+
   return (
     <div
       role="dialog"
@@ -515,8 +621,10 @@ function DetailDialog({
       className="fixed inset-0 z-50 grid place-items-center bg-black/75 p-5 backdrop-blur-sm"
     >
       <div
+        ref={panelRef}
+        tabIndex={-1}
         onClick={(e) => e.stopPropagation()}
-        className="max-h-full w-full max-w-2xl overflow-auto rounded-xl border border-border bg-surface p-6 shadow-lift"
+        className="max-h-full w-full max-w-2xl overflow-auto rounded-xl border border-border bg-surface p-6 shadow-lift outline-none"
       >
         <div className="mb-5 flex items-start justify-between gap-4">
           <div className="min-w-0">
@@ -528,7 +636,8 @@ function DetailDialog({
           <button
             type="button"
             onClick={onClose}
-            className="shrink-0 rounded-lg border border-border px-2.5 py-1.5 font-mono text-[11px]"
+            aria-label="Close"
+            className="shrink-0 rounded-lg border border-border px-2.5 py-1.5 font-mono text-[11px] text-muted-foreground transition-colors hover:border-border-strong hover:text-foreground"
           >
             ESC
           </button>
@@ -577,27 +686,44 @@ function DetailDialog({
           ))}
         </dl>
 
-        <div className="mt-5 flex flex-wrap gap-2.5">
+        <div className="mt-5 flex flex-wrap items-center gap-2.5">
           <button
             type="button"
             onClick={onDownload}
-            className="h-9 rounded-lg bg-accent px-4 text-[13px] font-semibold text-accent-fg"
+            className="inline-flex h-9 items-center rounded-lg bg-accent px-4 text-[13px] font-semibold text-accent-fg transition-all hover:brightness-110"
           >
             Download
+            <Key>D</Key>
           </button>
           <button
             type="button"
-            onClick={() => navigator.clipboard?.writeText(asset.url)}
-            className="h-9 rounded-lg border border-border px-4 text-[13px]"
+            onClick={copy}
+            aria-live="polite"
+            className={`inline-flex h-9 items-center gap-1.5 rounded-lg border px-4 text-[13px] transition-colors ${
+              copied
+                ? "border-accent-line text-foreground"
+                : "border-border hover:border-border-strong"
+            }`}
           >
-            Copy URL
+            {copied ? (
+              <>
+                <Check className="h-3.5 w-3.5" strokeWidth={2.5} />
+                Copied
+              </>
+            ) : (
+              <>
+                Copy URL
+                <Key>C</Key>
+              </>
+            )}
           </button>
           <button
             type="button"
             onClick={() => openInNewTab(asset)}
-            className="h-9 rounded-lg border border-border px-4 text-[13px]"
+            className="inline-flex h-9 items-center rounded-lg border border-border px-4 text-[13px] transition-colors hover:border-border-strong"
           >
             Open original
+            <Key>O</Key>
           </button>
         </div>
       </div>

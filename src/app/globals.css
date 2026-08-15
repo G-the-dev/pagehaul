@@ -172,6 +172,22 @@
   h3 {
     letter-spacing: -0.018em;
   }
+  /* Tailwind v4 stopped giving buttons a pointer cursor, matching the raw
+     browser default. On a page built almost entirely out of buttons that reads
+     as nothing being clickable, so put it back once, here, rather than
+     remembering a class on every one of them. */
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  [role="tab"]:not([aria-disabled="true"]),
+  label:has(input[type="checkbox"]),
+  summary,
+  a[href] {
+    cursor: pointer;
+  }
+  button:disabled,
+  [aria-disabled="true"] {
+    cursor: not-allowed;
+  }
   ::selection {
     background: var(--foreground);
     color: var(--background);
