@@ -146,16 +146,19 @@ export function Footer() {
   return (
     <footer className="relative overflow-hidden">
       <div aria-hidden className="h-px w-full bg-gradient-to-r from-transparent via-border to-transparent" />
+
+      {/* Content and wordmark share one container and one padding value, so
+          their left and right edges line up. They were on different wrappers
+          before, which is why nothing aligned. */}
       <div className="mx-auto max-w-6xl px-6 pt-20 sm:px-8">
         <Reveal>
-          <div className="grid gap-10 pb-16 sm:grid-cols-[1.5fr_1fr_1fr]">
+          <div className="grid gap-10 pb-20 sm:grid-cols-3">
             <div>
               <div className="mb-3 text-[15px] font-semibold tracking-tight">
                 pagehaul
               </div>
-              <p className="max-w-xs text-[13.5px] leading-relaxed text-muted-foreground">
-                Every asset on any page, one click away. Built for people tired of
-                the Network tab.
+              <p className="max-w-[26ch] text-[13.5px] leading-relaxed text-muted-foreground">
+                Every asset on any page, one click away.
               </p>
             </div>
 
@@ -184,26 +187,25 @@ export function Footer() {
                     GitHub
                   </a>
                 </li>
-                <li className="opacity-50">
-                  &copy; {new Date().getFullYear()}
-                </li>
+                <li className="opacity-50">&copy; {new Date().getFullYear()}</li>
               </ul>
             </div>
           </div>
         </Reveal>
-      </div>
 
-      {/* Oversized wordmark, faded at the baseline so it reads as a mark. */}
-      <div aria-hidden className="select-none px-4" style={{ lineHeight: 0.76 }}>
-        <motion.div
-          initial={{ opacity: 0, y: 40 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: "-60px" }}
-          transition={{ duration: 1, ease: EASE }}
-          className="bg-gradient-to-b from-foreground/60 via-foreground/18 to-transparent bg-clip-text text-center text-[clamp(3.5rem,18vw,16rem)] font-semibold tracking-[-0.05em] text-transparent"
-        >
-          pagehaul
-        </motion.div>
+        {/* Sized to the container rather than the viewport, so it ends exactly
+            where the columns above it end. */}
+        <div aria-hidden className="select-none" style={{ lineHeight: 0.74 }}>
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, margin: "-60px" }}
+            transition={{ duration: 1, ease: EASE }}
+            className="w-full bg-gradient-to-b from-foreground/55 via-foreground/16 to-transparent bg-clip-text text-center text-[clamp(3rem,15.5vw,13.5rem)] font-semibold tracking-[-0.055em] text-transparent"
+          >
+            pagehaul
+          </motion.div>
+        </div>
       </div>
     </footer>
   );

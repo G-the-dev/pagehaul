@@ -1,7 +1,7 @@
 "use client";
 
 import { motion, useReducedMotion } from "framer-motion";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { EASE, Reveal, Section, SectionHead, Card } from "./ui/motion-primitives";
 
 /* ------------------------------------------------------------------ *
@@ -248,19 +248,52 @@ const STEPS = [
   },
 ];
 
-/** Step one: the thing you actually do, which is type an address. */
+/**
+ * Step one: an address being typed, over and over.
+ *
+ * These loop rather than playing once on scroll, because the section is about
+ * a process and a still frame does not read as one. All three are guarded by
+ * reduced motion, where they settle on a finished state instead.
+ */
 function PasteVisual() {
+  const reduce = useReducedMotion();
+  const full = "stripe.com";
+  const [typed, setTyped] = useState(reduce ? full : "");
+
+  useEffect(() => {
+    if (reduce) return;
+    let i = 0;
+    let hold = 0;
+    const t = setInterval(() => {
+      if (hold > 0) {
+        hold -= 1;
+        return;
+      }
+      if (i <= full.length) {
+        setTyped(full.slice(0, i));
+        i += 1;
+        if (i > full.length) hold = 18; // pause on the finished address
+      } else {
+        i = 0;
+        setTyped("");
+      }
+    }, 130);
+    return () => clearInterval(t);
+  }, [reduce]);
+
   return (
     <div className="flex h-full items-center">
       <div className="flex w-full items-center gap-2 rounded-lg border border-border bg-background px-3 py-2.5">
         <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-surface-3" />
-        <span className="font-mono text-[11.5px] text-fg-2">stripe.com</span>
-        <motion.span
-          animate={{ opacity: [1, 0, 1] }}
-          transition={{ duration: 1.1, repeat: Infinity, ease: "linear" }}
-          className="h-3.5 w-px bg-foreground"
-        />
-        <span className="ml-auto rounded-md bg-foreground px-2 py-1 text-[10px] font-semibold text-background">
+        <span className="font-mono text-[11.5px] text-fg-2">{typed}</span>
+        {!reduce && (
+          <motion.span
+            animate={{ opacity: [1, 0, 1] }}
+            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+            className="h-3.5 w-px bg-foreground"
+          />
+        )}
+        <span className="ml-auto shrink-0 rounded-md bg-foreground px-2 py-1 text-[10px] font-semibold text-background">
           Scan
         </span>
       </div>
@@ -268,67 +301,108 @@ function PasteVisual() {
   );
 }
 
-/** Step two: what comes back, typed and counted. */
+/** Step two: counts climbing as files are found. */
 function FoundVisual() {
-  const rows = [
-    { k: "Images", n: 206 },
-    { k: "Icons", n: 123 },
-    { k: "Fonts", n: 9 },
-  ];
+  const reduce = useReducedMotion();
+  const rows = useMemo(
+    () => [
+      { k: "Images", n: 206 },
+      { k: "Icons", n: 123 },
+      { k: "Fonts", n: 9 },
+    ],
+    [],
+  );
+  const [counts, setCounts] = useState<number[]>(
+    reduce ? rows.map((r) => r.n) : [0, 0, 0],
+  );
+
+  useEffect(() => {
+    if (reduce) return;
+    let frame = 0;
+    const total = 70;
+    const t = setInterval(() => {
+      frame += 1;
+      if (frame > total + 26) {
+        frame = 0;
+        setCounts([0, 0, 0]);
+        return;
+      }
+      const p = Math.min(1, frame / total);
+      // Ease out, so the numbers slow as they land rather than stopping dead.
+      const eased = 1 - Math.pow(1 - p, 3);
+      setCounts(rows.map((r) => Math.round(r.n * eased)));
+    }, 40);
+    return () => clearInterval(t);
+  }, [reduce, rows]);
+
   return (
     <div className="flex h-full flex-col justify-center gap-1.5">
       {rows.map((r, i) => (
-        <motion.div
+        <div
           key={r.k}
-          initial={{ opacity: 0, x: -8 }}
-          whileInView={{ opacity: 1, x: 0 }}
-          viewport={{ once: true, margin: "-60px" }}
-          transition={{ duration: 0.45, delay: i * 0.1, ease: EASE }}
           className="flex items-center gap-2.5 rounded-md border border-border bg-background px-2.5 py-2"
         >
           <span className="h-5 w-5 shrink-0 rounded bg-surface-3" />
           <span className="text-[11.5px] text-fg-2">{r.k}</span>
           <span className="ml-auto font-mono text-[10.5px] tabular-nums text-muted-foreground">
-            {r.n}
+            {counts[i]}
           </span>
-        </motion.div>
+        </div>
       ))}
     </div>
   );
 }
 
-/** Step three: one file leaving, which is the whole point. */
+/** Step three: one file lifting clear, then settling back. */
 function TakeVisual() {
+  const reduce = useReducedMotion();
   return (
     <div className="flex h-full items-center justify-center gap-2">
-      {[0, 1, 2, 3].map((i) => (
-        <motion.div
-          key={i}
-          initial={{ opacity: 0, y: 8 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: "-60px" }}
-          transition={{ duration: 0.4, delay: i * 0.08, ease: EASE }}
-          className={`h-14 flex-1 rounded-md ${
-            i === 1 ? "relative bg-foreground" : "bg-surface-2"
-          }`}
-        >
-          {i === 1 && (
-            <span className="absolute inset-0 grid place-items-center">
-              <svg
-                viewBox="0 0 24 24"
-                className="h-4 w-4 text-background"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M12 4v11m0 0 4-4m-4 4-4-4M5 19h14" />
-              </svg>
-            </span>
-          )}
-        </motion.div>
-      ))}
+      {[0, 1, 2, 3].map((i) => {
+        const pick = i === 1;
+        return (
+          <motion.div
+            key={i}
+            animate={
+              reduce
+                ? {}
+                : pick
+                  ? { y: [0, -10, -10, 0] }
+                  : { opacity: [1, 0.4, 0.4, 1] }
+            }
+            transition={
+              reduce
+                ? {}
+                : {
+                    duration: 2.8,
+                    times: [0, 0.25, 0.7, 1],
+                    repeat: Infinity,
+                    repeatDelay: 0.7,
+                    ease: EASE,
+                  }
+            }
+            className={`h-14 flex-1 rounded-md ${
+              pick ? "relative bg-foreground" : "bg-surface-2"
+            }`}
+          >
+            {pick && (
+              <span className="absolute inset-0 grid place-items-center">
+                <svg
+                  viewBox="0 0 24 24"
+                  className="h-4 w-4 text-background"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M12 4v11m0 0 4-4m-4 4-4-4M5 19h14" />
+                </svg>
+              </span>
+            )}
+          </motion.div>
+        );
+      })}
     </div>
   );
 }
@@ -340,23 +414,20 @@ export function Steps() {
     <Section id="how">
       <SectionHead eyebrow="How it works" title="Three steps, no account." />
 
-      {/* Cards, matching every other section. The previous version drew a
-          connector line that ran past the last step into empty space. */}
       <div className="mt-14 grid gap-5 lg:grid-cols-3">
         {STEPS.map((s, i) => {
           const Visual = STEP_VISUALS[i];
           return (
             <Reveal key={s.n} delay={i * 0.1}>
+              {/* No divider between visual and copy, and no rule beside the
+                  number. Space separates them; a line is not needed. */}
               <Card className="flex h-full flex-col">
-                <div className="h-[104px] border-b border-border p-5">
+                <div className="h-[104px] p-5">
                   <Visual />
                 </div>
-                <div className="flex flex-1 flex-col p-5">
-                  <div className="mb-3 flex items-center gap-2.5">
-                    <span className="font-mono text-[11px] font-semibold text-muted-foreground">
-                      {s.n}
-                    </span>
-                    <span className="h-px flex-1 bg-border" />
+                <div className="flex flex-1 flex-col p-5 pt-3">
+                  <div className="mb-2.5 font-mono text-[11px] font-semibold text-muted-foreground">
+                    {s.n}
                   </div>
                   <h3 className="mb-2 text-[16px] font-semibold tracking-tight">
                     {s.h}
