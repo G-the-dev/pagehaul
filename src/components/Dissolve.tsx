@@ -42,6 +42,7 @@ export function Dissolve({
   shedding = 0,
   src,
   seed = 0,
+  className,
   children,
 }: {
   active: boolean;
@@ -57,14 +58,27 @@ export function Dissolve({
   /** The picture to shatter. Without one the cells carry the tile's own tint. */
   src?: string;
   seed?: number;
+  className?: string;
   children: React.ReactNode;
 }) {
   const reduce = useReducedMotion();
   const ref = useRef<HTMLDivElement>(null);
   const [onScreen, setOnScreen] = useState(false);
 
-  // Only tiles the eye can actually see earn particles.
+  // Only tiles the eye can actually see earn particles — but only bother
+  // working that out when particles are a possibility.
+  //
+  // This ran on every tile from the moment results appeared, so an ordinary
+  // scroll through a grid of hundreds fired hundreds of observer callbacks,
+  // each one a React state change on a component that had nothing to do. The
+  // effect now does not exist until something is actually going to happen.
+  const wantsParticles = active || shedding > 0;
+
   useEffect(() => {
+    if (!wantsParticles) {
+      setOnScreen(false);
+      return;
+    }
     const el = ref.current;
     if (!el) return;
     const io = new IntersectionObserver(
@@ -73,7 +87,7 @@ export function Dissolve({
     );
     io.observe(el);
     return () => io.disconnect();
-  }, []);
+  }, [wantsParticles]);
 
   const cells = useMemo(() => {
     if (!active || reduce || !onScreen) return [];
@@ -135,7 +149,7 @@ export function Dissolve({
   }, [active, reduce, onScreen, shedding, seed]);
 
   return (
-    <div ref={ref} className="relative">
+    <div ref={ref} className={`relative ${className ?? ""}`}>
       {/* The tile itself goes first, quickly, so the particles are what you
           watch rather than a ghost of the original underneath them. */}
       <motion.div

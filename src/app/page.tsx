@@ -544,6 +544,7 @@ export default function Home() {
                 {visible.slice(0, shown).map((a, i) => (
                   <Dissolve
                     key={a.id}
+                    className="tile-skip"
                     active={expiring}
                     shedding={shedding}
                     src={a.thumbUrl ?? a.poster ?? a.url}
@@ -592,8 +593,12 @@ export default function Home() {
                 className="sticky bottom-4 z-30 mx-auto mt-8 w-full transition-[max-width] duration-[420ms] ease-[cubic-bezier(0.16,1,0.3,1)]"
                 style={{ maxWidth: barCompact ? 560 : 1400 }}
               >
+              {/* No backdrop blur here. Blurring a strip this wide means the
+                  compositor re-blurs everything behind it on every frame of the
+                  width change, over a grid of photographs — which is what made
+                  the resize stutter. A near-opaque surface costs nothing. */}
               <div
-                className={`flex flex-wrap items-center gap-4 rounded-xl border border-border bg-surface/90 backdrop-blur-xl transition-[padding] duration-300 ${
+                className={`flex flex-wrap items-center gap-4 rounded-xl border border-border bg-surface/[0.97] transition-[padding] duration-300 ${
                   barCompact ? "px-4 py-2.5" : "px-5 py-3.5"
                 }`}
               >
@@ -966,8 +971,14 @@ function DetailDialog({
         <div className="mb-5 flex items-start justify-between gap-4">
           <div className="min-w-0">
             <p className="truncate text-[16px] font-semibold">{asset.displayName}</p>
-            <p className="mt-1 break-all font-mono text-[11px] text-muted-foreground">
-              {asset.url.slice(0, 140)}
+            {/* Two lines, hard stop. A CDN address can run to hundreds of
+                characters and was pushing the whole panel down before the
+                picture even appeared. */}
+            <p
+              title={asset.url}
+              className="mt-1 line-clamp-2 break-all font-mono text-[11px] leading-[1.5] text-muted-foreground"
+            >
+              {asset.url}
             </p>
           </div>
           <div className="flex shrink-0 items-center gap-2">

@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import type { Asset } from "@/lib/types";
+import { thumbnailUrl } from "@/lib/variants";
 import { formatBytes } from "@/lib/download";
 
 interface Props {
@@ -30,8 +31,21 @@ export function AssetTile({
   selectable = true,
 }: Props) {
   const [failed, setFailed] = useState(false);
-  // Preview the smallest known variant, never the full-size original.
-  const previewSrc = asset.thumbUrl ?? asset.poster ?? asset.url;
+  /**
+   * True once a downscaled request has been refused, so we go back to the file
+   * the page actually referenced. A guessed thumbnail must never be the reason
+   * a tile is empty.
+   */
+  const [thumbRefused, setThumbRefused] = useState(false);
+
+  // Smallest known variant first, then a downscaled request if the address
+  // offers one, and only then the full-size file.
+  const base = asset.thumbUrl ?? asset.poster ?? asset.url;
+  const derived = useMemo(
+    () => (asset.kind === "image" ? thumbnailUrl(base) : null),
+    [asset.kind, base],
+  );
+  const previewSrc = derived && !thumbRefused ? derived : base;
   const corner = cornerLabel(asset);
   const showsImage =
     !failed && (asset.kind === "image" || asset.kind === "svg" || !!asset.poster);
@@ -73,7 +87,12 @@ export function AssetTile({
               alt=""
               loading="lazy"
               decoding="async"
-              onError={() => setFailed(true)}
+              onError={() => {
+                // A downscaled request the CDN would not honour: retry with
+                // the address the page itself used before calling it broken.
+                if (derived && !thumbRefused) setThumbRefused(true);
+                else setFailed(true);
+              }}
               onLoad={(e) => {
                 const el = e.currentTarget;
                 // Only believe the measurement when what loaded is the file

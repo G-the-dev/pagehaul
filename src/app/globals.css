@@ -270,6 +270,17 @@
   padding: 0.1em 0.36em;
 }
 
+/* Tiles below the fold.
+
+   The browser is told it may skip styling, laying out and painting a tile it
+   cannot see, and roughly how tall to assume it is so the scrollbar stays
+   honest. On a grid of hundreds this is the difference between recalculating
+   style for everything on every scroll and recalculating for a screenful. */
+.tile-skip {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 240px;
+}
+
 /* The expiry indicator.
 
    A countdown sitting in a row of grey metadata reads as one more fact about

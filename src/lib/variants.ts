@@ -132,6 +132,96 @@ export function sizeHint(rawUrl: string): number {
   return best;
 }
 
+/**
+ * The same picture, asked for at a size a tile can actually use.
+ *
+ * A grid tile is around two hundred pixels wide, and we were filling it with
+ * whatever the page happened to reference — a 2240 pixel JPEG in one case, 494
+ * kilobytes of it, for a thumbnail. Forty-eight of those is nearly two
+ * megabytes to draw one screen.
+ *
+ * Only knobs the address already exposes are touched, and only downwards, so
+ * this can never ask for something the CDN was not already offering. Returns
+ * null when the address says nothing about size, in which case the original is
+ * the only option.
+ */
+const THUMB_PX = 400;
+
+/**
+ * Hosts whose resize knob is not the obvious one.
+ *
+ * Framer's URLs carry ?width= and ?height=, which look like a resize request
+ * and are nothing of the kind — they are the intrinsic dimensions, and the CDN
+ * ignores them. Measured on one file: no parameters, 692,660 bytes;
+ * ?width=400, 692,660 bytes; ?scale-down-to=512, 35,429 bytes. Guessing from
+ * the parameter names alone would have left a twenty-fold saving on the table
+ * and, worse, produced a URL that looked downscaled while serving the original.
+ */
+const RESIZE_PARAM_BY_HOST: [RegExp, string][] = [
+  [/(?:^|\.)framerusercontent\.com$/i, "scale-down-to"],
+];
+
+export function thumbnailUrl(rawUrl: string): string | null {
+  let u: URL;
+  try {
+    u = new URL(rawUrl);
+  } catch {
+    return null;
+  }
+  if (u.protocol !== "https:" && u.protocol !== "http:") return null;
+
+  for (const [host, param] of RESIZE_PARAM_BY_HOST) {
+    if (!host.test(u.hostname)) continue;
+    const current = Number(u.searchParams.get(param));
+    if (Number.isFinite(current) && current > 0 && current <= THUMB_PX) return null;
+    u.searchParams.set(param, String(THUMB_PX));
+    return u.toString();
+  }
+
+  let touched = false;
+
+  // Query knobs: ?width=2240, ?w=1500, ?scale-down-to=1024.
+  let ratio = 1;
+  for (const [key, value] of [...u.searchParams]) {
+    if (!/^(?:w|width|scale-down-to|size|max-?w(?:idth)?)$/i.test(key)) continue;
+    const current = Number(value);
+    if (!Number.isFinite(current) || current <= THUMB_PX) continue;
+    ratio = Math.min(ratio, THUMB_PX / current);
+    u.searchParams.set(key, String(THUMB_PX));
+    touched = true;
+  }
+
+  // Scale the height with it rather than dropping it. Removing the height from
+  // a width/height pair made Framer ignore the request and hand back the
+  // original — 585KB for a thumbnail, worse than doing nothing.
+  if (touched && ratio < 1) {
+    for (const [key, value] of [...u.searchParams]) {
+      if (!/^(?:h|height|max-?h(?:eight)?)$/i.test(key)) continue;
+      const current = Number(value);
+      if (!Number.isFinite(current) || current <= 0) continue;
+      u.searchParams.set(key, String(Math.max(1, Math.round(current * ratio))));
+    }
+  }
+
+  // Path segments that are a size: Pinterest's /736x/ and /originals/.
+  if (!touched) {
+    const parts = u.pathname.split("/");
+    for (let i = 0; i < parts.length; i++) {
+      const m = /^(\d{3,4})x$/i.exec(parts[i]);
+      if (m && Number(m[1]) > THUMB_PX) {
+        parts[i] = `${THUMB_PX}x`;
+        touched = true;
+      } else if (/^originals?$/i.test(parts[i])) {
+        parts[i] = `${THUMB_PX}x`;
+        touched = true;
+      }
+    }
+    if (touched) u.pathname = parts.join("/");
+  }
+
+  return touched ? u.toString() : null;
+}
+
 interface Groupable {
   url: string;
   kind: string;
