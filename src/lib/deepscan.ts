@@ -35,7 +35,19 @@ const SCROLL_STEPS = 45;
 /** Long enough for a lazy tile to start fetching before we move again. */
 const SCROLL_DWELL_MS = 600;
 /** Ceiling on the whole scroll, well inside the route's 120s. */
-const SCROLL_BUDGET_MS = 30_000;
+const SCROLL_BUDGET_MS = 20_000;
+
+/**
+ * When to stop gathering and start answering, whatever is left undone.
+ *
+ * The route may run for 120 seconds and a large site was reaching eighty, so a
+ * slow run met the platform's limit instead of our own. That is the worst
+ * possible failure: the function is killed mid-flight, the host returns its own
+ * plain-text error page, and the caller receives something that is not even
+ * JSON. Stopping early and returning a partial result is strictly better than
+ * being stopped and returning nothing.
+ */
+const TOTAL_BUDGET_MS = 70_000;
 /** Screens with no new height and no new media before we call it the end. */
 const SCROLL_QUIET_STEPS = 3;
 
@@ -409,7 +421,10 @@ export async function deepScan(rawUrl: string): Promise<ScanResult> {
 
     absorb((await page.evaluate(COLLECT_MEDIA)) as MediaRec[]);
 
-    const scrollDeadline = Date.now() + SCROLL_BUDGET_MS;
+    const scrollDeadline = Math.min(
+      Date.now() + SCROLL_BUDGET_MS,
+      started + TOTAL_BUDGET_MS,
+    );
     let lastHeight = 0;
     let quiet = 0;
     for (let i = 0; i < SCROLL_STEPS && Date.now() < scrollDeadline; i++) {
@@ -429,10 +444,16 @@ export async function deepScan(rawUrl: string): Promise<ScanResult> {
       }
     }
 
-    await page
-      .waitForNetworkIdle({ idleTime: 800, timeout: 6000 })
-      .catch(() => {});
-    await new Promise((r) => setTimeout(r, SETTLE_MS));
+    // Everything past this point is optional polish, so it only happens if
+    // there is time for it.
+    const timeLeft = () => started + TOTAL_BUDGET_MS - Date.now();
+
+    if (timeLeft() > 10_000) {
+      await page
+        .waitForNetworkIdle({ idleTime: 800, timeout: 6000 })
+        .catch(() => {});
+      await new Promise((r) => setTimeout(r, SETTLE_MS));
+    }
     absorb((await page.evaluate(COLLECT_MEDIA)) as MediaRec[]);
     await page.evaluate("window.scrollTo(0, 0)");
 

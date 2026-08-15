@@ -185,7 +185,29 @@ export default function Home() {
         body: JSON.stringify({ url: target, deep: useDeep }),
         signal: controller.signal,
       });
-      const data = await res.json();
+      // Read as text first. A scan that runs past the platform's function
+      // limit never reaches our code: the host answers with its own plain
+      // error page, and calling res.json() on that threw the parser's own
+      // message onto the screen — Unexpected token 'A', "An error o"…
+      const body = await res.text();
+      let data: (ScanResult & { error?: string }) | null = null;
+      try {
+        data = JSON.parse(body);
+      } catch {
+        /* not ours */
+      }
+
+      if (!data) {
+        const tooLong =
+          res.status === 504 ||
+          res.status === 502 ||
+          /timeout|timed out|took too long/i.test(body);
+        throw new Error(
+          tooLong
+            ? "That page took too long to scan. Deep scans of very large sites can run past our limit — try again, or use quick."
+            : "That scan did not complete. Try again in a moment.",
+        );
+      }
       if (!res.ok) throw new Error(humaniseScanError(data.error ?? "That scan did not work."));
       setResult(data as ScanResult);
       setRanDeep(useDeep);
