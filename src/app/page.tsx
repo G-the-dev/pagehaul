@@ -56,6 +56,14 @@ export default function Home() {
   const [shown, setShown] = useState(48);
   /** When this set of results stops being shown. Null before the first scan. */
   const [expiresAt, setExpiresAt] = useState<number | null>(null);
+  /**
+   * The depth the visible results were produced with.
+   *
+   * Distinct from `deep`, which is what the toggle currently says. They part
+   * company the moment somebody flips it after a scan, and reading the toggle
+   * would then label a set of quick results "deep".
+   */
+  const [ranDeep, setRanDeep] = useState(false);
   /** True while the tiles are dissolving, before the list is cleared. */
   const [expiring, setExpiring] = useState(false);
   const [expiredHost, setExpiredHost] = useState<string | null>(null);
@@ -120,6 +128,7 @@ export default function Home() {
       const data = await res.json();
       if (!res.ok) throw new Error(humaniseScanError(data.error ?? "That scan did not work."));
       setResult(data as ScanResult);
+      setRanDeep(useDeep);
       setShown(48);
       setExpiresAt(Date.now() + SITE.resultsMinutes * 60_000);
       // Results render inline, so bring them into view without a page change.
@@ -329,7 +338,7 @@ export default function Home() {
                 <span className="h-3 w-px bg-border" />
                 <span>{(result.ms / 1000).toFixed(1)}s</span>
                 <span className="h-3 w-px bg-border" />
-                <span>{deep ? "deep" : "quick"}</span>
+                <span>{ranDeep ? "deep" : "quick"}</span>
                 {expiresAt && !expiring && (
                   <>
                     <span className="h-3 w-px bg-border" />
@@ -345,7 +354,7 @@ export default function Home() {
               </div>
             )}
 
-            {!deep && counts.all < 10 && (
+            {!ranDeep && counts.all < 10 && (
               <div className="mb-6 flex flex-wrap items-center gap-3 rounded-lg border border-accent-line bg-accent-soft px-4 py-3">
                 <p className="text-[13.5px]">
                   This page loads most of its content with JavaScript.

@@ -425,7 +425,11 @@ export function Steps() {
                 <div className="h-[104px] p-5">
                   <Visual />
                 </div>
-                <div className="flex flex-1 flex-col p-5 pt-3">
+                {/* The visuals overflow their box and are clipped by the card,
+                    so the padding underneath them is not real space — the
+                    number sat against a cut-off edge. This gap is the
+                    separation. */}
+                <div className="flex flex-1 flex-col p-5 pt-7">
                   <div className="mb-2.5 font-mono text-[11px] font-semibold text-muted-foreground">
                     {s.n}
                   </div>

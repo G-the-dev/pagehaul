@@ -191,7 +191,9 @@ export function Hero({
             <div
               role="radiogroup"
               aria-label="Scan depth"
-              className="inline-flex rounded-lg border border-border bg-surface/80 p-1 backdrop-blur-md"
+              className={`inline-flex rounded-lg border border-border bg-surface/80 p-1 backdrop-blur-md transition-opacity ${
+                scanning ? "opacity-55" : ""
+              }`}
             >
               {MODES.map((m) => {
                 const active = (m.id === "deep") === deep;
@@ -201,12 +203,17 @@ export function Hero({
                     type="button"
                     role="radio"
                     aria-checked={active}
+                    // Locked while a scan is in flight. The depth was decided
+                    // when the scan started and cannot change under it, so
+                    // letting the control move only makes the page describe a
+                    // scan that is not the one running.
+                    disabled={scanning}
                     onClick={() => setDeep(m.id === "deep")}
                     className={`rounded-md px-5 py-1.5 text-[13px] font-medium transition-colors ${
                       active
                         ? "bg-foreground text-background"
                         : "text-muted-foreground hover:text-foreground"
-                    }`}
+                    } ${scanning ? "pointer-events-none" : ""}`}
                   >
                     {m.label}
                   </button>
