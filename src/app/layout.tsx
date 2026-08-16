@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -57,6 +58,10 @@ export default function RootLayout({
       </head>
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         {children}
+        {/* Vercel Web Analytics — anonymous page views and visitor counts, no
+            cookies. It quietly does nothing when the site is not on Vercel, so
+            local dev is unaffected. */}
+        <Analytics />
       </body>
     </html>
   );
