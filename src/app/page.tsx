@@ -223,7 +223,9 @@ export default function Home() {
   const visibleBytes = visible.reduce((n, a) => n + (a.bytes ?? 0), 0);
   const activeTabLabel = TABS.find((t) => t.id === tab)?.label ?? "Files";
   const hasDesign =
-    (result?.palette?.length ?? 0) > 0 || (result?.typography?.length ?? 0) > 0;
+    (result?.palette?.length ?? 0) > 0 ||
+    (result?.typography?.length ?? 0) > 0 ||
+    (result?.tokens?.length ?? 0) > 0;
 
   const runScan = useCallback(async (target: string, useDeep: boolean) => {
     // A second scan supersedes the first rather than racing it.

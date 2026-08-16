@@ -500,76 +500,12 @@ export async function deepScan(rawUrl: string): Promise<ScanResult> {
 
     absorb(await safeEval<MediaRec[]>(() => page.evaluate(COLLECT_MEDIA), []));
 
-    const scrollDeadline = Math.min(
-      Date.now() + SCROLL_BUDGET_MS,
-      started + TOTAL_BUDGET_MS,
-    );
-    let lastHeight = 0;
-    let quiet = 0;
-    for (let i = 0; i < SCROLL_STEPS && Date.now() < scrollDeadline; i++) {
-      const step = await safeEval<{ height: number; atBottom: boolean }>(
-        () => page.evaluate(SCROLL_STEP),
-        { height: lastHeight, atBottom: true },
-      );
-      const before = media.size;
-      absorb(await safeEval<MediaRec[]>(() => page.evaluate(COLLECT_MEDIA), []));
-
-      const grew = media.size > before || step.height !== lastHeight;
-      lastHeight = step.height;
-      if (step.atBottom && !grew) {
-        if (++quiet >= SCROLL_QUIET_STEPS) break;
-      } else {
-        quiet = 0;
-      }
-    }
-
-    // Everything past this point is optional polish, so it only happens if
-    // there is time for it.
-    const timeLeft = () => started + TOTAL_BUDGET_MS - Date.now();
-
-    if (timeLeft() > 10_000) {
-      await page
-        .waitForNetworkIdle({ idleTime: 800, timeout: 6000 })
-        .catch(() => {});
-      await new Promise((r) => setTimeout(r, SETTLE_MS));
-    }
-    absorb(await safeEval<MediaRec[]>(() => page.evaluate(COLLECT_MEDIA), []));
-    await safeEval(() => page.evaluate("window.scrollTo(0, 0)"), null);
-
-    // Mine the rendered document as well as the network.
-    //
-    // A server-rendered app ships its data inside the page: __NEXT_DATA__, a
-    // Nuxt state blob, an inline config object. Those addresses were never
-    // requested, so the network log cannot know about them, and the app may
-    // never draw them either. Reading the serialised DOM catches both the
-    // markup and the script blocks in one pass.
-    try {
-      // A heavy page serialises to many megabytes, and holding all of it while
-      // a constrained browser is still working is part of what gets it killed.
-      const html = (await safeEval<string>(() => page.content(), "")).slice(
-        0,
-        MAX_DOCUMENT_CHARS,
-      );
-      for (const u of mineMediaUrls(html, MINE_PER_DOCUMENT)) {
-        if (found.size > MAX_ASSETS) break;
-        if (found.has(u)) continue;
-        const uext = extOf(u);
-        const ukind = EXT_KIND[uext];
-        if (!ukind) continue;
-        found.set(u, {
-          url: u,
-          kind: ukind,
-          format: (uext || "img").toUpperCase(),
-          fromPayload: true,
-        });
-      }
-    } catch {
-      /* a page that refuses to serialise is not a failed scan */
-    }
-
-    // Read the rendered page: media detail, plus the design data the user asked
-    // for. Computed styles are the only honest source for what a page paints.
-    const pageData = await safeEval<PageData>(() => page.evaluate(() => {
+    // Reads the design data — palette, type, tokens — off the rendered page.
+    // Computed styles are the only honest source for what a page paints. Kept
+    // as a helper so it can run before the scroll, when the browser context is
+    // fresh, and again after; a heavy page can starve the late read.
+    const readDesign = () =>
+      safeEval<PageData>(() => page.evaluate(() => {
       const media: {
         url: string;
         alt?: string;
@@ -757,6 +693,93 @@ export async function deepScan(rawUrl: string): Promise<ScanResult> {
 
       return { media, palette, typography, tokens, fontFaces, title: document.title };
     }), EMPTY_PAGE_DATA);
+
+    // Capture design once up front, while the context is freshest.
+    const earlyDesign = await readDesign();
+
+    const scrollDeadline = Math.min(
+      Date.now() + SCROLL_BUDGET_MS,
+      started + TOTAL_BUDGET_MS,
+    );
+    let lastHeight = 0;
+    let quiet = 0;
+    for (let i = 0; i < SCROLL_STEPS && Date.now() < scrollDeadline; i++) {
+      const step = await safeEval<{ height: number; atBottom: boolean }>(
+        () => page.evaluate(SCROLL_STEP),
+        { height: lastHeight, atBottom: true },
+      );
+      const before = media.size;
+      absorb(await safeEval<MediaRec[]>(() => page.evaluate(COLLECT_MEDIA), []));
+
+      const grew = media.size > before || step.height !== lastHeight;
+      lastHeight = step.height;
+      if (step.atBottom && !grew) {
+        if (++quiet >= SCROLL_QUIET_STEPS) break;
+      } else {
+        quiet = 0;
+      }
+    }
+
+    // Everything past this point is optional polish, so it only happens if
+    // there is time for it.
+    const timeLeft = () => started + TOTAL_BUDGET_MS - Date.now();
+
+    if (timeLeft() > 10_000) {
+      await page
+        .waitForNetworkIdle({ idleTime: 800, timeout: 6000 })
+        .catch(() => {});
+      await new Promise((r) => setTimeout(r, SETTLE_MS));
+    }
+    absorb(await safeEval<MediaRec[]>(() => page.evaluate(COLLECT_MEDIA), []));
+    await safeEval(() => page.evaluate("window.scrollTo(0, 0)"), null);
+
+    // Mine the rendered document as well as the network.
+    //
+    // A server-rendered app ships its data inside the page: __NEXT_DATA__, a
+    // Nuxt state blob, an inline config object. Those addresses were never
+    // requested, so the network log cannot know about them, and the app may
+    // never draw them either. Reading the serialised DOM catches both the
+    // markup and the script blocks in one pass.
+    try {
+      // A heavy page serialises to many megabytes, and holding all of it while
+      // a constrained browser is still working is part of what gets it killed.
+      const html = (await safeEval<string>(() => page.content(), "")).slice(
+        0,
+        MAX_DOCUMENT_CHARS,
+      );
+      for (const u of mineMediaUrls(html, MINE_PER_DOCUMENT)) {
+        if (found.size > MAX_ASSETS) break;
+        if (found.has(u)) continue;
+        const uext = extOf(u);
+        const ukind = EXT_KIND[uext];
+        if (!ukind) continue;
+        found.set(u, {
+          url: u,
+          kind: ukind,
+          format: (uext || "img").toUpperCase(),
+          fromPayload: true,
+        });
+      }
+    } catch {
+      /* a page that refuses to serialise is not a failed scan */
+    }
+
+    // Read design again now that everything has loaded. On a healthy page this
+    // is the fuller answer; on a stressed one it comes back empty and the early
+    // read carries it, per field, so the design tab is never lost to timing.
+    const lateDesign = await readDesign();
+    const pageData: PageData = {
+      media: lateDesign.media.length ? lateDesign.media : earlyDesign.media,
+      palette: lateDesign.palette.length ? lateDesign.palette : earlyDesign.palette,
+      typography: lateDesign.typography.length
+        ? lateDesign.typography
+        : earlyDesign.typography,
+      tokens: lateDesign.tokens.length ? lateDesign.tokens : earlyDesign.tokens,
+      fontFaces: lateDesign.fontFaces.length
+        ? lateDesign.fontFaces
+        : earlyDesign.fontFaces,
+      title: lateDesign.title || earlyDesign.title,
+    };
 
     // Merge rendered detail onto the network log. The final pass adds anything
     // reachable only through computed styles, chiefly CSS background images.
