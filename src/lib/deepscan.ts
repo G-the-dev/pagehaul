@@ -188,6 +188,25 @@ async function safeEval<T>(
   return fallback;
 }
 
+/**
+ * Stops waiting on a page operation that outlives its budget.
+ *
+ * page.evaluate has no timeout of its own: a browser pegged by the page it is
+ * running — a WebGL scene holding the main thread — can leave an evaluate
+ * pending far longer than any deadline, and a loop that checks the clock
+ * between calls never gets to check it. Racing each call against a timer caps
+ * that. The stuck call keeps running until the page is closed; we simply move
+ * on, and the deadline test upstream then does its job.
+ */
+function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
+  return Promise.race([
+    p,
+    new Promise<T>((_, reject) =>
+      setTimeout(() => reject(new Error("page op timed out")), Math.max(500, ms)),
+    ),
+  ]);
+}
+
 interface PageData {
   media: MediaRec[];
   palette: unknown[];
@@ -544,14 +563,19 @@ export async function deepScan(
       }
     };
 
-    absorb(await safeEval<MediaRec[]>(() => page.evaluate(COLLECT_MEDIA), []));
+    absorb(
+      await safeEval<MediaRec[]>(
+        () => withTimeout(page.evaluate(COLLECT_MEDIA), 7_000),
+        [],
+      ),
+    );
 
     // Reads the design data — palette, type, tokens — off the rendered page.
     // Computed styles are the only honest source for what a page paints. Kept
     // as a helper so it can run before the scroll, when the browser context is
     // fresh, and again after; a heavy page can starve the late read.
     const readDesign = () =>
-      safeEval<PageData>(() => page.evaluate(() => {
+      safeEval<PageData>(() => withTimeout(page.evaluate(() => {
       const media: {
         url: string;
         alt?: string;
@@ -742,14 +766,14 @@ export async function deepScan(
       // main frame during load, and the read fails against the detached one
       // until the new frame settles. Retrying past that is what lets a design
       // read succeed on an app that navigates under it.
-    }), EMPTY_PAGE_DATA, 800, "readDesign", 4);
+    }), 14_000), EMPTY_PAGE_DATA, 800, "readDesign", 4);
 
     // Capture design once up front, while the context is freshest. Tokens are
     // read separately too — a cheap, reliable read that stands even if the
     // heavy computed-style walk above fails on a stressed serverless browser.
     const earlyDesign = await readDesign();
     const earlyTokens = await safeEval<{ name: string; value: string }[]>(
-      () => page.evaluate(READ_TOKENS),
+      () => withTimeout(page.evaluate(READ_TOKENS), 5_000),
       [],
       400,
       "readTokens",
@@ -768,11 +792,16 @@ export async function deepScan(
     let quiet = 0;
     for (let i = 0; i < SCROLL_STEPS && Date.now() < scrollDeadline; i++) {
       const step = await safeEval<{ height: number; atBottom: boolean }>(
-        () => page.evaluate(SCROLL_STEP),
+        () => withTimeout(page.evaluate(SCROLL_STEP), 7_000),
         { height: lastHeight, atBottom: true },
       );
       const before = media.size;
-      absorb(await safeEval<MediaRec[]>(() => page.evaluate(COLLECT_MEDIA), []));
+      absorb(
+        await safeEval<MediaRec[]>(
+          () => withTimeout(page.evaluate(COLLECT_MEDIA), 7_000),
+          [],
+        ),
+      );
 
       const grew = media.size > before || step.height !== lastHeight;
       lastHeight = step.height;
@@ -794,8 +823,13 @@ export async function deepScan(
         .catch(() => {});
       await new Promise((r) => setTimeout(r, SETTLE_MS));
     }
-    absorb(await safeEval<MediaRec[]>(() => page.evaluate(COLLECT_MEDIA), []));
-    await safeEval(() => page.evaluate("window.scrollTo(0, 0)"), null);
+    absorb(
+      await safeEval<MediaRec[]>(
+        () => withTimeout(page.evaluate(COLLECT_MEDIA), 7_000),
+        [],
+      ),
+    );
+    await safeEval(() => withTimeout(page.evaluate("window.scrollTo(0, 0)"), 3_000), null);
 
     // Mine the rendered document as well as the network.
     //
@@ -811,10 +845,9 @@ export async function deepScan(
       if (timeLeft() < 8_000) throw new Error("no time to mine");
       // A heavy page serialises to many megabytes, and holding all of it while
       // a constrained browser is still working is part of what gets it killed.
-      const html = (await safeEval<string>(() => page.content(), "")).slice(
-        0,
-        MAX_DOCUMENT_CHARS,
-      );
+      const html = (
+        await safeEval<string>(() => withTimeout(page.content(), 8_000), "")
+      ).slice(0, MAX_DOCUMENT_CHARS);
       for (const u of mineMediaUrls(html, MINE_PER_DOCUMENT)) {
         if (found.size > MAX_ASSETS) break;
         if (found.has(u)) continue;
