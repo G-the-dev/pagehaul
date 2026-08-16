@@ -124,6 +124,24 @@ export default function Home() {
     return () => clearTimeout(t);
   }, [barCompact]);
 
+  // Marks the document as scrolling so backdrop blur can stand down for the
+  // duration (see globals.css). A short idle timer clears it once you stop.
+  useEffect(() => {
+    const root = document.documentElement;
+    let idle: ReturnType<typeof setTimeout> | undefined;
+    const onScroll = () => {
+      root.classList.add("is-scrolling");
+      clearTimeout(idle);
+      idle = setTimeout(() => root.classList.remove("is-scrolling"), 140);
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      clearTimeout(idle);
+      root.classList.remove("is-scrolling");
+    };
+  }, []);
+
   useEffect(() => {
     const el = barEndRef.current;
     if (!el) {

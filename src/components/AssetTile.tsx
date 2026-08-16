@@ -234,7 +234,7 @@ export const AssetTile = memo(function AssetTile({
           )}
 
           {asset.kind === "video" && (
-            <span className="pointer-events-none absolute left-1/2 top-1/2 grid h-10 w-10 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full bg-black/55 backdrop-blur-sm">
+            <span className="pointer-events-none absolute left-1/2 top-1/2 grid h-10 w-10 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full bg-black/55">
               <span className="ml-[3px] border-y-[6px] border-l-[10px] border-y-transparent border-l-white" />
             </span>
           )}
@@ -242,7 +242,7 @@ export const AssetTile = memo(function AssetTile({
           {selectable && (
             <span
               aria-hidden
-              className={`absolute right-2 top-2 z-10 grid h-5 w-5 place-items-center rounded-md border backdrop-blur-sm transition-colors ${
+              className={`absolute right-2 top-2 z-10 grid h-5 w-5 place-items-center rounded-md border transition-colors ${
                 selected
                   ? "border-accent bg-accent"
                   : "border-white/35 bg-black/40 group-hover:border-white/70"
@@ -263,13 +263,13 @@ export const AssetTile = memo(function AssetTile({
           )}
 
           {asset.section && (
-            <span className="pointer-events-none absolute left-2 top-2 z-10 rounded-md bg-black/55 px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-widest text-white/90 backdrop-blur-sm">
+            <span className="pointer-events-none absolute left-2 top-2 z-10 rounded-md bg-black/55 px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-widest text-white/90">
               {asset.section}
             </span>
           )}
 
           {corner && (
-            <span className="pointer-events-none absolute bottom-2 right-2 z-10 rounded-md bg-black/55 px-1.5 py-0.5 font-mono text-[10px] tabular-nums text-white/90 backdrop-blur-sm">
+            <span className="pointer-events-none absolute bottom-2 right-2 z-10 rounded-md bg-black/55 px-1.5 py-0.5 font-mono text-[10px] tabular-nums text-white/90">
               {corner}
             </span>
           )}
