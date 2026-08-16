@@ -57,6 +57,10 @@ export function Hero({
       }
       const text = (e.clipboardData?.getData("text") ?? "").trim().split("\n")[0];
       if (!text || /\s/.test(text)) return;
+      // We are the paste now. Without this the browser also performs its own
+      // default paste — into the input we are about to focus — and the link
+      // lands twice, back to back.
+      e.preventDefault();
       setUrl(text);
       setTouched(false);
       inputRef.current?.focus();
