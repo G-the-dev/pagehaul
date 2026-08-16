@@ -53,27 +53,17 @@ export const AssetTile = memo(function AssetTile({
   // them mid-scroll locks the page. So during a scroll every video shows the
   // still placeholder, and only when you come to rest does what is on screen
   // decode.
-  const [settled, setSettled] = useState(false);
+  const [visible, setVisible] = useState(false);
   useEffect(() => {
     const el = tileRef.current;
     if (!el || asset.kind !== "video") return;
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    const io = new IntersectionObserver(
-      ([e]) => {
-        clearTimeout(timer);
-        if (e.isIntersecting) {
-          timer = setTimeout(() => setSettled(true), 260);
-        } else {
-          setSettled(false);
-        }
-      },
-      { rootMargin: "80px" },
-    );
+    const io = new IntersectionObserver(([e]) => setVisible(e.isIntersecting), {
+      // A little ahead of the viewport so a frame starts decoding just before
+      // the tile is seen, not after.
+      rootMargin: "300px",
+    });
     io.observe(el);
-    return () => {
-      clearTimeout(timer);
-      io.disconnect();
-    };
+    return () => io.disconnect();
   }, [asset.kind]);
   /**
    * True once a downscaled request has been refused, so we go back to the file
@@ -186,7 +176,7 @@ export const AssetTile = memo(function AssetTile({
               alt=""
               className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
             />
-          ) : showsVideoFrame && settled ? (
+          ) : showsVideoFrame && visible ? (
             /*
               A frame from the video itself, rendered only while the tile is on
               screen so a whole grid of videos never decodes at once. A media
