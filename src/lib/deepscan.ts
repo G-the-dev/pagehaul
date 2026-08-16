@@ -172,11 +172,14 @@ async function safeEval<T>(
   run: () => Promise<unknown>,
   fallback: T,
   retryDelayMs = 900,
+  label?: string,
 ): Promise<T> {
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
       return (await run()) as T;
     } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      if (label) console.log(`[deepscan] ${label} attempt ${attempt} failed: ${msg.slice(0, 160)}`);
       if (!isContextLost(e)) return fallback;
       if (attempt === 0) await new Promise((r) => setTimeout(r, retryDelayMs));
     }
@@ -263,6 +266,32 @@ const COLLECT_MEDIA = `(() => {
       if (ss && !ss.startsWith('data:')) out.push({ url: new URL(ss, location.href).href, section: sectionOf(a) });
     });
   });
+  return out;
+})()`;
+
+/**
+ * The design tokens a site declares on :root, read on their own.
+ *
+ * The full design read walks four thousand elements reading computed styles,
+ * and on a stressed serverless browser that walk can fail outright, taking the
+ * palette, the type and the declared tokens down with it — so a page with a
+ * rich token set showed no Design tab at all. Reading the custom properties is
+ * cheap and never touches that walk, so this runs separately and reliably:
+ * even when the heavy read dies, the tokens survive and the tab stands.
+ *
+ * A string on purpose, for the same reason COLLECT_MEDIA is one.
+ */
+const READ_TOKENS = `(() => {
+  const out = [];
+  try {
+    const rs = getComputedStyle(document.documentElement);
+    for (let i = 0; i < rs.length && out.length < 60; i++) {
+      const p = rs[i];
+      if (p.indexOf('--') !== 0) continue;
+      const v = rs.getPropertyValue(p).trim();
+      if (v && v.length < 60) out.push({ name: p, value: v });
+    }
+  } catch (e) {}
   return out;
 })()`;
 
@@ -700,10 +729,21 @@ export async function deepScan(rawUrl: string): Promise<ScanResult> {
       }
 
       return { media, palette, typography, tokens, fontFaces, title: document.title };
-    }), EMPTY_PAGE_DATA);
+    }), EMPTY_PAGE_DATA, 900, "readDesign");
 
-    // Capture design once up front, while the context is freshest.
+    // Capture design once up front, while the context is freshest. Tokens are
+    // read separately too — a cheap, reliable read that stands even if the
+    // heavy computed-style walk above fails on a stressed serverless browser.
     const earlyDesign = await readDesign();
+    const earlyTokens = await safeEval<{ name: string; value: string }[]>(
+      () => page.evaluate(READ_TOKENS),
+      [],
+      400,
+      "readTokens",
+    );
+    console.log(
+      `[deepscan] early design: palette=${earlyDesign.palette.length} type=${earlyDesign.typography.length} tokens=${earlyDesign.tokens.length} liteTokens=${earlyTokens.length}`,
+    );
 
     const scrollDeadline = Math.min(
       Date.now() + SCROLL_BUDGET_MS,
@@ -782,12 +822,21 @@ export async function deepScan(rawUrl: string): Promise<ScanResult> {
       typography: lateDesign.typography.length
         ? lateDesign.typography
         : earlyDesign.typography,
-      tokens: lateDesign.tokens.length ? lateDesign.tokens : earlyDesign.tokens,
+      // Tokens fall back one step further, to the standalone token read, so a
+      // page whose whole computed-style walk failed still shows its tokens.
+      tokens: lateDesign.tokens.length
+        ? lateDesign.tokens
+        : earlyDesign.tokens.length
+          ? earlyDesign.tokens
+          : earlyTokens,
       fontFaces: lateDesign.fontFaces.length
         ? lateDesign.fontFaces
         : earlyDesign.fontFaces,
       title: lateDesign.title || earlyDesign.title,
     };
+    console.log(
+      `[deepscan] final design: palette=${pageData.palette.length} type=${pageData.typography.length} tokens=${pageData.tokens.length}`,
+    );
 
     // Merge rendered detail onto the network log. The final pass adds anything
     // reachable only through computed styles, chiefly CSS background images.
