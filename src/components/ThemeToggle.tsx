@@ -63,26 +63,38 @@ export function ThemeToggle() {
     // The new theme washes out of the toggle itself, an expanding circle over
     // a page that holds still beneath it. The origin is the button, not the
     // pointer, so a keyboard activation blooms from the same place.
+    //
+    // Everything is in percentages, not pixels. Chrome maps pixel coordinates
+    // on the transition pseudo-element into device pixels, so on a Retina
+    // screen a circle aimed at the toggle bloomed from a point at half the
+    // distance — visibly the wrong spot. Percentages resolve against the
+    // snapshot itself and cannot miss.
     const r = e.currentTarget.getBoundingClientRect();
     const x = r.left + r.width / 2;
     const y = r.top + r.height / 2;
-    const radius = Math.hypot(
-      Math.max(x, window.innerWidth - x),
-      Math.max(y, window.innerHeight - y),
-    );
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    const cx = (x / w) * 100;
+    const cy = (y / h) * 100;
+    // circle()'s percentage radius resolves against hypot(w,h)/√2; cover the
+    // farthest corner exactly in those terms.
+    const farthest = Math.hypot(Math.max(x, w - x), Math.max(y, h - y));
+    const radiusPct = (farthest / (Math.hypot(w, h) / Math.SQRT2)) * 100;
 
     const vt = doc.startViewTransition(apply);
     vt.ready.then(() => {
       document.documentElement.animate(
         {
           clipPath: [
-            `circle(0px at ${x}px ${y}px)`,
-            `circle(${radius}px at ${x}px ${y}px)`,
+            `circle(0% at ${cx}% ${cy}%)`,
+            `circle(${radiusPct}% at ${cx}% ${cy}%)`,
           ],
         },
         {
-          duration: 720,
-          easing: "cubic-bezier(0.22, 1, 0.36, 1)",
+          // One decisive sweep. The long-tailed ease read as the animation
+          // pausing; this one commits and is gone.
+          duration: 460,
+          easing: "cubic-bezier(0.4, 0, 0.2, 1)",
           pseudoElement: "::view-transition-new(root)",
         },
       );
