@@ -805,6 +805,10 @@ export async function deepScan(
     // never draw them either. Reading the serialised DOM catches both the
     // markup and the script blocks in one pass.
     try {
+      // Serialising a heavy page can itself take many seconds on a stressed
+      // browser, so it is skipped when the wall is close — the network log and
+      // the scroll passes already hold the media; this only adds payload URLs.
+      if (timeLeft() < 8_000) throw new Error("no time to mine");
       // A heavy page serialises to many megabytes, and holding all of it while
       // a constrained browser is still working is part of what gets it killed.
       const html = (await safeEval<string>(() => page.content(), "")).slice(
@@ -831,10 +835,19 @@ export async function deepScan(
     // Read design again now that everything has loaded. On a healthy page this
     // is the fuller answer; on a stressed one it comes back empty and the early
     // read carries it, per field, so the design tab is never lost to timing.
-    // Skipped once the wall is close — the read can take a few seconds, and the
-    // early read already holds a good answer.
+    //
+    // But the read is a getComputedStyle walk over thousands of elements, and on
+    // a pegged browser — a WebGL site holding the main thread — it can run for
+    // tens of seconds and push the whole scan past its wall, at which point the
+    // design already captured up front is thrown away with it. So it is skipped
+    // when the early read already got a good answer, and when the wall is near:
+    // a second, marginally fuller read is not worth losing the scan over.
+    const haveEarly =
+      earlyDesign.palette.length > 0 || earlyDesign.tokens.length > 0;
     const lateDesign =
-      Date.now() < deadline - 5_000 ? await readDesign() : EMPTY_PAGE_DATA;
+      !haveEarly && Date.now() < deadline - 8_000
+        ? await readDesign()
+        : EMPTY_PAGE_DATA;
     const pageData: PageData = {
       media: lateDesign.media.length ? lateDesign.media : earlyDesign.media,
       palette: lateDesign.palette.length ? lateDesign.palette : earlyDesign.palette,

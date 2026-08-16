@@ -96,9 +96,11 @@ export async function POST(req: NextRequest) {
       const WALL_MS = 88_000;
       const wall = startedAt + WALL_MS;
       const remaining = () => wall - Date.now();
-      // Each deep pass returns with headroom left under the wall for merging and
-      // serialising, and no single pass is given more than a minute.
-      const passDeadline = () => Math.min(wall - 6_000, Date.now() + 60_000);
+      // Each deep pass returns with real headroom under the wall — enough for
+      // the scan to hand back its own partial (browser-fetched files and the
+      // design it read) rather than overrunning and leaving only the static
+      // read to answer. No single pass is given more than a minute.
+      const passDeadline = () => Math.min(wall - 14_000, Date.now() + 58_000);
 
       // The static read runs alongside and finishes in a second or two, so it is
       // always ready as the answer if the browser cannot make the wall.
