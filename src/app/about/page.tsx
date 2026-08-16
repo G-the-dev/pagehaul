@@ -97,11 +97,8 @@ export default function AboutPage() {
           Who made it
         </h2>
         <p>
-          A small independent project, built in the open. The code is on{" "}
-          <a href={SITE.repo} target="_blank" rel="noreferrer">
-            GitHub
-          </a>
-          . If something does not work, or works in a way that surprises you,{" "}
+          A small independent project. It will be open source soon. If
+          something does not work, or works in a way that surprises you,{" "}
           <a href="/contact">say so</a>.
         </p>
       </div>

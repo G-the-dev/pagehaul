@@ -32,14 +32,6 @@ export default function ContactPage() {
           it. Screenshots help but are rarely necessary.
         </p>
         <p>
-          Bugs can also go straight to the{" "}
-          <a href={`${SITE.repo}/issues`} target="_blank" rel="noreferrer">
-            issue tracker
-          </a>
-          , which is public and where the work happens.
-        </p>
-
-        <p>
           If content of yours was copied through this service, or you want your
           domain blocked from being captured at all, that is covered in the{" "}
           <a href="/terms">terms</a>.

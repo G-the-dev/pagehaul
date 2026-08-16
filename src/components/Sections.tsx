@@ -200,16 +200,7 @@ export function Footer() {
                     Contact
                   </Link>
                 </li>
-                <li>
-                  <a
-                    href={SITE.repo}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="transition-colors hover:text-foreground"
-                  >
-                    GitHub
-                  </a>
-                </li>
+                <li className="opacity-50">Open source soon</li>
               </ul>
             </div>
           </div>
