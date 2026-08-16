@@ -260,9 +260,6 @@ async function rawLaunch() {
         // like a crash rather than what it is.
         "--disable-dev-shm-usage",
         "--disable-gpu",
-        // Nothing here needs a second renderer process, and each one costs
-        // memory we do not have.
-        "--renderer-process-limit=1",
       ],
       executablePath: await chromium.executablePath(),
       headless: true,
