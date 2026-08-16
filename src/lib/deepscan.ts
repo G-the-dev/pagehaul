@@ -559,15 +559,6 @@ export async function deepScan(rawUrl: string): Promise<ScanResult> {
         if (v.poster) media.push({ url: v.poster, alt: "poster frame", section: sectionOf(v) });
       });
 
-      document.querySelectorAll("audio").forEach((a) => {
-        const src = a.currentSrc || a.src;
-        if (src && !src.startsWith("data:")) media.push({ url: src, section: sectionOf(a) });
-        a.querySelectorAll("source[src]").forEach((s) => {
-          const ss = s.getAttribute("src");
-          if (ss && !ss.startsWith("data:")) media.push({ url: new URL(ss, location.href).href, section: sectionOf(a) });
-        });
-      });
-
       // ---- design data -------------------------------------------------
       const colorCount = new Map<string, { n: number; role: string }>();
       const fontMap = new Map<string, { weights: Set<string>; sizes: Set<string> }>();
