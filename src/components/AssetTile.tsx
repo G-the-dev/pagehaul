@@ -3,6 +3,7 @@
 import { memo, useMemo, useState } from "react";
 import type { Asset } from "@/lib/types";
 import { thumbnailUrl } from "@/lib/variants";
+import { cachedPoster, capturePoster } from "@/lib/frame-cache";
 import { formatBytes } from "@/lib/download";
 import { Tooltip } from "./ui/Tooltip";
 
@@ -52,6 +53,8 @@ export const AssetTile = memo(function AssetTile({
     [asset.kind, base],
   );
   const previewSrc = derived && !thumbRefused ? derived : base;
+  // A frame we captured on a previous mount, if any.
+  const poster = asset.kind === "video" ? cachedPoster(asset.url) : undefined;
   const corner = cornerLabel(asset);
   const showsImage =
     !failed && (asset.kind === "image" || asset.kind === "svg" || !!asset.poster);
@@ -116,16 +119,21 @@ export const AssetTile = memo(function AssetTile({
                   : "h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
               }
             />
+          ) : poster ? (
+            /* A frame captured on an earlier mount. Instant, no video to
+               re-instantiate — this is what makes scrolling back smooth. */
+            /* eslint-disable-next-line @next/next/no-img-element */
+            <img
+              src={poster}
+              alt=""
+              className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
+            />
           ) : showsVideoFrame ? (
             /*
               A frame from the video itself, rather than a play button on an
-              empty square.
-
-              Done with a media fragment and preload="metadata" instead of
-              drawing to a canvas: the file belongs to another origin, so
-              canvas would taint and reading it back would throw. Asking the
-              browser to seek to one second and render that is both cheaper and
-              subject to no such restriction.
+              empty square. A media fragment plus a seek paints one; once it is
+              on screen we try to keep a copy (see capturePoster) so the next
+              mount is an image, not another decode.
             */
             <video
               src={`${asset.url}#t=1`}
@@ -136,10 +144,6 @@ export const AssetTile = memo(function AssetTile({
               onLoadedMetadata={(e) => {
                 const el = e.currentTarget;
                 if (el.videoWidth) onMeasure(asset.id, el.videoWidth, el.videoHeight);
-                // The fragment alone only guarantees metadata: dimensions
-                // arrive, no frame is decoded, and the tile stays blank. Asking
-                // for a seek is what makes the browser fetch and paint one.
-                // Early enough to be cheap, late enough to miss a black lead-in.
                 if (el.readyState < 2) {
                   const at = Number.isFinite(el.duration)
                     ? Math.min(1, el.duration / 4)
@@ -150,6 +154,12 @@ export const AssetTile = memo(function AssetTile({
                     /* seeking needs range requests; the play badge still shows */
                   }
                 }
+              }}
+              onSeeked={(e) => {
+                // The frame is up. Capture it for next time, off the main
+                // thread's critical path.
+                const at = e.currentTarget.currentTime || 1;
+                capturePoster(asset.url, at);
               }}
               className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
             />

@@ -125,7 +125,12 @@ export function Hero({
             slot at the width of the longest word, so the headline never
             reflows mid rotation.
           */}
-          <span className="relative inline-grid overflow-hidden align-baseline">
+          {/* The clip window has to sit a descender's depth below the
+              baseline, or a rotating word ending in g/p/y loses its tail to
+              overflow-hidden. The padding opens that room; the matching
+              negative margin keeps the line box the same height, so nothing
+              reflows. */}
+          <span className="relative inline-grid overflow-hidden align-baseline pb-[0.14em] -mb-[0.14em]">
             {words.map((w) => (
               <span
                 key={w}
