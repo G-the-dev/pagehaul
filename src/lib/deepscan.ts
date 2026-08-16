@@ -180,6 +180,33 @@ function releaseSlot(): void {
   waiting.shift()?.();
 }
 
+/**
+ * A fresh context for one scan, healing a dead browser on the way.
+ *
+ * The instance is frozen between requests and Chromium does not survive the
+ * freeze — but its socket still reports connected, so no flag can tell us in
+ * advance. The only honest health check is the operation itself: try to open
+ * the context, and if the browser turns out to be a corpse, throw it away,
+ * launch a new one, and try once more. Within a warm burst everyone shares
+ * one browser; across a freeze the first scan pays one relaunch.
+ */
+async function newScanContext() {
+  for (let attempt = 0; ; attempt++) {
+    const browser = await getBrowser();
+    try {
+      return await browser.createBrowserContext();
+    } catch (e) {
+      sharedBrowser = null;
+      try {
+        browser.close().catch(() => {});
+      } catch {
+        /* already gone */
+      }
+      if (attempt >= 1) throw e;
+    }
+  }
+}
+
 async function getBrowser(): Promise<Browser> {
   if (sharedBrowser) {
     try {
@@ -438,10 +465,9 @@ export async function deepScan(rawUrl: string): Promise<ScanResult> {
   // The context is what gets closed at the end; the browser stays warm for
   // whoever scans next.
   await acquireSlot();
-  let context: Awaited<ReturnType<Browser["createBrowserContext"]>> | null = null;
+  let context: Awaited<ReturnType<typeof newScanContext>> | null = null;
   try {
-    const browser = await getBrowser();
-    context = await browser.createBrowserContext();
+    context = await newScanContext();
     const page = await context.newPage();
     await page.setViewport({ width: 1512, height: 950, deviceScaleFactor: 2 });
     // Say who we actually are, minus the word "Headless".
