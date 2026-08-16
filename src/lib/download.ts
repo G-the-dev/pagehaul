@@ -57,14 +57,30 @@ export async function fetchAsset(a: Asset, signal?: AbortSignal): Promise<FetchO
 
   try {
     const res = await fetch(a.url, { mode: "cors", credentials: "omit", signal });
-    if (!res.ok) {
-      return { ok: false, reason: res.status === 404 ? "notfound" : "network" };
+    if (res.ok) {
+      const buf = await res.arrayBuffer();
+      return { ok: true, bytes: new Uint8Array(buf), filename };
     }
-    const buf = await res.arrayBuffer();
-    return { ok: true, bytes: new Uint8Array(buf), filename };
+    if (res.status === 404) return { ok: false, reason: "notfound" };
+    // Non-404 failures might still relay (some servers 403 a bare fetch but
+    // answer our proxy's browser-like request), so fall through.
   } catch {
-    // A CORS refusal surfaces as a generic TypeError, indistinguishable from
-    // an offline error. Treat it as blocked so the UI offers the open-in-tab path.
+    // A CORS refusal surfaces as a generic TypeError. Fall through to the relay.
+  }
+
+  // The origin would not hand the file to the browser directly. Fetch it
+  // through our own server, which is not bound by CORS, and download that.
+  try {
+    const proxied = await fetch(
+      `/api/download?url=${encodeURIComponent(a.url)}&name=${encodeURIComponent(filename)}`,
+      { signal },
+    );
+    if (proxied.ok) {
+      const buf = await proxied.arrayBuffer();
+      return { ok: true, bytes: new Uint8Array(buf), filename };
+    }
+    return { ok: false, reason: proxied.status === 404 ? "notfound" : "blocked" };
+  } catch {
     return { ok: false, reason: "blocked" };
   }
 }
