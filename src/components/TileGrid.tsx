@@ -81,15 +81,12 @@ export function TileGrid({
   const rowHeight = colWidth ? colWidth * 0.75 + nameRow + GAP : 200;
   const rows = Math.ceil(assets.length / cols);
 
-  // Videos are the expensive case: each remount re-decodes a frame, and most
-  // providers do not send the CORS headers that would let us cache one. Keeping
-  // more rows mounted is the fix that works for every provider — a wider band
-  // means a tile scrolled just off screen is still alive when it comes back.
-  const heavy = assets.some((a) => a.kind === "video");
   const virtualizer = useWindowVirtualizer({
     count: rows,
     estimateSize: () => rowHeight,
-    overscan: heavy ? 8 : 4,
+    // A modest band. Videos are gated to decode only when visible (see
+    // AssetTile), so a wide overscan would just mount idle placeholders.
+    overscan: 4,
     scrollMargin: offsetTop,
   });
 

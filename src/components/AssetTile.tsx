@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useMemo, useState } from "react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 import type { Asset } from "@/lib/types";
 import { thumbnailUrl } from "@/lib/variants";
 import { cachedPoster, capturePoster } from "@/lib/frame-cache";
@@ -39,6 +39,26 @@ export const AssetTile = memo(function AssetTile({
 }: Props) {
   const [failed, setFailed] = useState(false);
   /**
+   * Whether this tile is actually on screen.
+   *
+   * The grid keeps a band of tiles mounted beyond the fold, and a <video> that
+   * is mounted but off screen would still decode a frame — dozens of them at
+   * once is the storm that leaves every video stuck on a play button. A video
+   * only decodes while it is visible; everything else waits as a still tile.
+   */
+  const tileRef = useRef<HTMLDivElement>(null);
+  const [visible, setVisible] = useState(false);
+  useEffect(() => {
+    const el = tileRef.current;
+    if (!el) return;
+    const io = new IntersectionObserver(
+      ([e]) => setVisible(e.isIntersecting),
+      { rootMargin: "150px" },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+  /**
    * True once a downscaled request has been refused, so we go back to the file
    * the page actually referenced. A guessed thumbnail must never be the reason
    * a tile is empty.
@@ -74,6 +94,7 @@ export const AssetTile = memo(function AssetTile({
 
   return (
     <div
+      ref={tileRef}
       className={`group relative overflow-hidden rounded-xl border bg-surface transition-all duration-200 ${
         // Selection used to draw a full-strength accent border plus a matching
         // ring, which on a grid of many selected tiles is a wall of white with
@@ -141,12 +162,12 @@ export const AssetTile = memo(function AssetTile({
               alt=""
               className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
             />
-          ) : showsVideoFrame ? (
+          ) : showsVideoFrame && visible ? (
             /*
-              A frame from the video itself, rather than a play button on an
-              empty square. A media fragment plus a seek paints one; once it is
-              on screen we try to keep a copy (see capturePoster) so the next
-              mount is an image, not another decode.
+              A frame from the video itself, rendered only while the tile is on
+              screen so a whole grid of videos never decodes at once. A media
+              fragment plus a seek paints one; once it is up we try to keep a
+              copy (see capturePoster) so the next mount is an image.
             */
             <video
               src={`${asset.url}#t=1`}
