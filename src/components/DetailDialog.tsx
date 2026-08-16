@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Check, ChevronLeft, ChevronRight } from "lucide-react";
 import type { Asset } from "@/lib/types";
-import { formatBytes, openInNewTab } from "@/lib/download";
+import { formatBytes } from "@/lib/download";
 import { thumbnailUrl } from "@/lib/variants";
 
 /**
@@ -34,7 +34,7 @@ export function DetailDialog({
 }: {
   asset: Asset;
   onClose: () => void;
-  onDownload: () => void;
+  onDownload: (url: string) => void;
   /** 1-based place in the list behind the dialog, for "12 of 214". */
   position?: number;
   total?: number;
@@ -43,12 +43,19 @@ export function DetailDialog({
   onNext?: () => void;
 }) {
   const [copied, setCopied] = useState(false);
+  // Which size of the family is chosen. Defaults to the one on the card and
+  // drives the preview, the download and the copied address, so a family reads
+  // as one file the person tunes rather than a wall of near-duplicates.
+  const [selectedUrl, setSelectedUrl] = useState(asset.url);
+  useEffect(() => setSelectedUrl(asset.url), [asset.url]);
+  const selectedLabel =
+    asset.variants?.find((v) => v.url === selectedUrl)?.label ?? null;
   // What the grid already showed for this file — cached, so it paints at once.
   const previewThumb = asset.thumbUrl ?? thumbnailUrl(asset.url);
   const panelRef = useRef<HTMLDivElement>(null);
 
   const copy = useCallback(() => {
-    navigator.clipboard?.writeText(asset.url).then(
+    navigator.clipboard?.writeText(selectedUrl).then(
       () => {
         setCopied(true);
         setTimeout(() => setCopied(false), 1800);
@@ -57,7 +64,7 @@ export function DetailDialog({
         // Clipboard access can be refused. The address is selectable anyway.
       },
     );
-  }, [asset.url]);
+  }, [selectedUrl]);
 
   // Take focus once, on open, and hold the page behind still. Kept apart from
   // the key handler below: that one depends on props and re-subscribes freely,
@@ -84,7 +91,7 @@ export function DetailDialog({
         case "d":
         case "D":
           e.preventDefault();
-          onDownload();
+          onDownload(selectedUrl);
           break;
         case "c":
         case "C":
@@ -94,7 +101,7 @@ export function DetailDialog({
         case "o":
         case "O":
           e.preventDefault();
-          openInNewTab(asset);
+          window.open(selectedUrl, "_blank", "noopener,noreferrer");
           break;
         case "ArrowLeft":
           e.preventDefault();
@@ -108,7 +115,7 @@ export function DetailDialog({
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [asset, onClose, onDownload, copy, onPrev, onNext]);
+  }, [asset, onClose, onDownload, copy, onPrev, onNext, selectedUrl]);
 
   return (
     <div
@@ -200,14 +207,20 @@ export function DetailDialog({
             )}
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src={asset.url}
+              src={selectedUrl}
               alt={asset.alt ?? ""}
               className="relative mx-auto max-h-[46vh] bg-checker object-contain"
             />
           </div>
         )}
         {asset.kind === "video" && (
-          <video src={asset.url} controls poster={asset.poster} className="w-full rounded-lg" />
+          <video
+            key={selectedUrl}
+            src={selectedUrl}
+            controls
+            poster={asset.poster}
+            className="max-h-[46vh] w-full rounded-lg"
+          />
         )}
         {asset.preview && (
           <pre className="max-h-40 overflow-auto rounded-lg border border-border bg-surface-2 p-3 font-mono text-[11px] leading-relaxed text-fg-2">
@@ -222,7 +235,8 @@ export function DetailDialog({
               ["Size", formatBytes(asset.bytes)],
               [
                 "Dimensions",
-                asset.width && asset.height ? `${asset.width}x${asset.height}` : "n/a",
+                selectedLabel ??
+                  (asset.width && asset.height ? `${asset.width}x${asset.height}` : "n/a"),
               ],
               ["Method", asset.method ?? "n/a"],
               ["Status", asset.status?.toString() ?? "n/a"],
@@ -246,21 +260,21 @@ export function DetailDialog({
           <div className="mt-5 flex flex-wrap items-center gap-2">
             <span className="label-mono text-[9.5px]">Size</span>
             {asset.variants.map((v) => {
-              const current = v.url === asset.url;
+              const current = v.url === selectedUrl;
               return (
-                <a
+                <button
                   key={v.url}
-                  href={v.url}
-                  target="_blank"
-                  rel="noreferrer"
+                  type="button"
+                  onClick={() => setSelectedUrl(v.url)}
+                  aria-pressed={current}
                   className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 font-mono text-[11px] transition-colors ${
                     current
-                      ? "border-accent-line text-foreground"
+                      ? "border-accent bg-accent/10 text-foreground"
                       : "border-border text-muted-foreground hover:border-border-strong hover:text-foreground"
                   }`}
                 >
                   {v.label}
-                </a>
+                </button>
               );
             })}
           </div>
@@ -269,7 +283,7 @@ export function DetailDialog({
         <div className="mt-5 flex flex-wrap items-center gap-2.5">
           <button
             type="button"
-            onClick={onDownload}
+            onClick={() => onDownload(selectedUrl)}
             className="inline-flex h-9 items-center rounded-lg bg-accent px-4 text-[13px] font-semibold text-accent-fg transition-all hover:brightness-110"
           >
             Download
@@ -299,7 +313,7 @@ export function DetailDialog({
           </button>
           <button
             type="button"
-            onClick={() => openInNewTab(asset)}
+            onClick={() => window.open(selectedUrl, "_blank", "noopener,noreferrer")}
             className="inline-flex h-9 items-center rounded-lg border border-border px-4 text-[13px] transition-colors hover:border-border-strong"
           >
             Open original

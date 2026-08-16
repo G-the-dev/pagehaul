@@ -70,6 +70,16 @@ export function variantFamily(rawUrl: string): string | undefined {
   const ext = dot > 0 ? file.slice(dot + 1).toLowerCase() : "";
 
   const keptSegments = segments.filter((s) => !SIZE_SEGMENT.test(s));
+
+  // A filename that is nothing but a dimension — 960x720.mp4, 540x960.webp —
+  // is a size, not an identity. Recent.design and other CDNs name every size
+  // of one video this way (/items/<id>/0/960x720.mp4), so the identity is the
+  // path that leads to it. Drop the filename and key on the path.
+  if (/^\d{2,4}x\d{2,4}$/.test(stem)) {
+    if (!keptSegments.length) return undefined;
+    return `${u.host}/${keptSegments.join("/")}`;
+  }
+
   const keptStem = stem.replace(SIZE_SUFFIX, "");
 
   // A name that was nothing but a size marker is not something to group on.
@@ -113,6 +123,12 @@ export function sizeHint(rawUrl: string): number {
   }
   const suffix = /[-_](\d{2,4})(?:x\d{2,4}|w)(?:\.[a-z0-9]+)?$/i.exec(u.pathname);
   if (suffix) best = Math.max(best, Number(suffix[1]));
+
+  // A filename that is purely a dimension: 960x720.mp4 — take the larger side,
+  // since a portrait 540x960 and a landscape 960x540 are both "960 across the
+  // long edge".
+  const bare = /\/(\d{2,4})x(\d{2,4})\.[a-z0-9]+$/i.exec(u.pathname);
+  if (bare) best = Math.max(best, Number(bare[1]), Number(bare[2]));
 
   // Options written into the path, e.g. .../f=auto,width=2560 or .../w_800.
   for (const m of u.pathname.matchAll(/\b(?:width|w|h|height)[=_-](\d{2,5})\b/gi)) {
@@ -244,9 +260,27 @@ interface Groupable {
   thumbUrl?: string;
 }
 
-/** What to call a size in a list of sizes: real dimensions if we have them. */
+/** Full dimensions read out of a URL, for labelling one size among a family. */
+function dimsFromUrl(rawUrl: string): string | null {
+  try {
+    const m = /\/(\d{2,4})x(\d{2,4})\.[a-z0-9]+(?:\?|$)/i.exec(new URL(rawUrl).pathname);
+    return m ? `${m[1]}x${m[2]}` : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * What to call a size in a list of sizes.
+ *
+ * Full WxH when we can get it, because a family can hold different aspect
+ * ratios — a 960x720 landscape and a 540x960 portrait of the same video — and a
+ * bare "960px" cannot tell those apart.
+ */
 function variantLabel(a: Groupable): string {
   if (a.width && a.height) return `${a.width}x${a.height}`;
+  const dims = dimsFromUrl(a.url);
+  if (dims) return dims;
   if (a.width) return `${a.width}px`;
   const hint = sizeHint(a.url);
   if (hint === 100_000) return "original";

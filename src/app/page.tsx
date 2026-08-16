@@ -727,7 +727,12 @@ export default function Home() {
         <DetailDialog
           asset={expanded}
           onClose={() => setExpanded(null)}
-          onDownload={() => runDownload([expanded], false)}
+          onDownload={(url) =>
+            runDownload(
+              [url === expanded.url ? expanded : { ...expanded, url }],
+              false,
+            )
+          }
           position={expandedIndex >= 0 ? expandedIndex + 1 : undefined}
           total={expandedIndex >= 0 ? visible.length : undefined}
           onPrev={expandedIndex > 0 ? () => stepPreview(-1) : undefined}
