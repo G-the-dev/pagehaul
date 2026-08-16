@@ -19,6 +19,23 @@ const STAGES = [
   "Sorting and naming what was found",
 ];
 
+/**
+ * What the line says once the scripted stages run out.
+ *
+ * The stages cover a normal scan; a heavy site runs past them, and the old
+ * behaviour was to freeze on the last one — which after forty seconds of the
+ * same sentence reads as "stuck", not "working". These pick up from the
+ * elapsed clock and keep the line moving with the truth: the page is big,
+ * everything found is yours, sit tight.
+ */
+const PATIENCE: [number, string][] = [
+  [16, "This page has a lot on it — still reading"],
+  [28, "It's a big one. More files usually means a little more wait"],
+  [42, "Still going. Everything it finds is yours in a moment"],
+  [58, "Taking a second pass so nothing gets missed"],
+  [75, "Nearly there now"],
+];
+
 export function ScanProgress({
   deep,
   onCancel,
@@ -49,6 +66,13 @@ export function ScanProgress({
     return () => clearInterval(t);
   }, []);
 
+  // The scripted line while it lasts, then whichever reassurance the clock
+  // has reached.
+  let label = stages[i];
+  for (const [at, msg] of PATIENCE) {
+    if (elapsed >= at) label = msg;
+  }
+
   return (
     <div className="mx-auto mt-10 w-full max-w-lg">
       <div className="flex items-center gap-3 rounded-lg border border-border bg-surface/70 px-4 py-3 backdrop-blur-md">
@@ -58,14 +82,14 @@ export function ScanProgress({
         <div className="relative h-5 flex-1 overflow-hidden">
           <AnimatePresence mode="popLayout" initial={false}>
             <motion.p
-              key={i}
+              key={label}
               initial={{ y: 18, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: -18, opacity: 0 }}
               transition={{ duration: 0.42, ease: EASE }}
               className="absolute inset-0 truncate text-left text-[13.5px] text-fg-2"
             >
-              {stages[i]}
+              {label}
             </motion.p>
           </AnimatePresence>
         </div>
