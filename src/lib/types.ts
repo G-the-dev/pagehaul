@@ -101,6 +101,12 @@ export interface ScanResult {
   ms: number;
   /** Non-fatal problems worth surfacing to the user. */
   notes: string[];
+  /**
+   * True when the page interrupted the browser before it finished, so what is
+   * here is real but probably incomplete. The server uses it to retry on the
+   * caller's behalf; it is never a reason to distrust the files listed.
+   */
+  partial?: boolean;
 }
 
 export const KIND_LABEL: Record<AssetKind, string> = {

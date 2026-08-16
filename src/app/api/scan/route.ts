@@ -113,10 +113,36 @@ export async function POST(req: NextRequest) {
         }
       };
 
-      const [deepResult, quickResult] = await Promise.all([
-        tryDeep(),
-        scan(target, { depth: 1, skipSizes: true }).catch(() => null),
-      ]);
+      const quickPromise = scan(target, { depth: 1, skipSizes: true }).catch(
+        () => null,
+      );
+      let deepResult = await tryDeep();
+
+      // A partial result means the page interrupted the browser — a client
+      // side redirect landing, a mid-render freeze. Those are transient, and
+      // asking the person to press Scan again is asking them to do the retry
+      // we should have done. So do it: run once more while there is time, and
+      // merge the two passes, since each may hold files the other missed.
+      if (deepResult?.partial && Date.now() - startedAt < 60_000) {
+        const second = await deepScan(target).catch(() => null);
+        if (second) {
+          const better = second.partial
+            ? second.assets.length >= deepResult.assets.length
+              ? second
+              : deepResult
+            : second;
+          const other = better === second ? deepResult : second;
+          const combined = mergeScans(better, other);
+          // A clean second pass supersedes the first attempt's warnings.
+          if (!second.partial) {
+            combined.notes = second.notes;
+            combined.partial = undefined;
+          }
+          deepResult = combined;
+        }
+      }
+
+      const quickResult = await quickPromise;
 
       if (deepResult && quickResult) result = mergeScans(deepResult, quickResult);
       else if (deepResult) result = deepResult;
@@ -127,6 +153,9 @@ export async function POST(req: NextRequest) {
             ...quickResult.notes,
             "The browser could not finish reading this page, so these are the files declared in its markup. Scanning again often works.",
           ],
+          // Partial, so it is never cached — a rescan must get a fresh try,
+          // not this again.
+          partial: true,
         };
       } else {
         throw new Error("That page could not be read.");
@@ -138,7 +167,7 @@ export async function POST(req: NextRequest) {
       });
     }
     const payload = JSON.stringify(result);
-    cacheSet(cacheKey, payload);
+    if (!result.partial) cacheSet(cacheKey, payload);
     return new NextResponse(payload, {
       headers: { "content-type": "application/json", "cache-control": "no-store", "x-scan-cache": "miss" },
     });

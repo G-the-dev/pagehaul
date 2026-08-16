@@ -20,8 +20,8 @@ import { assertPublicHttpUrl } from "./scan";
  * reporting an empty result as success.
  */
 
-const NAV_TIMEOUT_MS = 35_000;
-const IDLE_TIMEOUT_MS = 12_000;
+const NAV_TIMEOUT_MS = 25_000;
+const IDLE_TIMEOUT_MS = 8_000;
 const SETTLE_MS = 2_500;
 const MAX_ASSETS = 1_400;
 /** Response bodies larger than this are previewed but never mined. */
@@ -52,7 +52,7 @@ const SCROLL_BUDGET_MS = 20_000;
  * JSON. Stopping early and returning a partial result is strictly better than
  * being stopped and returning nothing.
  */
-const TOTAL_BUDGET_MS = 70_000;
+const TOTAL_BUDGET_MS = 45_000;
 /** Screens with no new height and no new media before we call it the end. */
 const SCROLL_QUIET_STEPS = 3;
 
@@ -991,11 +991,15 @@ export async function deepScan(rawUrl: string): Promise<ScanResult> {
     // A refusal is not an empty page, and saying so is the difference between
     // "this site has two files" and "this site turned us away". Sites rate
     // limit, and the same address that worked an hour ago can answer 403.
-    if (renderNote) notes.push(renderNote);
-    else if (!pageData.title && media.size === 0 && found.size > 0) {
+    let partial = false;
+    if (renderNote) {
+      notes.push(renderNote);
+      partial = true;
+    } else if (!pageData.title && media.size === 0 && found.size > 0) {
       notes.push(
-        "This page stopped responding to us part way through, so this is what it had loaded by then. Scanning again often gets the rest.",
+        "This page stopped responding to us part way through, so this is what it had loaded by then.",
       );
+      partial = true;
     }
 
     if (mainStatus >= 400) {
@@ -1025,6 +1029,7 @@ export async function deepScan(rawUrl: string): Promise<ScanResult> {
       tokens: pageData.tokens,
       ms: Date.now() - started,
       notes,
+      partial: partial || undefined,
     };
   } finally {
     await scanPage?.close().catch(() => {});
