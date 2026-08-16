@@ -27,6 +27,8 @@ const MAX_ASSETS = 1_400;
 /** Response bodies larger than this are previewed but never mined. */
 const MAX_BODY_BYTES = 2_000_000;
 const MAX_BODY_CHARS = 3_000_000;
+/** How much of a serialised document we will hold in memory to mine. */
+const MAX_DOCUMENT_CHARS = 8_000_000;
 
 /**
  * Scrolling exists to make lazy content load, so it has to move the way a
@@ -484,7 +486,7 @@ export async function deepScan(rawUrl: string): Promise<ScanResult> {
       // A page that redirects immediately can abort its own navigation. If any
       // response was recorded we know we reached the site, so carry on.
       if (!isContextLost(e) && found.size === 0) throw e;
-      renderNote = "This page redirected while it was loading, so some of it may be missing.";
+      renderNote = "This page redirected while it was loading, so some of it may be missing. Scanning the address it landed on gets more.";
     }
 
     // Let the app boot and issue its first data calls before scrolling.
@@ -558,7 +560,12 @@ export async function deepScan(rawUrl: string): Promise<ScanResult> {
     // never draw them either. Reading the serialised DOM catches both the
     // markup and the script blocks in one pass.
     try {
-      const html = await safeEval<string>(() => page.content(), "");
+      // A heavy page serialises to many megabytes, and holding all of it while
+      // a constrained browser is still working is part of what gets it killed.
+      const html = (await safeEval<string>(() => page.content(), "")).slice(
+        0,
+        MAX_DOCUMENT_CHARS,
+      );
       for (const u of mineMediaUrls(html, MINE_PER_DOCUMENT)) {
         if (found.size > MAX_ASSETS) break;
         if (found.has(u)) continue;
@@ -861,7 +868,7 @@ export async function deepScan(rawUrl: string): Promise<ScanResult> {
     if (renderNote) notes.push(renderNote);
     else if (!pageData.title && media.size === 0 && found.size > 0) {
       notes.push(
-        "This page stopped responding to us part way through, so this is what it had loaded up to that point.",
+        "This page stopped responding to us part way through, so this is what it had loaded by then. Scanning again often gets the rest.",
       );
     }
 

@@ -63,9 +63,14 @@ export function mergeScans(deep: ScanResult, quick: ScanResult): ScanResult {
     return (y.bytes ?? 0) - (x.bytes ?? 0);
   });
 
+  // The static read tells people to run a deep scan when a page draws itself
+  // with JavaScript. Perfectly good advice on its own, and nonsense here — this
+  // *is* the deep scan, and the browser half already did what it was asking for.
+  const quickNotes = quick.notes.filter((n) => !/run a deep scan/i.test(n));
+
   return {
     ...deep,
     assets,
-    notes: [...new Set([...deep.notes, ...quick.notes])],
+    notes: [...new Set([...deep.notes, ...quickNotes])],
   };
 }
