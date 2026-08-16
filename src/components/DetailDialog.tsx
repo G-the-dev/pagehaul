@@ -53,6 +53,7 @@ export function DetailDialog({
   // What the grid already showed for this file — cached, so it paints at once.
   const previewThumb = asset.thumbUrl ?? thumbnailUrl(asset.url);
   const panelRef = useRef<HTMLDivElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
 
   const copy = useCallback(() => {
     navigator.clipboard?.writeText(selectedUrl).then(
@@ -103,6 +104,18 @@ export function DetailDialog({
           e.preventDefault();
           window.open(selectedUrl, "_blank", "noopener,noreferrer");
           break;
+        case " ":
+        case "k":
+        case "K": {
+          // Space plays the video without having to click into it first. Only
+          // meaningful when a video is open; otherwise let the key be.
+          const v = videoRef.current;
+          if (!v) break;
+          e.preventDefault();
+          if (v.paused) v.play().catch(() => {});
+          else v.pause();
+          break;
+        }
         case "ArrowLeft":
           e.preventDefault();
           onPrev?.();
@@ -215,6 +228,7 @@ export function DetailDialog({
         )}
         {asset.kind === "video" && (
           <video
+            ref={videoRef}
             key={selectedUrl}
             src={selectedUrl}
             controls
