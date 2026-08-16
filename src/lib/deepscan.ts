@@ -766,7 +766,12 @@ export async function deepScan(
       // main frame during load, and the read fails against the detached one
       // until the new frame settles. Retrying past that is what lets a design
       // read succeed on an app that navigates under it.
-    }), 14_000), EMPTY_PAGE_DATA, 800, "readDesign", 4);
+      // A generous cap: the computed-style walk over thousands of elements is
+      // genuinely slow on a stressed serverless browser, and cutting it short
+      // loses the palette a slightly-slower read would have returned. Long
+      // enough to let that read finish, short enough that a browser pegged flat
+      // by the page still gives up rather than running to the wall.
+    }), 24_000), EMPTY_PAGE_DATA, 800, "readDesign", 4);
 
     // Capture design once up front, while the context is freshest. Tokens are
     // read separately too — a cheap, reliable read that stands even if the
