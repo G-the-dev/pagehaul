@@ -2,6 +2,7 @@
 
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 import type { Asset } from "@/lib/types";
+import { Check } from "lucide-react";
 import { thumbnailUrl } from "@/lib/variants";
 import { cachedPoster, capturePoster } from "@/lib/frame-cache";
 import { formatBytes } from "@/lib/download";
@@ -242,23 +243,13 @@ export const AssetTile = memo(function AssetTile({
           {selectable && (
             <span
               aria-hidden
-              className={`absolute right-2 top-2 z-10 grid h-5 w-5 place-items-center rounded-md border transition-colors ${
+              className={`absolute right-2 top-2 z-10 grid h-5 w-5 place-items-center rounded-full border transition-colors ${
                 selected
-                  ? "border-accent bg-accent"
-                  : "border-white/35 bg-black/40 group-hover:border-white/70"
+                  ? "border-accent bg-accent text-accent-fg"
+                  : "border-white/45 bg-black/40 group-hover:border-white/80"
               }`}
             >
-              {selected && (
-                <svg
-                  viewBox="0 0 12 12"
-                  className="h-2.5 w-2.5 text-accent-fg"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.4"
-                >
-                  <path d="M2.5 6.2 4.8 8.5 9.5 3.8" />
-                </svg>
-              )}
+              {selected && <Check className="h-3 w-3" strokeWidth={3} />}
             </span>
           )}
 
