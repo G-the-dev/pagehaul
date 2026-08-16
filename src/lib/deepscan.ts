@@ -181,20 +181,25 @@ function releaseSlot(): void {
 }
 
 /**
- * A fresh context for one scan, healing a dead browser on the way.
+ * A page for one scan, healing a dead browser on the way.
  *
- * The instance is frozen between requests and Chromium does not survive the
- * freeze — but its socket still reports connected, so no flag can tell us in
- * advance. The only honest health check is the operation itself: try to open
- * the context, and if the browser turns out to be a corpse, throw it away,
- * launch a new one, and try once more. Within a warm burst everyone shares
- * one browser; across a freeze the first scan pays one relaunch.
+ * Pages are opened in the browser's default context, not an isolated one. The
+ * serverless Chromium build refuses to create page targets inside an incognito
+ * context — Target closed, instantly, on a freshly launched browser — while
+ * default-context pages are the path that has worked in production all along.
+ * Scans lose cookie isolation from each other, which for reading public pages
+ * costs nothing.
+ *
+ * The health check is the operation itself: the instance is frozen between
+ * requests and Chromium does not survive the freeze, but its socket still
+ * reports connected. If the page cannot be opened, the corpse is discarded and
+ * a fresh browser gets one more try.
  */
-async function newScanContext() {
+async function newScanPage() {
   for (let attempt = 0; ; attempt++) {
     const browser = await getBrowser();
     try {
-      return await browser.createBrowserContext();
+      return await browser.newPage();
     } catch (e) {
       sharedBrowser = null;
       try {
@@ -462,10 +467,10 @@ export async function deepScan(rawUrl: string): Promise<ScanResult> {
   // The context is what gets closed at the end; the browser stays warm for
   // whoever scans next.
   await acquireSlot();
-  let context: Awaited<ReturnType<typeof newScanContext>> | null = null;
+  let scanPage: Awaited<ReturnType<typeof newScanPage>> | null = null;
   try {
-    context = await newScanContext();
-    const page = await context.newPage();
+    const page = await newScanPage();
+    scanPage = page;
     await page.setViewport({ width: 1512, height: 950, deviceScaleFactor: 2 });
     // Say who we actually are, minus the word "Headless".
     //
@@ -1022,7 +1027,7 @@ export async function deepScan(rawUrl: string): Promise<ScanResult> {
       notes,
     };
   } finally {
-    await context?.close().catch(() => {});
+    await scanPage?.close().catch(() => {});
     releaseSlot();
   }
 }
