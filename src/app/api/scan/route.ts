@@ -84,81 +84,104 @@ export async function POST(req: NextRequest) {
       // rather than the sum, and a failure on the static side is not allowed
       // to take the whole scan down with it.
       const target = normalise(body.url);
-      // Neither half is allowed to take the other down with it. A page that
-      // navigates while the browser is reading it, or a Chromium that runs out
-      // of memory, used to reject the pair and lose a static read that had
-      // already succeeded — so the answer was an error page rather than the
-      // files we were holding.
-      // One retry, but only if the first attempt died quickly enough that
-      // there is time for another. A browser killed for memory usually starts
-      // cleanly the second time; a page that genuinely takes fifty seconds
-      // should not be attempted twice.
       const startedAt = Date.now();
-      const tryDeep = async () => {
-        try {
-          return await deepScan(target);
-        } catch (e) {
-          const why = e instanceof Error ? e.message : String(e);
-          console.error("deep scan failed:", why);
-          if (Date.now() - startedAt > 25_000) return null;
-          try {
-            return await deepScan(target);
-          } catch (again) {
-            console.error(
-              "deep scan failed twice:",
-              again instanceof Error ? again.message : again,
-            );
-            return null;
-          }
-        }
-      };
 
+      // A hard wall on the whole deep scan. The platform kills a function at
+      // 120 seconds, and the caller then receives nothing — not even the files
+      // already found. A page heavy enough to run that long is exactly where
+      // someone still wants what was collected, so the work is bounded well
+      // inside that limit: one deep pass runs to a deadline, a further pass runs
+      // only when it clearly fits, and if anything overruns the wall the static
+      // read answers instead. The outcome is always a result, never a timeout.
+      const WALL_MS = 88_000;
+      const wall = startedAt + WALL_MS;
+      const remaining = () => wall - Date.now();
+      // Each deep pass returns with headroom left under the wall for merging and
+      // serialising, and no single pass is given more than a minute.
+      const passDeadline = () => Math.min(wall - 6_000, Date.now() + 60_000);
+
+      // The static read runs alongside and finishes in a second or two, so it is
+      // always ready as the answer if the browser cannot make the wall.
       const quickPromise = scan(target, { depth: 1, skipSizes: true }).catch(
         () => null,
       );
-      let deepResult = await tryDeep();
 
-      // A partial result means the page interrupted the browser — a client
-      // side redirect landing, a mid-render freeze. Those are transient, and
-      // asking the person to press Scan again is asking them to do the retry
-      // we should have done. So do it: run once more while there is time, and
-      // merge the two passes, since each may hold files the other missed.
-      if (deepResult?.partial && Date.now() - startedAt < 60_000) {
-        const second = await deepScan(target).catch(() => null);
-        if (second) {
-          const better = second.partial
-            ? second.assets.length >= deepResult.assets.length
-              ? second
-              : deepResult
-            : second;
-          const other = better === second ? deepResult : second;
-          const combined = mergeScans(better, other);
-          // A clean second pass supersedes the first attempt's warnings.
-          if (!second.partial) {
-            combined.notes = second.notes;
-            combined.partial = undefined;
-          }
-          deepResult = combined;
+      const deepFlow = (async (): Promise<typeof result | null> => {
+        // First pass, bounded so it returns well before the wall.
+        let deep = await deepScan(target, { deadline: passDeadline() }).catch(
+          (e) => {
+            console.error("deep scan failed:", e instanceof Error ? e.message : e);
+            return null;
+          },
+        );
+
+        // Failed outright — try once more, but only if a whole pass still fits.
+        if (!deep && remaining() > 50_000) {
+          deep = await deepScan(target, { deadline: passDeadline() }).catch(
+            () => null,
+          );
         }
-      }
 
-      const quickResult = await quickPromise;
+        // A partial result means the page interrupted the browser. A second
+        // pass can complete it, and each may hold files the other missed — but
+        // only when there is clearly time, so a heavy page that spent its budget
+        // on the first pass returns what it has rather than reaching for the wall.
+        if (deep?.partial && remaining() > 50_000) {
+          const second = await deepScan(target, {
+            deadline: passDeadline(),
+          }).catch(() => null);
+          if (second) {
+            const better = second.partial
+              ? second.assets.length >= deep.assets.length
+                ? second
+                : deep
+              : second;
+            const other = better === second ? deep : second;
+            const combined = mergeScans(better, other);
+            if (!second.partial) {
+              combined.notes = second.notes;
+              combined.partial = undefined;
+            }
+            deep = combined;
+          }
+        }
 
-      if (deepResult && quickResult) result = mergeScans(deepResult, quickResult);
-      else if (deepResult) result = deepResult;
-      else if (quickResult) {
+        const quick = await quickPromise;
+        if (deep && quick) return mergeScans(deep, quick);
+        if (deep) return deep;
+        if (quick) {
+          return {
+            ...quick,
+            notes: [
+              ...quick.notes,
+              "The browser could not finish reading this page, so these are the files declared in its markup. Scanning again often works.",
+            ],
+            partial: true,
+          };
+        }
+        return null;
+      })();
+
+      // The wall itself: if the deep work has not answered by now, hand back the
+      // static read rather than let the request run to the platform's kill.
+      const wallGuard = new Promise<"wall">((resolve) =>
+        setTimeout(() => resolve("wall"), WALL_MS),
+      );
+      const raced = await Promise.race([deepFlow, wallGuard]);
+
+      if (raced && raced !== "wall") {
+        result = raced;
+      } else {
+        const quick = await quickPromise;
+        if (!quick) throw new Error("That page could not be read in time.");
         result = {
-          ...quickResult,
+          ...quick,
           notes: [
-            ...quickResult.notes,
-            "The browser could not finish reading this page, so these are the files declared in its markup. Scanning again often works.",
+            ...quick.notes,
+            "This page was too heavy to finish a deep scan within the time limit, so these are the files declared in its markup. A quick scan is instant, and a deep scan may finish on a second try.",
           ],
-          // Partial, so it is never cached — a rescan must get a fresh try,
-          // not this again.
           partial: true,
         };
-      } else {
-        throw new Error("That page could not be read.");
       }
     } else {
       result = await scan(normalise(body.url), {

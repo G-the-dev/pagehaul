@@ -351,8 +351,16 @@ interface Seen {
   preview?: string;
 }
 
-export async function deepScan(rawUrl: string): Promise<ScanResult> {
+export async function deepScan(
+  rawUrl: string,
+  opts: { deadline?: number } = {},
+): Promise<ScanResult> {
   const started = Date.now();
+  // A wall the scan will not cross, whatever is left undone: at it, the scan
+  // stops gathering and returns what it holds. The route sets it so a page too
+  // heavy to finish yields its collected files as a partial result, rather than
+  // running until the platform kills the function and yields nothing at all.
+  const deadline = opts.deadline ?? started + TOTAL_BUDGET_MS + 20_000;
   const target = assertPublicHttpUrl(rawUrl);
   const notes: string[] = [];
   const found = new Map<string, Seen>();
@@ -754,6 +762,7 @@ export async function deepScan(rawUrl: string): Promise<ScanResult> {
     const scrollDeadline = Math.min(
       Date.now() + SCROLL_BUDGET_MS,
       started + TOTAL_BUDGET_MS,
+      deadline,
     );
     let lastHeight = 0;
     let quiet = 0;
@@ -776,7 +785,8 @@ export async function deepScan(rawUrl: string): Promise<ScanResult> {
 
     // Everything past this point is optional polish, so it only happens if
     // there is time for it.
-    const timeLeft = () => started + TOTAL_BUDGET_MS - Date.now();
+    const timeLeft = () =>
+      Math.min(started + TOTAL_BUDGET_MS, deadline) - Date.now();
 
     if (timeLeft() > 10_000) {
       await page
@@ -821,7 +831,10 @@ export async function deepScan(rawUrl: string): Promise<ScanResult> {
     // Read design again now that everything has loaded. On a healthy page this
     // is the fuller answer; on a stressed one it comes back empty and the early
     // read carries it, per field, so the design tab is never lost to timing.
-    const lateDesign = await readDesign();
+    // Skipped once the wall is close — the read can take a few seconds, and the
+    // early read already holds a good answer.
+    const lateDesign =
+      Date.now() < deadline - 5_000 ? await readDesign() : EMPTY_PAGE_DATA;
     const pageData: PageData = {
       media: lateDesign.media.length ? lateDesign.media : earlyDesign.media,
       palette: lateDesign.palette.length ? lateDesign.palette : earlyDesign.palette,
@@ -942,6 +955,16 @@ export async function deepScan(rawUrl: string): Promise<ScanResult> {
     } else if (!pageData.title && media.size === 0 && found.size > 0) {
       notes.push(
         "This page stopped responding to us part way through, so this is what it had loaded by then.",
+      );
+      partial = true;
+    }
+
+    // The scan reached its time wall with more page left to read. Everything
+    // here is real; it is just not everything. Say so, and mark it partial so
+    // it is not cached and a rescan gets a fresh, fuller attempt.
+    if (Date.now() >= deadline - 5_000 && !partial) {
+      notes.push(
+        "This page is heavy enough that the scan hit its time limit — these are the files gathered by then. Scanning again picks up from a fresh start.",
       );
       partial = true;
     }
