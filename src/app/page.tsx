@@ -424,7 +424,7 @@ export default function Home() {
   return (
     <main id="top" className="min-h-screen">
       <header className="pointer-events-none fixed inset-x-0 top-0 z-50 flex justify-center px-4 pt-6">
-        <nav className="pointer-events-auto flex items-center gap-1.5 rounded-full border border-border bg-surface/70 py-2 pl-6 pr-2 backdrop-blur-xl">
+        <nav className="keep-blur pointer-events-auto flex items-center gap-1.5 rounded-full border border-border bg-surface/70 py-2 pl-6 pr-2 backdrop-blur-md">
           <a href="#top" className="pr-4 text-[14px] font-semibold tracking-tight">
             pagehaul
           </a>

@@ -293,7 +293,7 @@
    of a scroll, which on a high-density display is the choppiness. While a
    scroll is in flight the blur is switched off everywhere; it returns the
    moment scrolling stops, which nobody sees happen. */
-html.is-scrolling [class*="backdrop-blur"] {
+html.is-scrolling [class*="backdrop-blur"]:not(.keep-blur) {
   /* Reset Tailwind's own blur variable — the composed backdrop-filter reads
      from it, so emptying it removes the blur cleanly. The explicit none is a
      belt-and-suspenders fallback. */
