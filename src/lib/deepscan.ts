@@ -24,6 +24,9 @@ const NAV_TIMEOUT_MS = 35_000;
 const IDLE_TIMEOUT_MS = 12_000;
 const SETTLE_MS = 2_500;
 const MAX_ASSETS = 1_400;
+/** Response bodies larger than this are previewed but never mined. */
+const MAX_BODY_BYTES = 2_000_000;
+const MAX_BODY_CHARS = 3_000_000;
 
 /**
  * Scrolling exists to make lazy content load, so it has to move the way a
@@ -125,7 +128,20 @@ async function launchBrowser() {
   if (process.env.VERCEL) {
     const chromium = (await import("@sparticuz/chromium")).default;
     return puppeteer.launch({
-      args: [...chromium.args, "--hide-scrollbars", "--disable-blink-features=AutomationControlled"],
+      args: [
+        ...chromium.args,
+        "--hide-scrollbars",
+        "--disable-blink-features=AutomationControlled",
+        // Shared memory in a serverless container is tiny, and Chromium's
+        // default is to put its renderer heap there. When it runs out the
+        // renderer is killed, which reaches us as "Target closed" and reads
+        // like a crash rather than what it is.
+        "--disable-dev-shm-usage",
+        "--disable-gpu",
+        // Nothing here needs a second renderer process, and each one costs
+        // memory we do not have.
+        "--renderer-process-limit=1",
+      ],
       executablePath: await chromium.executablePath(),
       headless: true,
     });
@@ -144,6 +160,66 @@ async function launchBrowser() {
     ],
   });
 }
+
+/**
+ * True for the family of failures that all mean the same thing: the page moved
+ * out from under a call we were part-way through.
+ *
+ * A client-side redirect, a router swapping the document, a frame being
+ * replaced, or Chromium being killed for using too much memory all surface as
+ * different messages — "Execution context was destroyed", "detached Frame",
+ * "Target closed" — and every one of them used to end the scan and throw away
+ * everything already collected.
+ */
+function isContextLost(e: unknown): boolean {
+  const m = e instanceof Error ? e.message : String(e);
+  return /execution context was destroyed|detached frame|target closed|session closed|protocol error|cannot find context|frame was detached|navigating and changing/i.test(
+    m,
+  );
+}
+
+/**
+ * Runs something in the page, and survives the page going away mid-call.
+ *
+ * One retry, because the common case is a redirect landing: the first attempt
+ * dies, the new document settles, the second succeeds. If it is still gone
+ * after that, the caller gets the fallback and the scan carries on with
+ * whatever the network log already holds.
+ */
+async function safeEval<T>(
+  run: () => Promise<unknown>,
+  fallback: T,
+  retryDelayMs = 900,
+): Promise<T> {
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      return (await run()) as T;
+    } catch (e) {
+      if (!isContextLost(e)) return fallback;
+      if (attempt === 0) await new Promise((r) => setTimeout(r, retryDelayMs));
+    }
+  }
+  return fallback;
+}
+
+interface PageData {
+  media: MediaRec[];
+  palette: unknown[];
+  typography: unknown[];
+  tokens: { name: string; value: string }[];
+  fontFaces: { url: string; label: string }[];
+  title: string;
+}
+
+/** What we report when the page never let us read it. */
+const EMPTY_PAGE_DATA: PageData = {
+  media: [],
+  palette: [],
+  typography: [],
+  tokens: [],
+  fontFaces: [],
+  title: "",
+};
 
 interface MediaRec {
   url: string;
@@ -260,6 +336,8 @@ export async function deepScan(rawUrl: string): Promise<ScanResult> {
   const target = assertPublicHttpUrl(rawUrl);
   const notes: string[] = [];
   const found = new Map<string, Seen>();
+  /** Set when the page interrupted us, so a thin result explains itself. */
+  let renderNote = "";
 
   let browser: Awaited<ReturnType<typeof launchBrowser>> | null = null;
   try {
@@ -348,9 +426,17 @@ export async function deepScan(rawUrl: string): Promise<ScanResult> {
         // difference between reporting what a page chose to render and
         // reporting what it actually holds.
         let preview: string | undefined;
-        if (kind === "api" && /json|text|javascript/.test(ct)) {
+        // Bodies are read to be mined, and a few large ones are enough to push
+        // a memory-constrained browser over the edge — which arrives as
+        // "Target closed" and looks like a crash rather than a diet problem.
+        const tooBigToRead = len > MAX_BODY_BYTES;
+        if (kind === "api" && !tooBigToRead && /json|text|javascript/.test(ct)) {
           try {
             const txt = await res.text();
+            if (txt.length > MAX_BODY_CHARS) {
+              preview = txt.slice(0, 180).replace(/\s+/g, " ");
+              return;
+            }
             preview = txt.replace(/\s+/g, " ").slice(0, 180);
             for (const u of mineMediaUrls(txt)) {
               if (found.size > MAX_ASSETS) break;
@@ -389,10 +475,17 @@ export async function deepScan(rawUrl: string): Promise<ScanResult> {
       }
     });
 
-    await page.goto(target.toString(), {
-      waitUntil: "domcontentloaded",
-      timeout: NAV_TIMEOUT_MS,
-    });
+    try {
+      await page.goto(target.toString(), {
+        waitUntil: "domcontentloaded",
+        timeout: NAV_TIMEOUT_MS,
+      });
+    } catch (e) {
+      // A page that redirects immediately can abort its own navigation. If any
+      // response was recorded we know we reached the site, so carry on.
+      if (!isContextLost(e) && found.size === 0) throw e;
+      renderNote = "This page redirected while it was loading, so some of it may be missing.";
+    }
 
     // Let the app boot and issue its first data calls before scrolling.
     await page
@@ -419,7 +512,7 @@ export async function deepScan(rawUrl: string): Promise<ScanResult> {
       }
     };
 
-    absorb((await page.evaluate(COLLECT_MEDIA)) as MediaRec[]);
+    absorb(await safeEval<MediaRec[]>(() => page.evaluate(COLLECT_MEDIA), []));
 
     const scrollDeadline = Math.min(
       Date.now() + SCROLL_BUDGET_MS,
@@ -428,12 +521,12 @@ export async function deepScan(rawUrl: string): Promise<ScanResult> {
     let lastHeight = 0;
     let quiet = 0;
     for (let i = 0; i < SCROLL_STEPS && Date.now() < scrollDeadline; i++) {
-      const step = (await page.evaluate(SCROLL_STEP)) as {
-        height: number;
-        atBottom: boolean;
-      };
+      const step = await safeEval<{ height: number; atBottom: boolean }>(
+        () => page.evaluate(SCROLL_STEP),
+        { height: lastHeight, atBottom: true },
+      );
       const before = media.size;
-      absorb((await page.evaluate(COLLECT_MEDIA)) as MediaRec[]);
+      absorb(await safeEval<MediaRec[]>(() => page.evaluate(COLLECT_MEDIA), []));
 
       const grew = media.size > before || step.height !== lastHeight;
       lastHeight = step.height;
@@ -454,8 +547,8 @@ export async function deepScan(rawUrl: string): Promise<ScanResult> {
         .catch(() => {});
       await new Promise((r) => setTimeout(r, SETTLE_MS));
     }
-    absorb((await page.evaluate(COLLECT_MEDIA)) as MediaRec[]);
-    await page.evaluate("window.scrollTo(0, 0)");
+    absorb(await safeEval<MediaRec[]>(() => page.evaluate(COLLECT_MEDIA), []));
+    await safeEval(() => page.evaluate("window.scrollTo(0, 0)"), null);
 
     // Mine the rendered document as well as the network.
     //
@@ -465,7 +558,7 @@ export async function deepScan(rawUrl: string): Promise<ScanResult> {
     // never draw them either. Reading the serialised DOM catches both the
     // markup and the script blocks in one pass.
     try {
-      const html = await page.content();
+      const html = await safeEval<string>(() => page.content(), "");
       for (const u of mineMediaUrls(html, MINE_PER_DOCUMENT)) {
         if (found.size > MAX_ASSETS) break;
         if (found.has(u)) continue;
@@ -485,7 +578,7 @@ export async function deepScan(rawUrl: string): Promise<ScanResult> {
 
     // Read the rendered page: media detail, plus the design data the user asked
     // for. Computed styles are the only honest source for what a page paints.
-    const pageData = await page.evaluate(() => {
+    const pageData = await safeEval<PageData>(() => page.evaluate(() => {
       const media: {
         url: string;
         alt?: string;
@@ -672,7 +765,7 @@ export async function deepScan(rawUrl: string): Promise<ScanResult> {
       }
 
       return { media, palette, typography, tokens, fontFaces, title: document.title };
-    });
+    }), EMPTY_PAGE_DATA);
 
     // Merge rendered detail onto the network log. The final pass adds anything
     // reachable only through computed styles, chiefly CSS background images.
@@ -765,6 +858,13 @@ export async function deepScan(rawUrl: string): Promise<ScanResult> {
     // A refusal is not an empty page, and saying so is the difference between
     // "this site has two files" and "this site turned us away". Sites rate
     // limit, and the same address that worked an hour ago can answer 403.
+    if (renderNote) notes.push(renderNote);
+    else if (!pageData.title && media.size === 0 && found.size > 0) {
+      notes.push(
+        "This page stopped responding to us part way through, so this is what it had loaded up to that point.",
+      );
+    }
+
     if (mainStatus >= 400) {
       const why =
         mainStatus === 429
