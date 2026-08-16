@@ -8,7 +8,23 @@ const nextConfig: NextConfig = {
   outputFileTracingIncludes: {
     "/api/scan": ["./node_modules/@sparticuz/chromium/bin/**"],
   },
-  /* config options here */
+  images: {
+    // The scanner previews images from any site the user pastes, so the
+    // optimizer has to accept any https host. It fetches each thumbnail once,
+    // resizes it, re-encodes to WebP/AVIF, and serves it cached — which is
+    // what stops hundreds of raw cross-origin requests from hammering origins
+    // (the blank tiles) and what makes a scrolled-back tile instant instead of
+    // a fresh fetch.
+    remotePatterns: [{ protocol: "https", hostname: "**" }],
+    formats: ["image/webp"],
+    // Next 16 rejects any quality not listed here.
+    qualities: [70],
+    // A tile is ~200px; these are the widths we actually request.
+    imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
+    deviceSizes: [420, 640, 828],
+    // Cache an optimized thumbnail for a day at the edge.
+    minimumCacheTTL: 86400,
+  },
 };
 
 export default nextConfig;

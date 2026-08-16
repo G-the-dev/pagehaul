@@ -53,6 +53,17 @@ export const AssetTile = memo(function AssetTile({
     [asset.kind, base],
   );
   const previewSrc = derived && !thumbRefused ? derived : base;
+  // Route raster thumbnails through the image optimizer, which fetches each one
+  // once, resizes it, and serves it cached. Direct cross-origin requests to
+  // hundreds of origins at once is what left tiles blank and reloaded them on
+  // every scroll. SVG is served direct (the optimizer refuses it and it is
+  // already tiny), and if the optimizer cannot fetch a host we fall back to the
+  // origin.
+  const [optFailed, setOptFailed] = useState(false);
+  const usingOptimizer = asset.kind === "image" && !optFailed;
+  const imgSrc = usingOptimizer
+    ? `/_next/image?url=${encodeURIComponent(previewSrc)}&w=420&q=70`
+    : previewSrc;
   // A frame we captured on a previous mount, if any.
   const poster = asset.kind === "video" ? cachedPoster(asset.url) : undefined;
   const corner = cornerLabel(asset);
@@ -93,14 +104,16 @@ export const AssetTile = memo(function AssetTile({
           {showsImage ? (
             /* eslint-disable-next-line @next/next/no-img-element */
             <img
-              src={previewSrc}
+              src={imgSrc}
               alt=""
               loading="lazy"
               decoding="async"
               onError={() => {
-                // A downscaled request the CDN would not honour: retry with
-                // the address the page itself used before calling it broken.
-                if (derived && !thumbRefused) setThumbRefused(true);
+                // Peel back one layer at a time: optimizer to origin, then a
+                // downscaled request the CDN would not honour to the address the
+                // page itself used, then give up to the placeholder.
+                if (usingOptimizer) setOptFailed(true);
+                else if (derived && !thumbRefused) setThumbRefused(true);
                 else setFailed(true);
               }}
               onLoad={(e) => {
