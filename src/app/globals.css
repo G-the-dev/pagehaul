@@ -288,6 +288,39 @@
   contain-intrinsic-size: auto 720px;
 }
 
+/* The theme turns from the toggle outward.
+
+   The browser's default view transition is a plain cross-fade; switching it
+   off lets the expanding circle in the toggle drive the reveal instead. The
+   old theme holds perfectly still underneath while the new one washes over
+   it. */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+::view-transition-old(root) {
+  z-index: 1;
+}
+::view-transition-new(root) {
+  z-index: 2;
+}
+
+/* Browsers without view transitions get a soft glide of every colour on the
+   page for the moment of the switch, rather than a snap. The class lives for
+   650ms and is gone. */
+.theme-turning *,
+.theme-turning *::before,
+.theme-turning *::after {
+  transition:
+    background-color 0.55s ease,
+    color 0.55s ease,
+    border-color 0.55s ease,
+    fill 0.55s ease,
+    stroke 0.55s ease,
+    box-shadow 0.55s ease !important;
+}
+
 /* The expiry indicator.
 
    A countdown sitting in a row of grey metadata reads as one more fact about
