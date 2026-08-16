@@ -118,42 +118,42 @@ export function DetailDialog({
       onClick={onClose}
       className="fixed inset-0 z-50 grid place-items-center bg-black/75 p-5 backdrop-blur-sm"
     >
-      {/* Stepping through the list without closing first. Sat outside the
-          panel so they never cover the thing being looked at, and hidden at
-          the ends rather than shown dead. */}
-      {onPrev && (
-        <button
-          type="button"
-          aria-label="Previous file"
-          onClick={(e) => {
-            e.stopPropagation();
-            onPrev();
-          }}
-          className="absolute left-3 top-1/2 z-10 hidden h-11 w-11 -translate-y-1/2 place-items-center rounded-full border border-border bg-surface/80 text-muted-foreground backdrop-blur-md transition-colors hover:border-border-strong hover:text-foreground md:grid"
-        >
-          <ChevronLeft className="h-5 w-5" />
-        </button>
-      )}
-      {onNext && (
-        <button
-          type="button"
-          aria-label="Next file"
-          onClick={(e) => {
-            e.stopPropagation();
-            onNext();
-          }}
-          className="absolute right-3 top-1/2 z-10 hidden h-11 w-11 -translate-y-1/2 place-items-center rounded-full border border-border bg-surface/80 text-muted-foreground backdrop-blur-md transition-colors hover:border-border-strong hover:text-foreground md:grid"
-        >
-          <ChevronRight className="h-5 w-5" />
-        </button>
-      )}
+      {/* Panel and arrows share one centred wrapper, so the arrows hug the
+          panel's edges rather than floating at the far sides of the window. */}
+      <div className="relative w-full max-w-2xl">
+        {onPrev && (
+          <button
+            type="button"
+            aria-label="Previous file"
+            onClick={(e) => {
+              e.stopPropagation();
+              onPrev();
+            }}
+            className="absolute right-full top-1/2 z-10 mr-3 hidden h-11 w-11 -translate-y-1/2 place-items-center rounded-full border border-border bg-surface/80 text-muted-foreground backdrop-blur-md transition-colors hover:border-border-strong hover:text-foreground md:grid"
+          >
+            <ChevronLeft className="h-5 w-5" />
+          </button>
+        )}
+        {onNext && (
+          <button
+            type="button"
+            aria-label="Next file"
+            onClick={(e) => {
+              e.stopPropagation();
+              onNext();
+            }}
+            className="absolute left-full top-1/2 z-10 ml-3 hidden h-11 w-11 -translate-y-1/2 place-items-center rounded-full border border-border bg-surface/80 text-muted-foreground backdrop-blur-md transition-colors hover:border-border-strong hover:text-foreground md:grid"
+          >
+            <ChevronRight className="h-5 w-5" />
+          </button>
+        )}
 
-      <div
-        ref={panelRef}
-        tabIndex={-1}
-        onClick={(e) => e.stopPropagation()}
-        className="max-h-full w-full max-w-2xl overflow-auto rounded-xl border border-border bg-surface p-6 shadow-lift outline-none"
-      >
+        <div
+          ref={panelRef}
+          tabIndex={-1}
+          onClick={(e) => e.stopPropagation()}
+          className="max-h-[92vh] w-full overflow-auto rounded-xl border border-border bg-surface p-6 shadow-lift outline-none"
+        >
         <div className="mb-5 flex items-start justify-between gap-4">
           <div className="min-w-0">
             <p className="truncate text-[16px] font-semibold">{asset.displayName}</p>
@@ -306,6 +306,7 @@ export function DetailDialog({
             <Key>O</Key>
           </button>
         </div>
+      </div>
       </div>
     </div>
   );

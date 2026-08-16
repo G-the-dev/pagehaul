@@ -47,17 +47,34 @@ export const AssetTile = memo(function AssetTile({
    * only decodes while it is visible; everything else waits as a still tile.
    */
   const tileRef = useRef<HTMLDivElement>(null);
-  const [visible, setVisible] = useState(false);
+  // `settled` is the gate for decoding a video frame: the tile has been in
+  // view long enough that the scroll has stopped on it. Decoding while a scroll
+  // is flying past is the lag — a 3MB frame is expensive, and a screenful of
+  // them mid-scroll locks the page. So during a scroll every video shows the
+  // still placeholder, and only when you come to rest does what is on screen
+  // decode.
+  const [settled, setSettled] = useState(false);
   useEffect(() => {
     const el = tileRef.current;
-    if (!el) return;
+    if (!el || asset.kind !== "video") return;
+    let timer: ReturnType<typeof setTimeout> | undefined;
     const io = new IntersectionObserver(
-      ([e]) => setVisible(e.isIntersecting),
-      { rootMargin: "150px" },
+      ([e]) => {
+        clearTimeout(timer);
+        if (e.isIntersecting) {
+          timer = setTimeout(() => setSettled(true), 260);
+        } else {
+          setSettled(false);
+        }
+      },
+      { rootMargin: "80px" },
     );
     io.observe(el);
-    return () => io.disconnect();
-  }, []);
+    return () => {
+      clearTimeout(timer);
+      io.disconnect();
+    };
+  }, [asset.kind]);
   /**
    * True once a downscaled request has been refused, so we go back to the file
    * the page actually referenced. A guessed thumbnail must never be the reason
@@ -162,7 +179,7 @@ export const AssetTile = memo(function AssetTile({
               alt=""
               className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
             />
-          ) : showsVideoFrame && visible ? (
+          ) : showsVideoFrame && settled ? (
             /*
               A frame from the video itself, rendered only while the tile is on
               screen so a whole grid of videos never decodes at once. A media
