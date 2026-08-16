@@ -173,15 +173,16 @@ async function safeEval<T>(
   fallback: T,
   retryDelayMs = 900,
   label?: string,
+  attempts = 2,
 ): Promise<T> {
-  for (let attempt = 0; attempt < 2; attempt++) {
+  for (let attempt = 0; attempt < attempts; attempt++) {
     try {
       return (await run()) as T;
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);
       if (label) console.log(`[deepscan] ${label} attempt ${attempt} failed: ${msg.slice(0, 160)}`);
       if (!isContextLost(e)) return fallback;
-      if (attempt === 0) await new Promise((r) => setTimeout(r, retryDelayMs));
+      if (attempt < attempts - 1) await new Promise((r) => setTimeout(r, retryDelayMs));
     }
   }
   return fallback;
@@ -729,7 +730,11 @@ export async function deepScan(rawUrl: string): Promise<ScanResult> {
       }
 
       return { media, palette, typography, tokens, fontFaces, title: document.title };
-    }), EMPTY_PAGE_DATA, 900, "readDesign");
+      // Four attempts, not one retry: a single-page app (resend.com) swaps its
+      // main frame during load, and the read fails against the detached one
+      // until the new frame settles. Retrying past that is what lets a design
+      // read succeed on an app that navigates under it.
+    }), EMPTY_PAGE_DATA, 800, "readDesign", 4);
 
     // Capture design once up front, while the context is freshest. Tokens are
     // read separately too — a cheap, reliable read that stands even if the
@@ -740,6 +745,7 @@ export async function deepScan(rawUrl: string): Promise<ScanResult> {
       [],
       400,
       "readTokens",
+      4,
     );
     console.log(
       `[deepscan] early design: palette=${earlyDesign.palette.length} type=${earlyDesign.typography.length} tokens=${earlyDesign.tokens.length} liteTokens=${earlyTokens.length}`,
