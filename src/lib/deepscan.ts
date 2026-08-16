@@ -804,17 +804,57 @@ export async function deepScan(
     // Capture design once up front, while the context is freshest. Tokens are
     // read separately too — a cheap, reliable read that stands even if the
     // heavy computed-style walk above fails on a stressed serverless browser.
-    const earlyDesign = await readDesign();
-    const earlyTokens = await safeEval<{ name: string; value: string }[]>(
-      () => withTimeout(page.evaluate(READ_TOKENS), 5_000),
-      [],
-      400,
-      "readTokens",
-      4,
-    );
+    const readTokensNow = () =>
+      safeEval<{ name: string; value: string }[]>(
+        () => withTimeout(page.evaluate(READ_TOKENS), 5_000),
+        [],
+        400,
+        "readTokens",
+        4,
+      );
+
+    let earlyDesign = await readDesign();
+    let earlyTokens = await readTokensNow();
     console.log(
       `[deepscan] early design: palette=${earlyDesign.palette.length} type=${earlyDesign.typography.length} tokens=${earlyDesign.tokens.length} liteTokens=${earlyTokens.length}`,
     );
+
+    // Every read empty and no title means the page swapped its main frame out
+    // from under us — a client redirect or a hydration reload — and left the old
+    // one detached, so every evaluate fails though the page itself loaded fine.
+    // This is what strands the design AND stops the scroll from triggering lazy
+    // images, since the scroll runs the same way. A fresh navigation re-attaches
+    // a live frame; do it once, early, so the reads and the scroll that follow
+    // land on a page that answers. (gowthamoleti.com does exactly this.)
+    const readsDead =
+      !earlyDesign.title &&
+      !earlyDesign.palette.length &&
+      !earlyDesign.tokens.length &&
+      !earlyTokens.length;
+    if (readsDead && Date.now() < deadline - 25_000) {
+      const landed = page.url();
+      const renavOk = await safeEval<boolean>(
+        () =>
+          page
+            .goto(landed && landed !== "about:blank" ? landed : target.toString(), {
+              waitUntil: "domcontentloaded",
+              timeout: 15_000,
+            })
+            .then(() => true),
+        false,
+      );
+      if (renavOk) {
+        await page
+          .waitForNetworkIdle({ idleTime: 700, timeout: 5_000 })
+          .catch(() => {});
+        await new Promise((r) => setTimeout(r, 900));
+        earlyDesign = await readDesign();
+        earlyTokens = await readTokensNow();
+        console.log(
+          `[deepscan] after re-nav: palette=${earlyDesign.palette.length} tokens=${earlyTokens.length} title=${!!earlyDesign.title}`,
+        );
+      }
+    }
 
     const scrollDeadline = Math.min(
       Date.now() + SCROLL_BUDGET_MS,
@@ -1031,7 +1071,13 @@ export async function deepScan(
     if (renderNote) {
       notes.push(renderNote);
       partial = true;
-    } else if (!pageData.title && media.size === 0 && found.size > 0) {
+    } else if (!pageData.title && media.size === 0 && found.size > 0 && found.size < 12) {
+      // The browser read nothing off the page, yet the network log did catch
+      // something — so the page half-loaded. Only call that "stopped responding"
+      // when the haul is genuinely thin. A page that still yielded dozens of
+      // files through the network log is a successful scan whose on-page read
+      // happened to fail; flagging it partial (and paying for a second pass)
+      // over a missing palette is worse than just handing over the files.
       notes.push(
         "This page stopped responding to us part way through, so this is what it had loaded by then.",
       );
