@@ -170,6 +170,15 @@ export function thumbnailUrl(rawUrl: string): string | null {
   }
   if (u.protocol !== "https:" && u.protocol !== "http:") return null;
 
+  // A signed URL is a promise that exactly these parameters were authorised.
+  // Change one and the CDN answers 403 — pentagram's imgix does precisely
+  // that — so a signed address is served as-is or not at all.
+  for (const key of u.searchParams.keys()) {
+    if (/^(?:s|sig|signature|token|hmac|policy|x-amz-signature)$/i.test(key)) {
+      return null;
+    }
+  }
+
   for (const [host, param] of RESIZE_PARAM_BY_HOST) {
     if (!host.test(u.hostname)) continue;
     const current = Number(u.searchParams.get(param));
@@ -259,6 +268,30 @@ function variantLabel(a: Groupable): string {
  * between them.
  */
 const MAX_OFFERED = 4;
+/** A tile is ~200px wide; anything under this renders as a colour swatch. */
+const MIN_THUMB_PX = 180;
+
+/**
+ * The width an address is really asking for.
+ *
+ * Differs from sizeHint on one point that matters here: an explicit resize
+ * parameter beats everything else. sizeHint takes the most optimistic signal
+ * it can find, so a placeholder called photo_1080x608.gif?w=32 scores 1080 —
+ * the filename describes the source, but the ?w=32 describes what the CDN
+ * will actually send back, and that is the one a thumbnail cares about.
+ */
+function claimedWidth(rawUrl: string): number {
+  try {
+    const u = new URL(rawUrl);
+    for (const key of ["w", "width", "scale-down-to"]) {
+      const v = Number(u.searchParams.get(key));
+      if (Number.isFinite(v) && v > 0) return v;
+    }
+  } catch {
+    /* fall through */
+  }
+  return sizeHint(rawUrl);
+}
 
 function chooseOfferedSizes(
   ordered: Groupable[],
@@ -299,6 +332,16 @@ function chooseOfferedSizes(
 export function groupVariants(assets: Groupable[]): void {
   const families = new Map<string, Groupable[]>();
 
+  // Vet every thumb regardless of where it was assigned. They arrive from the
+  // srcset reader, from an earlier grouping pass, and from merging two scans,
+  // and policing each inflow separately is how a 32px placeholder kept
+  // slipping back in. One rule, applied last, at the door.
+  for (const a of assets) {
+    if (a.thumbUrl && claimedWidth(a.thumbUrl) < MIN_THUMB_PX) {
+      a.thumbUrl = undefined;
+    }
+  }
+
   for (const a of assets) {
     if (a.kind !== "image" && a.kind !== "video") continue;
     const key = a.variantKey ?? variantFamily(a.url);
@@ -335,8 +378,19 @@ export function groupVariants(assets: Groupable[]): void {
     best.variantCount = ordered.length;
     best.variants = chooseOfferedSizes(ordered);
 
-    // The smallest is the cheapest thing to show while browsing.
-    const worst = ordered[ordered.length - 1];
-    if (!best.thumbUrl && worst !== best) best.thumbUrl = worst.url;
+    // The cheapest thing to show while browsing that is still recognisable.
+    //
+    // "Smallest variant" was the rule here, and pentagram.com showed why that
+    // is wrong: pages ship 20-32px blurred placeholder variants in their
+    // payloads, and a tile drawn from one is a rectangle of solid colour. So
+    // the smallest variant that can still fill a ~200px tile wins, and when
+    // every small variant is a placeholder the thumb stays unset — the tile
+    // then derives its own downscale from the full-size address instead.
+    if (!best.thumbUrl) {
+      const adequate = [...ordered]
+        .reverse()
+        .find((a) => a !== best && claimedWidth(a.url) >= MIN_THUMB_PX);
+      if (adequate) best.thumbUrl = adequate.url;
+    }
   }
 }

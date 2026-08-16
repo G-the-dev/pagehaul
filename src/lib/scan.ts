@@ -39,10 +39,26 @@ const LINKED_DOC_EXT = new Set([
   "csv", "json", "xml", "zip", "rtf", "txt",
 ]);
 
+
+/**
+ * A format override written into the query, e.g. imgix's ?fm=mp4.
+ *
+ * The path may end .gif while the CDN has been asked to transcode to video —
+ * pentagram does exactly this — and classifying by the path then points an
+ * <img> at an mp4, which cannot decode. The last value wins, as it does at
+ * the CDN.
+ */
+function formatOverride(u: URL): string | null {
+  const fm = [...u.searchParams.getAll("fm"), ...u.searchParams.getAll("format")].pop();
+  return fm && /^[a-z0-9]{2,5}$/i.test(fm) ? fm.toLowerCase() : null;
+}
+
 function extOf(url: string): string {
   try {
-    const p = new URL(url).pathname;
-    const seg = p.split("/").pop() ?? "";
+    const u = new URL(url);
+    const fm = formatOverride(u);
+    if (fm) return fm;
+    const seg = u.pathname.split("/").pop() ?? "";
     const dot = seg.lastIndexOf(".");
     if (dot < 0 || dot === seg.length - 1) return "";
     return seg.slice(dot + 1).toLowerCase();
@@ -367,14 +383,21 @@ async function scanOnePage(
     if (srcsetRaw) {
       const variants = parseSrcset(base, srcsetRaw);
       if (variants.length) {
-        thumbUrl = variants[0].url;
+        // Smallest that is still tile-sized. srcset often opens with a tiny
+        // placeholder entry, and previewing that paints a blur.
+        thumbUrl = (
+          variants.find((v) => v.w === 0 || v.w >= 180) ??
+          variants[variants.length - 1]
+        ).url;
         variantKey = idOf(variants.map((v) => v.url).join("|"));
         variants.forEach((v, i) => {
           c.add(v.url, {
             fromPage: finalUrl,
             section,
             alt,
-            thumbUrl: variants[0].url,
+            // The vetted thumb from above — variants[0] here is exactly the
+            // 20-32px placeholder the vetting exists to reject.
+            thumbUrl,
             variantKey,
             isLargest: i === variants.length - 1,
             width: v.w >= 1000 && v.w < 10000 ? v.w : undefined,

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Check, ChevronLeft, ChevronRight } from "lucide-react";
 import type { Asset } from "@/lib/types";
 import { formatBytes, openInNewTab } from "@/lib/download";
+import { thumbnailUrl } from "@/lib/variants";
 
 /**
  * The full-size look at one file.
@@ -42,6 +43,8 @@ export function DetailDialog({
   onNext?: () => void;
 }) {
   const [copied, setCopied] = useState(false);
+  // What the grid already showed for this file — cached, so it paints at once.
+  const previewThumb = asset.thumbUrl ?? thumbnailUrl(asset.url);
   const panelRef = useRef<HTMLDivElement>(null);
 
   const copy = useCallback(() => {
@@ -181,12 +184,25 @@ export function DetailDialog({
         </div>
 
         {(asset.kind === "image" || asset.kind === "svg") && (
-          <div className="overflow-hidden rounded-lg border border-border">
+          <div className="relative overflow-hidden rounded-lg border border-border">
+            {/* The full file can be megabytes and arrive slowly. The tile's
+                thumbnail is already in the browser's cache, so it stands in —
+                blurred and dimmed so it reads as "loading", not as the image —
+                until the real one paints over it. */}
+            {previewThumb && !asset.transparent && (
+              /* eslint-disable-next-line @next/next/no-img-element */
+              <img
+                src={previewThumb}
+                alt=""
+                aria-hidden
+                className="absolute inset-0 h-full w-full scale-105 object-cover opacity-40 blur-lg"
+              />
+            )}
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={asset.url}
               alt={asset.alt ?? ""}
-              className="mx-auto max-h-[46vh] bg-checker object-contain"
+              className="relative mx-auto max-h-[46vh] bg-checker object-contain"
             />
           </div>
         )}

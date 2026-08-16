@@ -86,9 +86,26 @@ const MIME_KIND: [RegExp, AssetKind][] = [
 
 const ALPHA = new Set(["png", "svg", "webp", "gif", "avif", "ico", "apng"]);
 
+
+/**
+ * A format override written into the query, e.g. imgix's ?fm=mp4.
+ *
+ * The path may end .gif while the CDN has been asked to transcode to video —
+ * pentagram does exactly this — and classifying by the path then points an
+ * <img> at an mp4, which cannot decode. The last value wins, as it does at
+ * the CDN.
+ */
+function formatOverride(u: URL): string | null {
+  const fm = [...u.searchParams.getAll("fm"), ...u.searchParams.getAll("format")].pop();
+  return fm && /^[a-z0-9]{2,5}$/i.test(fm) ? fm.toLowerCase() : null;
+}
+
 function extOf(url: string): string {
   try {
-    const seg = new URL(url).pathname.split("/").pop() ?? "";
+    const u = new URL(url);
+    const fm = formatOverride(u);
+    if (fm) return fm;
+    const seg = u.pathname.split("/").pop() ?? "";
     const dot = seg.lastIndexOf(".");
     return dot > 0 ? seg.slice(dot + 1).toLowerCase() : "";
   } catch {
