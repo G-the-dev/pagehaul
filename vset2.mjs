@@ -1,0 +1,20 @@
+import puppeteer from "puppeteer-core";
+const b = await puppeteer.launch({ executablePath:"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", headless:true, protocolTimeout:400000, args:["--no-sandbox"] });
+const page = await b.newPage();
+await page.setViewport({ width: 1400, height: 860, deviceScaleFactor: 1 });
+await page.goto("http://localhost:3000", { waitUntil:"networkidle2", timeout:60000 });
+await page.type('input', "framer.com");
+await page.evaluate(`(()=>{[...document.querySelectorAll('button')].find(b=>/^Scan/.test((b.textContent||'').trim())).click();})()`);
+await page.waitForFunction(`document.querySelectorAll('[role="tab"]').length > 2`, { timeout: 300000 });
+await new Promise(r=>setTimeout(r,1200));
+await page.evaluate(`(()=>{const t=[...document.querySelectorAll('[role="tab"]')].find(t=>/Video/.test(t.textContent)); t&&t.click();})()`);
+await new Promise(r=>setTimeout(r,1000));
+await page.evaluate(`(()=>{document.documentElement.style.scrollBehavior='auto';
+  const g=document.querySelector('[data-tile]').closest('div.relative'); window.scrollTo(0,g.getBoundingClientRect().top+window.scrollY-40);})()`);
+// come to rest on the video grid, wait past the 260ms settle
+await new Promise(r=>setTimeout(r,1200));
+const st = await page.evaluate(`(()=>{const v=[...document.querySelectorAll('[data-tile] video')];
+  return {videosMounted:v.length, framesReady:v.filter(x=>x.readyState>=2).length};})()`);
+console.log("at rest on video grid:", JSON.stringify(st));
+await page.screenshot({ path:"/tmp/vidgrid.jpg", type:"jpeg", quality:82 });
+await b.close();

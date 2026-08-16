@@ -91,8 +91,15 @@ export const AssetTile = memo(function AssetTile({
   const imgSrc = usingOptimizer
     ? `/_next/image?url=${encodeURIComponent(previewSrc)}&w=420&q=70`
     : previewSrc;
-  // A frame we captured on a previous mount, if any.
+  // A frame we captured client-side on a previous mount (CORS videos), if any.
   const poster = asset.kind === "video" ? cachedPoster(asset.url) : undefined;
+  // The server-captured poster for a video: a plain image that preloads and
+  // caches like every other thumbnail, so the grid never decodes video itself.
+  const [posterFailed, setPosterFailed] = useState(false);
+  const serverPoster =
+    asset.kind === "video" && !poster && !posterFailed
+      ? `/api/poster?url=${encodeURIComponent(asset.url)}`
+      : undefined;
   const corner = cornerLabel(asset);
   const showsImage =
     !failed && (asset.kind === "image" || asset.kind === "svg" || !!asset.poster);
@@ -176,12 +183,23 @@ export const AssetTile = memo(function AssetTile({
               alt=""
               className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
             />
+          ) : serverPoster ? (
+            /* The frame captured server-side, served as a cached image — no
+               client decode, so a grid of hundreds of videos stays smooth. */
+            /* eslint-disable-next-line @next/next/no-img-element */
+            <img
+              src={serverPoster}
+              alt=""
+              loading="eager"
+              decoding="async"
+              onError={() => setPosterFailed(true)}
+              className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
+            />
           ) : showsVideoFrame && visible ? (
             /*
-              A frame from the video itself, rendered only while the tile is on
-              screen so a whole grid of videos never decodes at once. A media
-              fragment plus a seek paints one; once it is up we try to keep a
-              copy (see capturePoster) so the next mount is an image.
+              Fallback when the server could not capture a frame: decode it
+              live while the tile is on screen. A media fragment plus a seek
+              paints one; once up we try to keep a copy (see capturePoster).
             */
             <video
               src={`${asset.url}#t=1`}

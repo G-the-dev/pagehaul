@@ -1,0 +1,20 @@
+import puppeteer from "puppeteer-core";
+const b = await puppeteer.launch({ executablePath:"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", headless:true, protocolTimeout:400000, args:["--no-sandbox"] });
+const page = await b.newPage();
+await page.setViewport({ width: 1440, height: 860, deviceScaleFactor: 2 });
+await page.goto("https://pagehaul.vercel.app", { waitUntil:"networkidle2", timeout:60000 });
+await page.type('input', "stripe.com");
+await page.evaluate(`(()=>{[...document.querySelectorAll('button')].find(b=>/^Scan/.test((b.textContent||'').trim())).click();})()`);
+await page.waitForFunction(`document.querySelectorAll('[role="tab"]').length > 2`, { timeout: 300000 });
+await new Promise(r=>setTimeout(r,3000));
+await page.evaluate(`(()=>{const t=[...document.querySelectorAll('[role="tab"]')].find(t=>/Images/.test(t.textContent)); t&&t.click();})()`);
+await new Promise(r=>setTimeout(r,1500));
+await page.evaluate(`(()=>{document.documentElement.style.scrollBehavior='auto';
+  const g=document.querySelector('[data-tile]').closest('div.relative'); window.scrollTo(0,g.getBoundingClientRect().top+window.scrollY-30);})()`);
+await new Promise(r=>setTimeout(r,6000));
+const st = await page.evaluate(`(()=>{const imgs=[...document.querySelectorAll('[data-tile] img')];
+  return {total:imgs.length, loaded:imgs.filter(i=>i.complete&&i.naturalWidth>0).length,
+          optimized:imgs.filter(i=>(i.currentSrc||i.src).includes('/_next/image')).length};})()`);
+console.log("PROD stripe images tab:", JSON.stringify(st));
+await page.screenshot({ path:"/tmp/prod-img.jpg", type:"jpeg", quality:82 });
+await b.close();
