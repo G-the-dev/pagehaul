@@ -6,7 +6,10 @@ const nextConfig: NextConfig = {
   // The chromium binary ships as .br archives that tracing does not pick up on
   // its own, so the deep-scan route has to include them explicitly.
   outputFileTracingIncludes: {
+    // Both routes drive the headless browser, so both need its binary traced
+    // into their bundle.
     "/api/scan": ["./node_modules/@sparticuz/chromium/bin/**"],
+    "/api/poster": ["./node_modules/@sparticuz/chromium/bin/**"],
   },
   images: {
     // The scanner previews images from any site the user pastes, so the
