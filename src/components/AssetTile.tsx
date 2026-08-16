@@ -144,7 +144,14 @@ export const AssetTile = memo(function AssetTile({
             <img
               src={imgSrc}
               alt=""
-              loading="lazy"
+              // Eager, not lazy. The grid only mounts a small band of tiles
+              // (virtualization caps it), and the optimizer's first pass on an
+              // image costs about a second — so a lazy tile is requested only
+              // once it is already on screen and sits blank while it optimizes.
+              // Eager starts that work as soon as the tile mounts in the
+              // overscan band, a few rows ahead, so by the time it scrolls into
+              // view the optimized image is cached and paints at once.
+              loading="eager"
               decoding="async"
               onError={() => {
                 // Peel back one layer at a time: optimizer to origin, then a

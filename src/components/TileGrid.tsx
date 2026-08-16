@@ -81,12 +81,17 @@ export function TileGrid({
   const rowHeight = colWidth ? colWidth * 0.75 + nameRow + GAP : 200;
   const rows = Math.ceil(assets.length / cols);
 
+  // Rows kept mounted beyond the viewport. Images load eagerly the moment they
+  // mount, so this band is a preload buffer: the wider it is, the more lead the
+  // optimizer gets before a tile is actually seen. Six rows is roughly the
+  // second the optimizer needs at a normal scroll speed. Video-heavy results
+  // stay narrow, because a mounted video is a decode waiting to happen, not a
+  // cheap prefetch.
+  const heavy = assets.filter((a) => a.kind === "video").length > assets.length / 2;
   const virtualizer = useWindowVirtualizer({
     count: rows,
     estimateSize: () => rowHeight,
-    // A modest band. Videos are gated to decode only when visible (see
-    // AssetTile), so a wide overscan would just mount idle placeholders.
-    overscan: 4,
+    overscan: heavy ? 3 : 7,
     scrollMargin: offsetTop,
   });
 
