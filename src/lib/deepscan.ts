@@ -526,22 +526,50 @@ export async function deepScan(
       }
     });
 
+    let navHiccup = false;
     try {
       await page.goto(target.toString(), {
         waitUntil: "domcontentloaded",
         timeout: NAV_TIMEOUT_MS,
       });
     } catch (e) {
-      // A page that redirects immediately can abort its own navigation. If any
-      // response was recorded we know we reached the site, so carry on.
+      // A modern app frequently interrupts its own first navigation — a client
+      // redirect, a router taking over, a hydration reload — and Puppeteer
+      // reports that as a lost context here. On its own it means nothing: what
+      // matters is whether a real page settles afterwards. So note it and decide
+      // later, once the page has had a chance to come back, rather than blaming
+      // a redirect that a perfectly good load will trip too.
       if (!isContextLost(e) && found.size === 0) throw e;
-      renderNote = "This page redirected while it was loading, so some of it may be missing. Scanning the address it landed on gets more.";
+      navHiccup = true;
     }
 
-    // Let the app boot and issue its first data calls before scrolling.
+    // Let the app boot and issue its first data calls before scrolling. After an
+    // interrupted navigation, give the real document an extra moment to land.
     await page
       .waitForNetworkIdle({ idleTime: 900, timeout: IDLE_TIMEOUT_MS })
       .catch(() => {});
+    if (navHiccup) await new Promise((r) => setTimeout(r, 1_200));
+
+    // Only now, having looked, decide whether the interruption actually cost
+    // anything. A page that came back with a rendered body is an ordinary load —
+    // warning about it and hiding its files behind a "partial" flag is a false
+    // alarm. Only a page that never recovered is genuinely incomplete.
+    if (navHiccup) {
+      const recovered = await safeEval<boolean>(
+        () =>
+          withTimeout(
+            page.evaluate(
+              () => !!(document.body && document.body.childElementCount > 3),
+            ),
+            5_000,
+          ),
+        false,
+      );
+      if (!recovered) {
+        renderNote =
+          "This page redirected while it was loading, so some of it may be missing. Scanning the address it landed on gets more.";
+      }
+    }
 
     // Walk the page down a screen at a time, reading what is mounted after each
     // step. Two things stop us: reaching the bottom of a page that has stopped
