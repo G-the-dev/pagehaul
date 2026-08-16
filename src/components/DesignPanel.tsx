@@ -1,14 +1,17 @@
 "use client";
 
 import { useState } from "react";
-import { Check, Copy } from "lucide-react";
+import { Check, Copy, Download } from "lucide-react";
 import type { Swatch, TypeSpec } from "@/lib/types";
+import { buildFigmaTokens } from "@/lib/figma-tokens";
 import { Tooltip } from "./ui/Tooltip";
 
 interface Props {
   palette?: Swatch[];
   typography?: TypeSpec[];
   tokens?: { name: string; value: string }[];
+  /** The scanned host, for the export filename. */
+  host?: string;
 }
 
 function CopyChip({ value, label }: { value: string; label?: string }) {
@@ -39,7 +42,7 @@ function CopyChip({ value, label }: { value: string; label?: string }) {
  * tokens it declares. All of it comes from computed styles, so it reflects what
  * the page actually renders rather than what its stylesheet claims.
  */
-export function DesignPanel({ palette, typography, tokens }: Props) {
+export function DesignPanel({ palette, typography, tokens, host }: Props) {
   /** Which swatch was last copied, so only that one confirms. */
   const [copied, setCopied] = useState<string | null>(null);
 
@@ -75,8 +78,48 @@ export function DesignPanel({ palette, typography, tokens }: Props) {
     .map((s, i) => `  --color-${i + 1}: ${s.hex};`)
     .join("\n");
 
+  function exportFigma() {
+    const json = buildFigmaTokens({ host: host ?? "pagehaul", palette, typography, tokens });
+    const blob = new Blob([json], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${host || "pagehaul"}-tokens.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
   return (
     <div className="space-y-10">
+      {/* Figma has no native token import — a plugin reads this file. The
+          format is the W3C standard those plugins share, so it is not tied to
+          any one of them. */}
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-surface/50 px-4 py-3">
+        <p className="text-[13px] text-muted-foreground">
+          Export as{" "}
+          <span className="text-foreground">design tokens</span>, then import in
+          Figma with the{" "}
+          <span className="font-mono text-[12px] text-foreground">
+            Variables JSON Import
+          </span>{" "}
+          or{" "}
+          <span className="font-mono text-[12px] text-foreground">
+            Tokens Studio
+          </span>{" "}
+          plugin.
+        </p>
+        <button
+          type="button"
+          onClick={exportFigma}
+          className="inline-flex h-9 shrink-0 items-center gap-2 rounded-lg bg-accent px-4 text-[13px] font-semibold text-accent-fg transition-all hover:brightness-110"
+        >
+          <Download className="h-3.5 w-3.5" strokeWidth={2.5} />
+          Export for Figma
+        </button>
+      </div>
+
       {palette && palette.length > 0 && (
         <section>
           <div className="mb-4 flex items-baseline justify-between gap-4">

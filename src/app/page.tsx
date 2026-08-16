@@ -568,6 +568,7 @@ export default function Home() {
                 palette={result.palette}
                 typography={result.typography}
                 tokens={result.tokens}
+                host={host}
               />
             ) : visible.length === 0 ? (
               <div className="rounded-xl border border-dashed border-border py-16 text-center">
