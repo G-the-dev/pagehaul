@@ -141,7 +141,83 @@ function idOf(input: string): string {
   return (h1 >>> 0).toString(36).padStart(7, "0") + (h2 >>> 0).toString(36).padStart(7, "0");
 }
 
-async function launchBrowser() {
+type Browser = Awaited<ReturnType<typeof rawLaunch>>;
+
+/**
+ * The one browser this instance runs, shared by every scan.
+ *
+ * Serverless instances serve concurrent requests, and a browser per scan is
+ * how that dies. Two launches race to unpack the same binary into /tmp and the
+ * second gets "spawn ETXTBSY"; the launches that do win each cost hundreds of
+ * megabytes in a container with about two thousand to give, and the kernel
+ * settles the difference by killing renderers — which surfaces as "Target
+ * closed" and looks like the site's fault.
+ *
+ * One browser, launched once behind a shared promise, with each scan in its
+ * own context, removes the race and the multiplication in one move. Scans that
+ * arrive together become tabs, not competitors.
+ */
+let sharedBrowser: Promise<Browser> | null = null;
+
+/** Scans allowed to drive the browser at once; the rest wait their turn. */
+const MAX_CONCURRENT_SCANS = 3;
+let running = 0;
+const waiting: (() => void)[] = [];
+
+async function acquireSlot(): Promise<void> {
+  if (running < MAX_CONCURRENT_SCANS) {
+    running++;
+    return;
+  }
+  await new Promise<void>((resolve) => {
+    waiting.push(resolve);
+  });
+  running++;
+}
+
+function releaseSlot(): void {
+  running--;
+  waiting.shift()?.();
+}
+
+async function getBrowser(): Promise<Browser> {
+  if (sharedBrowser) {
+    try {
+      const b = await sharedBrowser;
+      if (b.connected) return b;
+    } catch {
+      /* the last launch failed; try again below */
+    }
+    sharedBrowser = null;
+  }
+
+  sharedBrowser = (async () => {
+    // ETXTBSY can still happen against a binary another instance is writing;
+    // it clears in well under a second, so it is worth two more tries.
+    for (let attempt = 0; ; attempt++) {
+      try {
+        const b = await rawLaunch();
+        b.once("disconnected", () => {
+          sharedBrowser = null;
+        });
+        return b;
+      } catch (e) {
+        const busy = e instanceof Error && /ETXTBSY|EBUSY/i.test(e.message);
+        if (!busy || attempt >= 2) throw e;
+        await new Promise((r) => setTimeout(r, 600));
+      }
+    }
+  })();
+
+  try {
+    return await sharedBrowser;
+  } catch (e) {
+    sharedBrowser = null;
+    throw e;
+  }
+}
+
+async function rawLaunch() {
   const puppeteer = (await import("puppeteer-core")).default;
 
   if (process.env.VERCEL) {
@@ -358,10 +434,15 @@ export async function deepScan(rawUrl: string): Promise<ScanResult> {
   /** Set when the page interrupted us, so a thin result explains itself. */
   let renderNote = "";
 
-  let browser: Awaited<ReturnType<typeof launchBrowser>> | null = null;
+  // A slot first, then the shared browser, then a private context inside it.
+  // The context is what gets closed at the end; the browser stays warm for
+  // whoever scans next.
+  await acquireSlot();
+  let context: Awaited<ReturnType<Browser["createBrowserContext"]>> | null = null;
   try {
-    browser = await launchBrowser();
-    const page = await browser.newPage();
+    const browser = await getBrowser();
+    context = await browser.createBrowserContext();
+    const page = await context.newPage();
     await page.setViewport({ width: 1512, height: 950, deviceScaleFactor: 2 });
     // Say who we actually are, minus the word "Headless".
     //
@@ -372,7 +453,7 @@ export async function deepScan(rawUrl: string): Promise<ScanResult> {
     // checks look for: Pinterest answers it with a stripped page holding three
     // images where the real one has dozens. Deriving both strings from the
     // browser in hand means there is nothing to disagree with.
-    const product = (await browser.version()).replace(/^HeadlessChrome/, "Chrome");
+    const product = (await page.browser().version()).replace(/^HeadlessChrome/, "Chrome");
     const uaPlatform =
       process.platform === "darwin"
         ? "Macintosh; Intel Mac OS X 10_15_7"
@@ -918,6 +999,7 @@ export async function deepScan(rawUrl: string): Promise<ScanResult> {
       notes,
     };
   } finally {
-    await browser?.close().catch(() => {});
+    await context?.close().catch(() => {});
+    releaseSlot();
   }
 }
