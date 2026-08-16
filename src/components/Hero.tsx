@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { ArrowRight, Loader2 } from "lucide-react";
 import { EASE } from "./ui/motion-primitives";
@@ -37,6 +37,33 @@ export function Hero({
   error,
 }: Props) {
   const [touched, setTouched] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Paste works from anywhere on the page. Clicking blank space drops focus,
+  // and a person with a copied link should not have to find the box again —
+  // if the paste lands nowhere editable and looks like an address, it goes
+  // where it was obviously meant to go.
+  useEffect(() => {
+    const onPaste = (e: ClipboardEvent) => {
+      if (scanning) return;
+      const el = document.activeElement as HTMLElement | null;
+      if (
+        el &&
+        (el.tagName === "INPUT" ||
+          el.tagName === "TEXTAREA" ||
+          el.isContentEditable)
+      ) {
+        return;
+      }
+      const text = (e.clipboardData?.getData("text") ?? "").trim().split("\n")[0];
+      if (!text || /\s/.test(text)) return;
+      setUrl(text);
+      setTouched(false);
+      inputRef.current?.focus();
+    };
+    window.addEventListener("paste", onPaste);
+    return () => window.removeEventListener("paste", onPaste);
+  }, [scanning, setUrl]);
   const check = checkUrlInput(url);
   // Only complain once they have left the field, so it does not shout at
   // someone halfway through typing "stripe.c".
@@ -144,8 +171,13 @@ export function Hero({
         >
           <div className="flex flex-col gap-2 sm:flex-row">
             <input
+              ref={inputRef}
               type="text"
               inputMode="url"
+              // The first thing anybody does here is paste a link, and a paste
+              // needs somewhere to land. Focused on arrival, like a search
+              // engine's box.
+              autoFocus
               value={url}
               onChange={(e) => setUrl(e.target.value)}
               onBlur={() => setTouched(true)}
