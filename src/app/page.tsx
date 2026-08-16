@@ -12,6 +12,7 @@ import { Toast, type ToastMessage, type ToastTone } from "@/components/Toast";
 import { Countdown } from "@/components/Countdown";
 import { SITE } from "@/lib/site";
 import { humaniseScanError } from "@/lib/url-input";
+import { addRecent, getRecent, removeRecent, type Recent } from "@/lib/recent";
 import { Features, Audience, Steps } from "@/components/Features";
 import dynamic from "next/dynamic";
 
@@ -95,6 +96,12 @@ export default function Home() {
   const heroRef = useRef<HTMLDivElement>(null);
   /** Lets a scan in flight be abandoned. A deep scan can run most of a minute. */
   const abortRef = useRef<AbortController | null>(null);
+
+  // The addresses scanned before, from this browser's own storage. Loaded after
+  // mount so the server render (which cannot see localStorage) stays the
+  // examples and hydration matches.
+  const [recent, setRecent] = useState<Recent[]>([]);
+  useEffect(() => setRecent(getRecent()), []);
 
   /**
    * Whether the action bar is drawn in.
@@ -266,6 +273,7 @@ export default function Home() {
       setRanDeep(useDeep);
       setShown(48);
       setExpiresAt(Date.now() + SITE.resultsMinutes * 60_000);
+      setRecent(addRecent(target));
       // Results render inline, so bring them into view without a page change.
       setTimeout(
         () => resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }),
@@ -468,6 +476,8 @@ export default function Home() {
             runScan(host, deep);
           }}
           onCancel={cancelScan}
+          recent={recent}
+          onRemoveRecent={(url) => setRecent(removeRecent(url))}
           scanning={scanning}
           error={error}
         />

@@ -5,6 +5,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { ArrowRight, Loader2 } from "lucide-react";
 import { EASE } from "./ui/motion-primitives";
 import { TryExamples } from "./TryExamples";
+import type { Recent } from "@/lib/recent";
 import { checkUrlInput } from "@/lib/url-input";
 import { ScanProgress } from "./ScanProgress";
 
@@ -16,6 +17,8 @@ interface Props {
   onScan: () => void;
   onPick: (host: string) => void;
   onCancel: () => void;
+  recent: Recent[];
+  onRemoveRecent: (url: string) => void;
   scanning: boolean;
   error: string | null;
 }
@@ -33,6 +36,8 @@ export function Hero({
   onScan,
   onPick,
   onCancel,
+  recent,
+  onRemoveRecent,
   scanning,
   error,
 }: Props) {
@@ -273,7 +278,12 @@ export function Hero({
         {scanning ? (
           <ScanProgress deep={deep} onCancel={onCancel} />
         ) : (
-          <TryExamples onPick={onPick} disabled={scanning} />
+          <TryExamples
+            onPick={onPick}
+            recent={recent}
+            onRemove={onRemoveRecent}
+            disabled={scanning}
+          />
         )}
       </div>
     </section>
