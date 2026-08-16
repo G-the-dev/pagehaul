@@ -111,6 +111,32 @@ export function ScanProgress({
           </>
         )}
       </div>
+
+      {/* A deep scan runs half a minute, and an empty page invites leaving. A
+          quiet nudge to look around keeps someone here — and points them at the
+          sections that explain what they are about to get. */}
+      <motion.button
+        type="button"
+        onClick={() =>
+          document
+            .getElementById("what")
+            ?.scrollIntoView({ behavior: "smooth", block: "start" })
+        }
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 1.2, duration: 0.6 }}
+        className="group mx-auto mt-4 flex items-center gap-1.5 text-[12.5px] text-muted-foreground transition-colors hover:text-foreground"
+      >
+        While this runs, see what it finds
+        <motion.span
+          aria-hidden
+          animate={{ y: [0, 3, 0] }}
+          transition={{ duration: 1.4, repeat: Infinity, ease: "easeInOut" }}
+          className="text-foreground/70 group-hover:text-foreground"
+        >
+          ↓
+        </motion.span>
+      </motion.button>
     </div>
   );
 }
