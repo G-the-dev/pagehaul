@@ -227,13 +227,22 @@ export function displayNameFor(
 export function assignDisplayNames(
   assets: Pick<
     Asset,
-    "kind" | "name" | "alt" | "section" | "format" | "fontFamily" | "url" | "displayName"
+    "kind" | "name" | "alt" | "section" | "format" | "fontFamily" | "url" | "displayName" | "isLargest"
   >[],
 ): void {
   const perKind = new Map<string, number>();
   const used = new Map<string, number>();
 
   for (const a of assets) {
+    // A hidden variant — one size of a picture, shown only inside its largest's
+    // switcher — is never its own card. Give it a label for the record, but
+    // keep it out of the per-kind counter and the dedup numbering, or eleven
+    // hidden sizes of "Mercy Ships Logo" push the one real card to "... 2".
+    if (a.isLargest === false) {
+      a.displayName = displayNameFor(a, (perKind.get(a.kind) ?? 0) + 1);
+      continue;
+    }
+
     const n = (perKind.get(a.kind) ?? 0) + 1;
     perKind.set(a.kind, n);
 

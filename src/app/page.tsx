@@ -549,7 +549,11 @@ export default function Home() {
                     />
                   );
                 })}
-                {hasDesign && (
+                {/* Design is offered for every page. When a deep scan already
+                    read it, the tab holds the palette, type and tokens; on a
+                    quick scan it holds a one-tap invitation to go and get them.
+                    Only a deep scan that genuinely found nothing hides it. */}
+                {(hasDesign || !ranDeep) && (
                   <TabButton
                     active={tab === "design"}
                     label="Design"
@@ -560,12 +564,38 @@ export default function Home() {
             </div>
 
             {tab === "design" ? (
-              <DesignPanel
-                palette={result.palette}
-                typography={result.typography}
-                tokens={result.tokens}
-                host={host}
-              />
+              hasDesign ? (
+                <DesignPanel
+                  palette={result.palette}
+                  typography={result.typography}
+                  tokens={result.tokens}
+                  host={host}
+                />
+              ) : (
+                // A quick scan reads the markup, not the painted page, so it has
+                // no colours or type to show yet. Rather than a dead end, the
+                // tab explains where the design system comes from and fetches it.
+                <div className="rounded-xl border border-dashed border-border py-16 text-center">
+                  <p className="text-sm text-foreground">
+                    The design system comes from a deep scan.
+                  </p>
+                  <p className="mx-auto mt-1.5 max-w-sm text-[13px] leading-relaxed text-muted-foreground">
+                    Colours, fonts and design tokens are read from the page as a
+                    browser paints it — a quick scan only sees the markup.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDeep(true);
+                      setTab("all");
+                      runScan(result.target, true);
+                    }}
+                    className="mt-5 rounded-md bg-accent px-4 py-2 text-[13px] font-semibold text-accent-fg transition-opacity hover:opacity-90"
+                  >
+                    Extract the design system
+                  </button>
+                </div>
+              )
             ) : visible.length === 0 ? (
               <div className="rounded-xl border border-dashed border-border py-16 text-center">
                 <p className="text-sm text-muted-foreground">

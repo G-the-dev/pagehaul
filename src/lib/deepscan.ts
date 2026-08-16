@@ -255,6 +255,14 @@ const COLLECT_MEDIA = `(() => {
     if (src && !src.startsWith('data:')) out.push({ url: src, section: sectionOf(v) });
     if (v.poster) out.push({ url: v.poster, alt: 'poster frame', section: sectionOf(v) });
   });
+  document.querySelectorAll('audio').forEach((a) => {
+    const src = a.currentSrc || a.src;
+    if (src && !src.startsWith('data:')) out.push({ url: src, section: sectionOf(a) });
+    a.querySelectorAll('source[src]').forEach((s) => {
+      const ss = s.getAttribute('src');
+      if (ss && !ss.startsWith('data:')) out.push({ url: new URL(ss, location.href).href, section: sectionOf(a) });
+    });
+  });
   return out;
 })()`;
 
@@ -278,7 +286,7 @@ const SCROLL_STEP = `(async () => {
  * part of a media URL that is reliably present.
  */
 const MEDIA_URL_RE =
-  /https?:(?:\\?\/){2}[^"'\s\\<>()]+?\.(?:jpe?g|png|webp|avif|gif|svg|mp4|webm|m4v|mp3|wav|woff2?|pdf)(?:\?[^"'\s\\<>()]*)?/gi;
+  /https?:(?:\\?\/){2}[^"'\s\\<>()]+?\.(?:jpe?g|png|webp|avif|gif|svg|mp4|webm|m4v|mov|mp3|wav|ogg|m4a|aac|flac|woff2?|pdf)(?:\?[^"'\s\\<>()]*)?/gi;
 
 /** Capped per response: one feed payload can name thousands of thumbnails. */
 const MINE_PER_RESPONSE = 300;
@@ -549,6 +557,15 @@ export async function deepScan(rawUrl: string): Promise<ScanResult> {
         const src = v.currentSrc || v.src;
         if (src && !src.startsWith("data:")) media.push({ url: src, section: sectionOf(v) });
         if (v.poster) media.push({ url: v.poster, alt: "poster frame", section: sectionOf(v) });
+      });
+
+      document.querySelectorAll("audio").forEach((a) => {
+        const src = a.currentSrc || a.src;
+        if (src && !src.startsWith("data:")) media.push({ url: src, section: sectionOf(a) });
+        a.querySelectorAll("source[src]").forEach((s) => {
+          const ss = s.getAttribute("src");
+          if (ss && !ss.startsWith("data:")) media.push({ url: new URL(ss, location.href).href, section: sectionOf(a) });
+        });
       });
 
       // ---- design data -------------------------------------------------

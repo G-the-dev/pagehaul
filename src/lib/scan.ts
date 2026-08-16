@@ -287,7 +287,7 @@ class Collector {
 }
 
 const MEDIA_URL_RE =
-  /https?:(?:\\?\/){2}[^"'\s\\<>()]+?\.(?:jpe?g|png|webp|avif|gif|svg|mp4|webm|m4v|mp3|wav|woff2?|pdf)(?:\?[^"'\s\\<>()]*)?/gi;
+  /https?:(?:\\?\/){2}[^"'\s\\<>()]+?\.(?:jpe?g|png|webp|avif|gif|svg|mp4|webm|m4v|mov|mp3|wav|ogg|m4a|aac|flac|woff2?|pdf)(?:\?[^"'\s\\<>()]*)?/gi;
 
 /**
  * Pulls media URLs straight out of the raw HTML, including ones embedded in JSON
@@ -400,7 +400,11 @@ async function scanOnePage(
             thumbUrl,
             variantKey,
             isLargest: i === variants.length - 1,
-            width: v.w >= 1000 && v.w < 10000 ? v.w : undefined,
+            // The srcset's own width descriptor: a 420w entry is 420px wide.
+            // Kept for every plausible pixel width, not just large ones, so a
+            // build-hashed variant the browser never rendered still labels as
+            // a size rather than "other size".
+            width: v.w >= 100 && v.w < 10000 ? v.w : undefined,
           });
         });
       }
@@ -422,12 +426,28 @@ async function scanOnePage(
     }
   });
 
-  // <picture><source srcset> — art-directed and format variants
-  $("picture source[srcset]").each((_, el) => {
-    const section = sectionOf($, el);
-    for (const v of parseSrcset(base, $(el).attr("srcset")!)) {
-      c.add(v.url, { fromPage: finalUrl, section });
-    }
+  // <picture><source srcset> — art-directed and format variants.
+  //
+  // A <picture> is one image expressed as several files: a WebP source, a PNG
+  // source, an <img> fallback, each with its own srcset ladder. They share
+  // nothing in the URL — a build tool content-hashes every size of every
+  // format to its own opaque name — so the only thing tying them together is
+  // that they live in one <picture> describing one thing. Carry the <img>'s
+  // alt onto every source, and grouping folds the whole picture into one card.
+  $("picture").each((_, pic) => {
+    const $pic = $(pic);
+    const section = sectionOf($, pic);
+    const alt = $pic.find("img").first().attr("alt")?.trim() || undefined;
+    $pic.find("source[srcset]").each((__, el) => {
+      for (const v of parseSrcset(base, $(el).attr("srcset")!)) {
+        c.add(v.url, {
+          fromPage: finalUrl,
+          section,
+          alt,
+          width: v.w >= 100 && v.w < 10000 ? v.w : undefined,
+        });
+      }
+    });
   });
 
   // --- inline svg ---------------------------------------------------------

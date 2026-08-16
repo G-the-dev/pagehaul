@@ -253,11 +253,60 @@ interface Groupable {
   width?: number;
   height?: number;
   bytes?: number;
+  alt?: string;
   variantKey?: string;
   isLargest?: boolean;
   variantCount?: number;
   variants?: { url: string; label: string; bytes?: number }[];
   thumbUrl?: string;
+}
+
+/**
+ * Alt words too generic to prove two images are the same picture.
+ *
+ * "Mercy Ships Logo" names one specific logo and groups its sizes; a bare
+ * "logo" or "image" sits on a dozen unrelated files and would collapse them
+ * into one. So a whole alt that is nothing but a generic word is ignored — the
+ * word only disqualifies when it is the entire label, not when it is part of a
+ * longer, specific one.
+ */
+const GENERIC_ALT = new Set([
+  "logo", "image", "img", "photo", "photograph", "picture", "pic", "icon",
+  "banner", "thumbnail", "thumb", "avatar", "cover", "background", "bg",
+  "hero", "illustration", "graphic", "screenshot", "poster", "art", "artwork",
+  "slide", "gallery", "slider", "product", "arrow", "star", "check", "play",
+  "close", "menu", "search", "profile", "picture of", "an image",
+]);
+
+/** The page's own name for an image, when specific enough to group on. */
+function altKey(a: Groupable): string | undefined {
+  const raw = (a.alt || "").trim().toLowerCase().replace(/\s+/g, " ");
+  if (raw.length < 3) return undefined;
+  if (GENERIC_ALT.has(raw)) return undefined;
+  let host = "";
+  try {
+    host = new URL(a.url).host;
+  } catch {
+    /* data: URLs and the like never carry a useful alt family */
+    return undefined;
+  }
+  return `alt:${host}:${raw}`;
+}
+
+const FORMAT_BY_EXT: Record<string, string> = {
+  jpg: "JPG", jpeg: "JPG", jfif: "JPG", png: "PNG", webp: "WEBP",
+  avif: "AVIF", gif: "GIF", svg: "SVG", bmp: "BMP", ico: "ICO",
+  mp4: "MP4", webm: "WEBM", mov: "MOV", m4v: "M4V", ogv: "OGV",
+};
+
+/** The uppercase format shown beside a size, e.g. WEBP — or null if unknown. */
+function formatOf(rawUrl: string): string | null {
+  try {
+    const m = /\.([a-z0-9]{2,5})$/i.exec(new URL(rawUrl).pathname);
+    return m ? FORMAT_BY_EXT[m[1].toLowerCase()] ?? null : null;
+  } catch {
+    return null;
+  }
 }
 
 /** Full dimensions read out of a URL, for labelling one size among a family. */
@@ -301,7 +350,7 @@ function variantLabel(a: Groupable): string {
  * So: drop duplicates, then keep the largest, the smallest, and a couple spread
  * between them.
  */
-const MAX_OFFERED = 4;
+const MAX_OFFERED = 6;
 /** A tile is ~200px wide; anything under this renders as a colour swatch. */
 const MIN_THUMB_PX = 180;
 
@@ -327,19 +376,29 @@ function claimedWidth(rawUrl: string): number {
   return sizeHint(rawUrl);
 }
 
+/** "682x392 · PNG" — the size, and the format when it is known. */
+function offeredLabel(a: Groupable): string {
+  const size = variantLabel(a);
+  const fmt = formatOf(a.url);
+  return fmt ? `${size} · ${fmt}` : size;
+}
+
 function chooseOfferedSizes(
   ordered: Groupable[],
 ): { url: string; label: string; bytes?: number }[] {
+  // A family now spans formats as well as sizes — a 682x392 PNG and a 682x392
+  // WebP of one picture are both worth offering, so the dedup key carries the
+  // format, not just the dimensions.
   const seen = new Set<string>();
   const unique: Groupable[] = [];
   for (const a of ordered) {
-    const label = variantLabel(a);
+    const label = offeredLabel(a);
     if (seen.has(label)) continue;
     seen.add(label);
     unique.push(a);
   }
 
-  const pick =
+  let pick =
     unique.length <= MAX_OFFERED
       ? unique
       : Array.from({ length: MAX_OFFERED }, (_, i) =>
@@ -347,9 +406,23 @@ function chooseOfferedSizes(
           unique[Math.round((i * (unique.length - 1)) / (MAX_OFFERED - 1))],
         );
 
+  // Even spacing can miss a format entirely; make sure every format present in
+  // the family survives into the offered list, since choosing the format is
+  // half the point of the switcher.
+  if (unique.length > MAX_OFFERED) {
+    const shown = new Set(pick.map((a) => formatOf(a.url)));
+    for (const a of unique) {
+      const fmt = formatOf(a.url);
+      if (fmt && !shown.has(fmt)) {
+        shown.add(fmt);
+        pick = [...pick.slice(0, MAX_OFFERED - 1), a];
+      }
+    }
+  }
+
   return pick.map((a) => ({
     url: a.url,
-    label: variantLabel(a),
+    label: offeredLabel(a),
     bytes: a.bytes,
   }));
 }
@@ -364,8 +437,6 @@ function chooseOfferedSizes(
  * markup saying so is better evidence than a guess from the address.
  */
 export function groupVariants(assets: Groupable[]): void {
-  const families = new Map<string, Groupable[]>();
-
   // Vet every thumb regardless of where it was assigned. They arrive from the
   // srcset reader, from an earlier grouping pass, and from merging two scans,
   // and policing each inflow separately is how a 32px placeholder kept
@@ -376,24 +447,68 @@ export function groupVariants(assets: Groupable[]): void {
     }
   }
 
-  for (const a of assets) {
-    if (a.kind !== "image" && a.kind !== "video") continue;
-    const key = a.variantKey ?? variantFamily(a.url);
-    if (!key) continue;
-    a.variantKey = key;
-    const list = families.get(key);
-    if (list) list.push(a);
-    else families.set(key, [a]);
-  }
+  // One picture can be proven the same by more than one signal, and no single
+  // signal sees all of it. A <picture>'s WebP source and PNG source share an
+  // alt but no URL and no srcset key; a CDN size-ladder shares a URL family but
+  // often no alt; a real srcset ties a ladder the URL cannot. So union every
+  // pair that agrees on any one signal, and each connected component is the
+  // whole picture — however its sizes and formats were spelled.
+  const nodes = assets.filter((a) => a.kind === "image" || a.kind === "video");
+  const parent = nodes.map((_, i) => i);
+  const find = (i: number): number => {
+    while (parent[i] !== i) {
+      parent[i] = parent[parent[i]];
+      i = parent[i];
+    }
+    return i;
+  };
+  const union = (i: number, j: number) => {
+    const a = find(i);
+    const b = find(j);
+    if (a !== b) parent[a] = b;
+  };
 
-  for (const list of families.values()) {
+  const firstSeen = new Map<string, number>();
+  const link = (i: number, key: string | undefined) => {
+    if (!key) return;
+    const prev = firstSeen.get(key);
+    if (prev === undefined) firstSeen.set(key, i);
+    else union(i, prev);
+  };
+  nodes.forEach((a, i) => {
+    // Alt only groups pictures, never video — a poster's alt says nothing
+    // about which clip it belongs to.
+    if (a.kind === "image") link(i, altKey(a));
+    if (a.variantKey) link(i, `vk:${a.variantKey}`);
+    link(i, variantFamily(a.url));
+  });
+
+  const components = new Map<number, Groupable[]>();
+  nodes.forEach((a, i) => {
+    const root = find(i);
+    const list = components.get(root);
+    if (list) list.push(a);
+    else components.set(root, [a]);
+  });
+
+  for (const list of components.values()) {
     if (list.length === 1) {
       // A family of one is just a picture. Leave it unmarked so the UI has
       // nothing to explain.
       list[0].variantKey = undefined;
       list[0].isLargest = undefined;
+      list[0].variantCount = undefined;
+      list[0].variants = undefined;
       continue;
     }
+
+    // Every member of the family answers to one shared key, so a later pass —
+    // a merge, the UI's dedup — treats them as the group they are.
+    const groupKey =
+      list.find((a) => a.variantKey)?.variantKey ??
+      variantFamily(list[0].url) ??
+      `grp:${list[0].url}`;
+    for (const a of list) a.variantKey = groupKey;
 
     // Both kinds of evidence are widths, so compare them as widths.
     //

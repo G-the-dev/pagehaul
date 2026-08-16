@@ -48,8 +48,16 @@ export function DetailDialog({
   // as one file the person tunes rather than a wall of near-duplicates.
   const [selectedUrl, setSelectedUrl] = useState(asset.url);
   useEffect(() => setSelectedUrl(asset.url), [asset.url]);
-  const selectedLabel =
-    asset.variants?.find((v) => v.url === selectedUrl)?.label ?? null;
+  const selected = asset.variants?.find((v) => v.url === selectedUrl);
+  const selectedLabel = selected?.label ?? null;
+  // A family now spans formats, so the size row reads "682x392 · WEBP". Split
+  // it back out so the facts below the preview describe the file actually
+  // selected, not whichever member happened to be the largest.
+  const [selDims, selFormat] = (selectedLabel ?? "").split(" · ");
+  const shownFormat = selFormat || asset.format;
+  const shownDims =
+    selDims || (asset.width && asset.height ? `${asset.width}x${asset.height}` : "n/a");
+  const shownBytes = selected?.bytes ?? asset.bytes;
   // What the grid already showed for this file — cached, so it paints at once.
   const previewThumb = asset.thumbUrl ?? thumbnailUrl(asset.url);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -245,13 +253,9 @@ export function DetailDialog({
         <dl className="mt-5 grid grid-cols-2 gap-x-8 sm:grid-cols-3">
           {(
             [
-              ["Format", asset.format],
-              ["Size", formatBytes(asset.bytes)],
-              [
-                "Dimensions",
-                selectedLabel ??
-                  (asset.width && asset.height ? `${asset.width}x${asset.height}` : "n/a"),
-              ],
+              ["Format", shownFormat],
+              ["Size", formatBytes(shownBytes)],
+              ["Dimensions", shownDims],
               ["Method", asset.method ?? "n/a"],
               ["Status", asset.status?.toString() ?? "n/a"],
               ["Origin", asset.origin],
@@ -272,7 +276,7 @@ export function DetailDialog({
             ladder. The one on the card is marked. */}
         {asset.variants && asset.variants.length > 1 && (
           <div className="mt-5 flex flex-wrap items-center gap-2">
-            <span className="label-mono text-[9.5px]">Size</span>
+            <span className="label-mono text-[9.5px]">Size &amp; format</span>
             {asset.variants.map((v) => {
               const current = v.url === selectedUrl;
               return (
