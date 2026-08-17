@@ -163,6 +163,14 @@ npm run build && npm start
 No environment variables, no database, no object storage. Deep scan needs Chrome
 installed locally; set `CHROME_PATH` if it is somewhere unusual.
 
+### Contact form email
+
+The contact form sends messages through [Resend](https://resend.com). Copy
+`.env.example` to `.env.local`, add a `RESEND_API_KEY`, and verify the sending
+domain used by `FEEDBACK_FROM` in Resend. Messages are delivered to
+`pagehaul.contact@gmail.com` by default; set `FEEDBACK_TO` to override that
+destination.
+
 ### API
 
 ```

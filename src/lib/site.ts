@@ -11,13 +11,10 @@ export const SITE = {
   tagline: "Every asset on any page, one click away.",
 
   /**
-   * CHANGE THIS BEFORE LAUNCH.
-   *
-   * This address carries everything, including takedown notices, so it has to
-   * reach a real inbox before launch. The terms promise a response and that
-   * promise is worthless pointing at a mailbox that does not exist.
+   * This address carries everything, including takedown notices. It is also
+   * the default destination for messages sent through the contact form.
    */
-  contactEmail: "hello@pagehaul.com",
+  contactEmail: "pagehaul.contact@gmail.com",
 
   repo: "https://github.com/G-the-dev/pagehaul",
 
