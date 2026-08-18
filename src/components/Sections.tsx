@@ -200,18 +200,7 @@ export function Footer() {
                     Contact
                   </Link>
                 </li>
-                <li>
-                  {/* The nav's loud button belongs to feedback now; the repo
-                      lives here, where a curious developer will look. */}
-                  <a
-                    href={SITE.repo}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="transition-colors hover:text-foreground"
-                  >
-                    GitHub
-                  </a>
-                </li>
+                <li className="opacity-50">Open source soon</li>
               </ul>
             </div>
           </div>
