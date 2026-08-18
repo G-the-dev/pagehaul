@@ -171,7 +171,12 @@ export default function Home() {
     if (!result) return [];
     return result.assets.map((a) => {
       const m = measured[a.id];
-      return m && !a.width ? { ...a, width: m.w, height: m.h } : a;
+      if (!m || a.width) return a;
+      // A file the server could not size can still measure 1x1 the moment
+      // its tile loads — a tracking pixel, drawn as a blank card until now.
+      // It reclassifies itself as noise as soon as it is known.
+      const noise = a.noise || (m.w <= 2 && m.h <= 2) || undefined;
+      return { ...a, width: m.w, height: m.h, noise };
     });
   }, [result, measured]);
 

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Check, ChevronLeft, ChevronRight } from "lucide-react";
 import type { Asset } from "@/lib/types";
-import { formatBytes } from "@/lib/download";
+import { fetchAsset, formatBytes } from "@/lib/download";
 import { thumbnailUrl } from "@/lib/variants";
 
 /**
@@ -42,7 +42,7 @@ export function DetailDialog({
   onPrev?: () => void;
   onNext?: () => void;
 }) {
-  const [copied, setCopied] = useState(false);
+  const [copied, setCopied] = useState<"idle" | "done" | "fail">("idle");
   // Which size of the family is chosen. Defaults to the one on the card and
   // drives the preview, the download and the copied address, so a family reads
   // as one file the person tunes rather than a wall of near-duplicates.
@@ -64,17 +64,83 @@ export function DetailDialog({
   const videoRef = useRef<HTMLVideoElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
 
+  /**
+   * What the copy button hands over depends on what is open.
+   *
+   * A screenshot's address is megabytes of base64 nobody can use, and even a
+   * hosted picture's URL is one step short of what the person actually wants
+   * to put in Figma or a doc — the pixels. So pictures copy as an image, and
+   * an icon copies as its SVG source, which Figma pastes as editable vectors
+   * and a code editor pastes as markup. Everything else keeps the address.
+   */
+  const copyMode =
+    asset.kind === "svg"
+      ? "svg"
+      : asset.kind === "image" || asset.kind === "screenshot"
+        ? "image"
+        : "url";
+
   const copy = useCallback(() => {
-    navigator.clipboard?.writeText(selectedUrl).then(
-      () => {
-        setCopied(true);
-        setTimeout(() => setCopied(false), 1800);
-      },
-      () => {
-        // Clipboard access can be refused. The address is selectable anyway.
-      },
-    );
-  }, [selectedUrl]);
+    const flash = (state: "done" | "fail") => {
+      setCopied(state);
+      setTimeout(() => setCopied("idle"), 1800);
+    };
+
+    if (copyMode === "url") {
+      navigator.clipboard?.writeText(selectedUrl).then(
+        () => flash("done"),
+        () => flash("fail"),
+      );
+      return;
+    }
+
+    if (copyMode === "svg") {
+      // The source text, wherever the icon lives — decoded from its data URL
+      // for inline SVG, fetched (with the relay behind it) for a hosted file.
+      (async () => {
+        const out = await fetchAsset({ ...asset, url: selectedUrl });
+        if (!out.ok) throw new Error("unreachable");
+        await navigator.clipboard.writeText(
+          new TextDecoder().decode(out.bytes),
+        );
+      })().then(
+        () => flash("done"),
+        () => flash("fail"),
+      );
+      return;
+    }
+
+    // The clipboard takes pictures as PNG only, so whatever format the file
+    // is in gets decoded and re-encoded. The blob goes over as a promise,
+    // which keeps the click's permission window open while the bytes arrive.
+    try {
+      const blobPromise = (async () => {
+        const out = await fetchAsset({ ...asset, url: selectedUrl });
+        if (!out.ok) throw new Error("unreachable");
+        const bitmap = await createImageBitmap(
+          new Blob([out.bytes as unknown as BlobPart]),
+        );
+        const canvas = document.createElement("canvas");
+        canvas.width = bitmap.width;
+        canvas.height = bitmap.height;
+        canvas.getContext("2d")!.drawImage(bitmap, 0, 0);
+        return new Promise<Blob>((res, rej) =>
+          canvas.toBlob(
+            (b) => (b ? res(b) : rej(new Error("encode failed"))),
+            "image/png",
+          ),
+        );
+      })();
+      navigator.clipboard
+        .write([new ClipboardItem({ "image/png": blobPromise })])
+        .then(
+          () => flash("done"),
+          () => flash("fail"),
+        );
+    } catch {
+      flash("fail");
+    }
+  }, [copyMode, selectedUrl, asset]);
 
   // Take focus once, on open, and hold the page behind still. Kept apart from
   // the key handler below: that one depends on props and re-subscribes freely,
@@ -110,6 +176,8 @@ export function DetailDialog({
           break;
         case "o":
         case "O":
+          // Same gate as the button: a data URL will not open as a tab.
+          if (selectedUrl.startsWith("data:")) break;
           e.preventDefault();
           window.open(selectedUrl, "_blank", "noopener,noreferrer");
           break;
@@ -189,9 +257,14 @@ export function DetailDialog({
             <p className="truncate text-[16px] font-semibold">{asset.displayName}</p>
             {/* Two lines, hard stop. A CDN address can run to hundreds of
                 characters and was pushing the whole panel down before the
-                picture even appeared. */}
+                picture even appeared. A data URL is not an address at all —
+                a wall of base64 says nothing, so say what the thing is. */}
             <p className="mt-1 line-clamp-2 break-all font-mono text-[11px] leading-[1.5] text-muted-foreground">
-              {asset.url}
+              {!asset.url.startsWith("data:")
+                ? asset.url
+                : asset.kind === "screenshot"
+                  ? "Captured from the rendered page by this scan"
+                  : "Inline in the page's markup, serialised by the scan"}
             </p>
           </div>
           <div className="flex shrink-0 items-center gap-2">
@@ -341,31 +414,41 @@ export function DetailDialog({
             onClick={copy}
             aria-live="polite"
             className={`inline-flex h-9 items-center gap-1.5 rounded-lg border px-4 text-[13px] transition-colors ${
-              copied
+              copied !== "idle"
                 ? "border-accent-line text-foreground"
                 : "border-border hover:border-border-strong"
             }`}
           >
-            {copied ? (
+            {copied === "done" ? (
               <>
                 <Check className="h-3.5 w-3.5" strokeWidth={2.5} />
                 Copied
               </>
+            ) : copied === "fail" ? (
+              "Could not copy"
             ) : (
               <>
-                Copy URL
+                {copyMode === "image"
+                  ? "Copy image"
+                  : copyMode === "svg"
+                    ? "Copy SVG"
+                    : "Copy URL"}
                 <Key>C</Key>
               </>
             )}
           </button>
-          <button
-            type="button"
-            onClick={() => window.open(selectedUrl, "_blank", "noopener,noreferrer")}
-            className="inline-flex h-9 items-center rounded-lg border border-border px-4 text-[13px] transition-colors hover:border-border-strong"
-          >
-            Open original
-            <Key>O</Key>
-          </button>
+          {/* A data URL cannot be opened as a tab — the browser blocks the
+              navigation — so the button only appears for a fetchable address. */}
+          {!selectedUrl.startsWith("data:") && (
+            <button
+              type="button"
+              onClick={() => window.open(selectedUrl, "_blank", "noopener,noreferrer")}
+              className="inline-flex h-9 items-center rounded-lg border border-border px-4 text-[13px] transition-colors hover:border-border-strong"
+            >
+              Open original
+              <Key>O</Key>
+            </button>
+          )}
         </div>
       </div>
       </div>

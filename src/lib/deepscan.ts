@@ -1404,6 +1404,10 @@ export async function deepScan(
       const ext = extOf(s.url);
       const isPixel =
         (d?.w !== undefined && d.w <= 2) ||
+        // A 43-byte GIF is a tracking pixel whatever it is called — appnexus
+        // and adsct carry none of the words the pattern below knows. No
+        // picture worth taking fits in a hundred bytes.
+        (s.kind === "image" && s.bytes !== undefined && s.bytes <= 100) ||
         /\b(pixel|beacon|analytics|collect|track|spacer|1x1|blank)\b/i.test(s.url);
 
       assets.push({

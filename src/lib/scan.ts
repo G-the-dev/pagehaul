@@ -668,20 +668,25 @@ export async function scan(rawUrl: string, opts: ScanOptions = {}): Promise<Scan
 
   const assets = collector.all();
 
+  if (!opts.skipSizes) await fillSizes(assets);
+
   // Mark build artefacts and tracking pixels so the default view stays clean.
   // These are still available under the Code tab — just never mixed in with
-  // the images somebody actually came for.
+  // the images somebody actually came for. Runs after the sizes arrive,
+  // because the surest tell is the one the name never gives away: no picture
+  // worth taking fits in a hundred bytes.
   for (const a of assets) {
     if (a.kind === "code") {
       a.noise = true;
       continue;
     }
-    const tiny = (a.width !== undefined && a.width <= 2) || a.bytes === 0;
+    const tiny =
+      (a.width !== undefined && a.width <= 2) ||
+      a.bytes === 0 ||
+      (a.kind === "image" && a.bytes !== undefined && a.bytes <= 100);
     const looksLikePixel = /\b(pixel|beacon|analytics|track|spacer|1x1|blank)\b/i.test(a.url);
     if (tiny || looksLikePixel) a.noise = true;
   }
-
-  if (!opts.skipSizes) await fillSizes(assets);
 
   // Collapse every size of a picture onto one entry. Handles srcset families,
   // which arrive already keyed, and families we can only recognise from the
