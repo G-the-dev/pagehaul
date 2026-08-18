@@ -389,8 +389,23 @@ const SHOT_JPEG_QUALITY = 74;
 const SHOT_MAX_SECTIONS = 10;
 /** The full-page capture stops here; the section shots cover a longer page. */
 const SHOT_MAX_FULL_HEIGHT = 12_000;
-/** Base64 characters across every shot together. */
-const SHOT_BUDGET_CHARS = 2_500_000;
+/**
+ * The same cap where the browser is serverless. Rastering a very tall
+ * beyond-viewport capture is what kills a constrained renderer: stripe.com at
+ * 12,000px took the browser down and every capture after it, while 5,590px
+ * sailed through. The full-page shot also runs last there for the same
+ * reason — the small section shots are banked before the risky one is tried.
+ */
+const SHOT_MAX_FULL_HEIGHT_SERVERLESS = 8_000;
+/**
+ * Base64 characters across every shot together. The check runs before each
+ * capture, so the last one can overshoot by its own size — the ceiling is set
+ * low enough that even overshot, the shots plus a heavy page's asset list
+ * still clear the platform's ~4.5MB response cap with room.
+ */
+const SHOT_BUDGET_CHARS = 2_200_000;
+/** Kept back from the sections so the full-page shot always has room. */
+const SHOT_FULL_PAGE_RESERVE = 1_000_000;
 
 /**
  * Where the sections are. Landmarks first; a page built from bare divs
@@ -1140,10 +1155,11 @@ export async function deepScan(
         const capture = async (
           clip: { x: number; y: number; width: number; height: number },
           label: string,
+          ceiling = SHOT_BUDGET_CHARS,
         ): Promise<boolean> => {
           // The floor here is what the payload mining and the audio checks
           // behind this pass need — the captures must not starve them.
-          if (shotChars > SHOT_BUDGET_CHARS || timeLeft() < 8_000) return false;
+          if (shotChars > ceiling || timeLeft() < 8_000) return false;
           const b64 = await safeEval<string>(
             () =>
               withTimeout(
@@ -1181,20 +1197,29 @@ export async function deepScan(
         };
 
         if (plan.docHeight > 0) {
-          await capture(
-            {
-              x: 0,
-              y: 0,
-              width: plan.viewportWidth || 1512,
-              height: Math.min(plan.docHeight, SHOT_MAX_FULL_HEIGHT),
-            },
-            "Full page",
-          );
+          // Sections first, full page last. The tall capture is the one that
+          // can take a constrained renderer down with it, so the small shots
+          // are banked before it is tried, and a slice of the byte budget is
+          // held back so a section-rich page cannot spend the full shot's room.
           let missed = Math.max(0, plan.sections.length - SHOT_MAX_SECTIONS);
           for (const s of plan.sections.slice(0, SHOT_MAX_SECTIONS)) {
-            const ok = await capture({ x: s.x, y: s.y, width: s.w, height: s.h }, s.label);
+            const ok = await capture(
+              { x: s.x, y: s.y, width: s.w, height: s.h },
+              s.label,
+              SHOT_BUDGET_CHARS - SHOT_FULL_PAGE_RESERVE,
+            );
             if (!ok) missed++;
           }
+          const fullHeight = Math.min(
+            plan.docHeight,
+            process.env.VERCEL ? SHOT_MAX_FULL_HEIGHT_SERVERLESS : SHOT_MAX_FULL_HEIGHT,
+          );
+          await capture(
+            { x: 0, y: 0, width: plan.viewportWidth || 1512, height: fullHeight },
+            // A capped capture is the top of the page, and saying "full"
+            // about it would be a small lie told on every long page.
+            fullHeight < plan.docHeight ? "Top of the page" : "Full page",
+          );
           if (screenshots.length > 0 && missed > 0) {
             notes.push(
               `${missed} section${missed === 1 ? "" : "s"} went unscreenshotted — the page ran past the scan's screenshot budget.`,
