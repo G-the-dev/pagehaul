@@ -17,7 +17,9 @@ const HEAD_CONCURRENCY = 16;
 
 const EXT_KIND: Record<string, AssetKind> = {
   jpg: "image", jpeg: "image", png: "image", webp: "image", avif: "image",
-  gif: "image", bmp: "image", ico: "image", apng: "image", jfif: "image",
+  gif: "image", bmp: "image", ico: "image", apng: "image",
+  // GPU texture and environment-map formats, the pictures WebGL eats.
+  hdr: "image", exr: "image", ktx2: "image", basis: "image", dds: "image", jfif: "image",
   svg: "svg",
   mp4: "video", webm: "video", ogv: "video", mov: "video", m4v: "video",
   m3u8: "video", mpd: "video",
@@ -299,7 +301,7 @@ class Collector {
 }
 
 const MEDIA_URL_RE =
-  /https?:(?:\\?\/){2}[^"'\s\\<>()]+?\.(?:jpe?g|png|webp|avif|gif|svg|mp4|webm|m4v|mov|woff2?|pdf|glb|gltf|usdz|obj|fbx|stl|ply|dae|drc|splat|spz)(?:\?[^"'\s\\<>()]*)?/gi;
+  /https?:(?:\\?\/){2}[^"'\s\\<>()]+?\.(?:jpe?g|png|webp|avif|gif|svg|mp4|webm|m4v|mov|woff2?|pdf|glb|gltf|usdz|obj|fbx|stl|ply|dae|drc|splat|spz|hdr|exr|ktx2)(?:\?[^"'\s\\<>()]*)?/gi;
 
 /**
  * Pulls media URLs straight out of the raw HTML, including ones embedded in JSON

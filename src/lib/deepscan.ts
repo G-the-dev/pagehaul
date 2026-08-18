@@ -64,6 +64,8 @@ const SCROLL_QUIET_STEPS = 3;
 const EXT_KIND: Record<string, AssetKind> = {
   jpg: "image", jpeg: "image", png: "image", webp: "image", avif: "image",
   gif: "image", bmp: "image", ico: "image", apng: "image",
+  // GPU texture and environment-map formats, the pictures WebGL eats.
+  hdr: "image", exr: "image", ktx2: "image", basis: "image", dds: "image",
   svg: "svg",
   mp4: "video", webm: "video", ogv: "video", mov: "video", m4v: "video",
   m3u8: "video", mpd: "video",
@@ -348,7 +350,7 @@ const SCROLL_STEP = `(async () => {
  * part of a media URL that is reliably present.
  */
 const MEDIA_URL_RE =
-  /https?:(?:\\?\/){2}[^"'\s\\<>()]+?\.(?:jpe?g|png|webp|avif|gif|svg|mp4|webm|m4v|mov|mp3|wav|ogg|m4a|aac|flac|woff2?|pdf|glb|gltf|usdz|obj|fbx|stl|ply|dae|drc|splat|spz)(?:\?[^"'\s\\<>()]*)?/gi;
+  /https?:(?:\\?\/){2}[^"'\s\\<>()]+?\.(?:jpe?g|png|webp|avif|gif|svg|mp4|webm|m4v|mov|mp3|wav|ogg|m4a|aac|flac|woff2?|pdf|glb|gltf|usdz|obj|fbx|stl|ply|dae|drc|splat|spz|hdr|exr|ktx2)(?:\?[^"'\s\\<>()]*)?/gi;
 
 /** Capped per response: one feed payload can name thousands of thumbnails. */
 const MINE_PER_RESPONSE = 300;
@@ -538,6 +540,28 @@ async function verifyAudioUrls(
   return out;
 }
 
+/**
+ * True when a JSON body is a three.js resource rather than ordinary data.
+ *
+ * Most WebGL sites never ship a .glb: the geometry travels as JSON for
+ * three.js's own loaders — BufferGeometryLoader, ObjectLoader — and by URL
+ * and content type it is indistinguishable from an API response. The shape
+ * of the payload is the tell: a metadata block naming a three type or
+ * generator, a geometries/materials pair, or a raw position attribute.
+ * Checked on the head of the body only; a real model declares itself early.
+ */
+function isThreeJson(txt: string): boolean {
+  const head = txt.slice(0, 4000);
+  if (!head.includes('"metadata"') && !head.includes('"geometries"')) return false;
+  return (
+    /"type"\s*:\s*"(?:BufferGeometry|Geometry|Object)"/i.test(head) ||
+    /"generator"\s*:\s*"[^"]*(?:three|geometry|object)[^"]*"/i.test(head) ||
+    (head.includes('"geometries"') &&
+      (head.includes('"materials"') || head.includes('"object"'))) ||
+    /"attributes"\s*:\s*\{\s*"position"/.test(head)
+  );
+}
+
 function mineMediaUrls(text: string, limit = MINE_PER_RESPONSE): string[] {
   const out: string[] = [];
   const seen = new Set<string>();
@@ -643,10 +667,19 @@ export async function deepScan(
 
         let kind: AssetKind | undefined;
 
-        // XHR and fetch are the developer-facing surface, so they are their own
-        // category regardless of what they return.
+        // XHR and fetch are the developer-facing surface, so they are their
+        // own category — but only when what came back is not plainly a file.
+        // A WebGL loader pulls its geometry, draco buffers and environment
+        // maps through fetch, and by transport alone every one of them read
+        // as an API call; the whole 3D layer of a three.js site was hiding in
+        // the network tab. A recognisable file extension outranks the
+        // transport. JSON and code stay api — that is where the previews and
+        // the payload mining live, and a JSON model is sniffed out of the
+        // body below.
         if (rtype === "xhr" || rtype === "fetch") {
-          kind = "api";
+          const byExt = EXT_KIND[ext];
+          kind =
+            byExt && byExt !== "code" && byExt !== "data" ? byExt : "api";
         } else {
           kind = EXT_KIND[ext];
           if (!kind) {
@@ -687,6 +720,10 @@ export async function deepScan(
               return;
             }
             preview = txt.replace(/\s+/g, " ").slice(0, 180);
+            // A three.js model wearing a JSON response's clothes. Reclassify
+            // it as the model it is, so it lands in the 3D tab and the zip's
+            // models folder instead of hiding among the network calls.
+            if (isThreeJson(txt)) kind = "model";
             for (const u of mineMediaUrls(txt)) {
               if (found.size > MAX_ASSETS) break;
               if (found.has(u)) continue;
