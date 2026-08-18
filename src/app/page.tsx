@@ -18,6 +18,7 @@ import { Mark } from "@/components/Mark";
 import { MobileHaul } from "@/components/MobileHaul";
 import dynamic from "next/dynamic";
 import { track } from "@/lib/analytics";
+import { startFaviconSpin, stopFaviconSpin } from "@/lib/scan-favicon";
 
 /** The host alone — what was scanned, never the whole address. */
 function hostOf(raw: string): string | undefined {
@@ -392,6 +393,15 @@ export default function Home() {
     setScanning(false);
     document.title = BASE_TITLE;
   }, []);
+
+  // While a scan runs, the favicon's tiles slide clockwise around the gap —
+  // the tab itself works, visibly, even from another tab. The mark returns
+  // whole the moment the scan settles, however it settles.
+  useEffect(() => {
+    if (!scanning) return;
+    startFaviconSpin();
+    return () => stopFaviconSpin();
+  }, [scanning]);
 
   // Whoever left mid-scan and was called back by the "✓ scan ready" title
   // gets the ordinary title again the moment they arrive.
