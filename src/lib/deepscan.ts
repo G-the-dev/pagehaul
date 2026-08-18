@@ -1128,7 +1128,13 @@ export async function deepScan(
     // shot that dies costs the shots alone. See the SHOT_* constants for
     // what this is and why it is budgeted.
     const screenshots: Asset[] = [];
-    const shotWindow = Math.min(deadline - 8_000, Date.now() + 15_000);
+    // A serverless CPU rasters slowly — the same section that captures in two
+    // seconds on a laptop can need ten there — so the window and the patience
+    // per shot both grow where the browser is serverless. The route's wall
+    // still holds either way.
+    const SHOT_SLICE_MS = process.env.VERCEL ? 28_000 : 15_000;
+    const SHOT_EACH_MS = process.env.VERCEL ? 12_000 : 9_000;
+    const shotWindow = Math.min(deadline - 8_000, Date.now() + SHOT_SLICE_MS);
     const shotTime = () => shotWindow - Date.now();
     if (shotTime() > 6_000) {
       // Drop to 1x for the captures. Layout is CSS-px identical, so nothing
@@ -1175,7 +1181,7 @@ export async function deepScan(
                   clip,
                 }) as Promise<string>,
                 // Never longer than the window itself has left.
-                Math.max(2_000, Math.min(9_000, shotTime())),
+                Math.max(2_000, Math.min(SHOT_EACH_MS, shotTime())),
               ),
             "",
             700,
@@ -1233,6 +1239,12 @@ export async function deepScan(
         }
       }
     }
+    console.log(
+      `[deepscan] shots: taken=${screenshots.length} chars=${screenshots.reduce(
+        (n, a) => n + a.url.length,
+        0,
+      )} windowLeft=${shotTime()}`,
+    );
     // Silence would read as "this page has no sections". Say what happened.
     if (screenshots.length === 0) {
       notes.push(
