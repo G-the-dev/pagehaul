@@ -15,6 +15,7 @@ import { SITE } from "@/lib/site";
 import { humaniseScanError } from "@/lib/url-input";
 import { addRecent, getRecent, removeRecent, type Recent } from "@/lib/recent";
 import { Features, Audience, Steps } from "@/components/Features";
+import { AmbienceToggle } from "@/components/AmbienceToggle";
 import { Mark } from "@/components/Mark";
 import dynamic from "next/dynamic";
 import { track } from "@/lib/analytics";
@@ -534,7 +535,8 @@ export default function Home() {
               {label}
             </a>
           ))}
-          <span className="ml-1.5">
+          <span className="ml-1.5 flex items-center gap-1.5">
+            <AmbienceToggle />
             <ThemeToggle />
           </span>
           <GithubNote />
