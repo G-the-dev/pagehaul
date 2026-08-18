@@ -53,11 +53,11 @@ const SCROLL_BUDGET_MS = 20_000;
  * JSON. Stopping early and returning a partial result is strictly better than
  * being stopped and returning nothing.
  *
- * Sized to hold the screenshot pass as well as the gathering: at 45 seconds a
- * heavy page spent everything on the scroll and the mining, and the captures
- * were squeezed out silently. Still well inside the route's per-pass deadline.
+ * The screenshot pass keeps its own window against the route's deadline and
+ * does not draw on this budget — a heavy page lawfully spends all of it on
+ * the scroll and the mining, and a pass fed on leftovers never ran.
  */
-const TOTAL_BUDGET_MS = 52_000;
+const TOTAL_BUDGET_MS = 45_000;
 /** Screens with no new height and no new media before we call it the end. */
 const SCROLL_QUIET_STEPS = 3;
 
@@ -1117,14 +1117,20 @@ export async function deepScan(
 
     // ---- screenshots -----------------------------------------------------
     // Taken as soon as the page has been walked, ahead of the payload mining
-    // and the late design read. Those reads are each guarded and incremental,
-    // but they spend freely, and on a heavy page a pass placed after them
-    // found the budget already gone — stripe.com came back with every file
-    // and not one capture. The captures are wrapped in safeEval like every
-    // other page operation, so a shot that dies costs the shots alone. See
-    // the SHOT_* constants for what this is and why it is budgeted.
+    // and the late design read, and answering to the route's wall rather
+    // than the gathering budget. Everything before this point may lawfully
+    // spend that whole internal budget — on slow serverless hardware
+    // stripe.com did exactly that, every time — and a pass that runs on the
+    // leftovers never runs there at all. So the captures get a window of
+    // their own: bounded by its own slice so a response cannot balloon, and
+    // by the wall with margin left to build and return the result. The
+    // captures are wrapped in safeEval like every other page operation, so a
+    // shot that dies costs the shots alone. See the SHOT_* constants for
+    // what this is and why it is budgeted.
     const screenshots: Asset[] = [];
-    if (timeLeft() > 12_000) {
+    const shotWindow = Math.min(deadline - 8_000, Date.now() + 15_000);
+    const shotTime = () => shotWindow - Date.now();
+    if (shotTime() > 6_000) {
       // Drop to 1x for the captures. Layout is CSS-px identical, so nothing
       // moves; the raster Chromium has to hold for a beyond-viewport shot
       // halves, which is what keeps a long page from pushing a serverless
@@ -1157,9 +1163,7 @@ export async function deepScan(
           label: string,
           ceiling = SHOT_BUDGET_CHARS,
         ): Promise<boolean> => {
-          // The floor here is what the payload mining and the audio checks
-          // behind this pass need — the captures must not starve them.
-          if (shotChars > ceiling || timeLeft() < 8_000) return false;
+          if (shotChars > ceiling || shotTime() < 1_500) return false;
           const b64 = await safeEval<string>(
             () =>
               withTimeout(
@@ -1170,7 +1174,8 @@ export async function deepScan(
                   captureBeyondViewport: true,
                   clip,
                 }) as Promise<string>,
-                9_000,
+                // Never longer than the window itself has left.
+                Math.max(2_000, Math.min(9_000, shotTime())),
               ),
             "",
             700,
