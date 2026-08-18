@@ -1,28 +1,25 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
   <!--
-    The mark is a lowercase p built from the grid's own tiles: five rounded
-    squares in a 2x3 matrix, checker-shaded like the transparency board that
-    sits behind every image in the product, with the last tile missing.
-    That gap is the point - it is the file you took.
+    The mark alone, on nothing: a lowercase p built from the grid's own
+    tiles, checker-shaded, with the last tile missing - the one you took.
+    There is no background square any more; a solid tile fought the tab
+    strip in whichever theme it did not match. Grey tiles read on both.
 
-    The colours invert with the browser's theme, because a tab strip is light
-    in one and near black in the other, and a fixed dark square disappears
-    against a dark strip.
+    The grey shifts one step with the browser theme so it stays legible:
+    darker on a light strip, lighter on a dark one. A pixel of margin at
+    the top and bottom keeps renderers that round harshly from shaving
+    the outer rows.
   -->
   <style>
-    .bg { fill: #0a0a0a; }
-    .tile { fill: #fafafa; }
+    .tile { fill: #52525b; }
     @media (prefers-color-scheme: dark) {
-      .bg { fill: #fafafa; }
-      .tile { fill: #0a0a0a; }
+      .tile { fill: #d4d4d8; }
     }
   </style>
 
-  <rect class="bg" width="32" height="32" rx="7" />
-
-  <rect class="tile" x="9" y="5" width="6" height="6" rx="1.5" />
-  <rect class="tile" x="17" y="5" width="6" height="6" rx="1.5" opacity="0.5" />
-  <rect class="tile" x="9" y="13" width="6" height="6" rx="1.5" opacity="0.5" />
-  <rect class="tile" x="17" y="13" width="6" height="6" rx="1.5" />
-  <rect class="tile" x="9" y="21" width="6" height="6" rx="1.5" />
+  <rect class="tile" x="6.5" y="1" width="8" height="8" rx="2" />
+  <rect class="tile" x="17.5" y="1" width="8" height="8" rx="2" opacity="0.5" />
+  <rect class="tile" x="6.5" y="12" width="8" height="8" rx="2" opacity="0.5" />
+  <rect class="tile" x="17.5" y="12" width="8" height="8" rx="2" />
+  <rect class="tile" x="6.5" y="23" width="8" height="8" rx="2" />
 </svg>

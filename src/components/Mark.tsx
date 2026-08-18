@@ -7,13 +7,19 @@
  * currentColor so it follows whatever text it stands next to, in either
  * theme, without carrying colours of its own.
  */
-export function Mark({ className }: { className?: string }) {
+export function Mark({ size = 15 }: { size?: number }) {
   return (
     <svg
+      // Explicit pixel dimensions, not CSS auto-sizing. An svg left to derive
+      // its width from a styled height depends on the aspect-ratio mapping of
+      // whatever box it lands in, and one wrong context shaved the bottom row
+      // of tiles. Numbers on the element cannot be reinterpreted.
+      width={(size * 14) / 22}
+      height={size}
       viewBox="0 0 14 22"
       aria-hidden="true"
       fill="currentColor"
-      className={className}
+      className="shrink-0"
     >
       <rect x="0" y="0" width="6" height="6" rx="1.5" />
       <rect x="8" y="0" width="6" height="6" rx="1.5" opacity="0.45" />

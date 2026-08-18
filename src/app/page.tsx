@@ -15,7 +15,6 @@ import { SITE } from "@/lib/site";
 import { humaniseScanError } from "@/lib/url-input";
 import { addRecent, getRecent, removeRecent, type Recent } from "@/lib/recent";
 import { Features, Audience, Steps } from "@/components/Features";
-import { AmbienceToggle } from "@/components/AmbienceToggle";
 import { Mark } from "@/components/Mark";
 import dynamic from "next/dynamic";
 import { track } from "@/lib/analytics";
@@ -65,6 +64,9 @@ import {
 
 type Tab = "all" | AssetKind | "design";
 
+/** Matches the document title in layout.tsx, restored after scan updates. */
+const BASE_TITLE = "pagehaul, every asset on any page";
+
 const TABS: { id: Tab; label: string }[] = [
   { id: "all", label: "All" },
   { id: "image", label: "Images" },
@@ -103,6 +105,13 @@ export default function Home() {
    * would then label a set of quick results "deep".
    */
   const [ranDeep, setRanDeep] = useState(false);
+  /**
+   * True while a quick preview is on screen and the deep results are still on
+   * their way. The wait for a heavy site used to happen on a progress line,
+   * which is exactly when people drift to another tab; it now happens on top
+   * of real results, with this flag driving the "finishing" indicator.
+   */
+  const [deepPending, setDeepPending] = useState(false);
   /** True while the tiles are dissolving, before the list is cleared. */
   const [expiring, setExpiring] = useState(false);
   const [expiredHost, setExpiredHost] = useState<string | null>(null);
@@ -270,6 +279,7 @@ export default function Home() {
     abortRef.current = controller;
 
     setScanning(true);
+    setDeepPending(false);
     setError(null);
     setMeasured({});
     setToast(null);
@@ -277,11 +287,15 @@ export default function Home() {
     setShown(48);
     setExpiring(false);
     setExpiredHost(null);
-    try {
+    // The tab's own title reports progress, so someone who does switch away
+    // has a reason to come back.
+    document.title = `scanning ${hostOf(target) ?? "the page"}… · pagehaul`;
+
+    const request = async (deep: boolean): Promise<ScanResult> => {
       const res = await fetch("/api/scan", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ url: target, deep: useDeep }),
+        body: JSON.stringify({ url: target, deep }),
         signal: controller.signal,
       });
       // Read as text first. A scan that runs past the platform's function
@@ -308,6 +322,42 @@ export default function Home() {
         );
       }
       if (!res.ok) throw new Error(humaniseScanError(data.error ?? "That scan did not work."));
+      return data as ScanResult;
+    };
+
+    const intoView = () =>
+      setTimeout(
+        () => resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }),
+        80,
+      );
+
+    /** Set once anything real is on screen, preview or final. */
+    let presented = false;
+    try {
+      if (useDeep) {
+        // The quick read lands in a couple of seconds. Show it at once — the
+        // deep wait then happens on top of real results instead of a progress
+        // line, which is what actually keeps someone in the tab. The deep
+        // response replaces it wholesale when it arrives; it is a superset.
+        void request(false)
+          .then((quick) => {
+            if (controller.signal.aborted || abortRef.current !== controller) return;
+            if (presented) return; // the deep result beat it here
+            presented = true;
+            setResult(quick);
+            setRanDeep(false);
+            setDeepPending(true);
+            setScanning(false);
+            intoView();
+          })
+          .catch(() => {
+            /* the deep request is still the answer */
+          });
+      }
+
+      const data = await request(useDeep);
+      const hadPreview = presented;
+      presented = true;
       // The full address as well as the host: the privacy policy already
       // discloses recording submitted addresses, and "what do people scan"
       // is the first product question analytics exists to answer. The notes
@@ -321,20 +371,22 @@ export default function Home() {
         partial: !!data.partial,
         notes: data.notes.length ? data.notes : undefined,
       });
-      setResult(data as ScanResult);
+      setResult(data);
       setRanDeep(useDeep);
       setShown(48);
+      setDeepPending(false);
       setExpiresAt(Date.now() + SITE.resultsMinutes * 60_000);
       setRecent(addRecent(target));
-      // Results render inline, so bring them into view without a page change.
-      setTimeout(
-        () => resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }),
-        80,
-      );
+      if (!hadPreview) intoView();
+      // Call the wanderers home; everyone else keeps the ordinary title.
+      document.title = document.hidden ? "✓ scan ready · pagehaul" : BASE_TITLE;
     } catch (e) {
       // Abandoning on purpose is not a failure, and saying "Something went
       // wrong" to someone who just pressed Cancel is a lie.
-      if (e instanceof DOMException && e.name === "AbortError") return;
+      if (e instanceof DOMException && e.name === "AbortError") {
+        document.title = BASE_TITLE;
+        return;
+      }
       const message =
         e instanceof Error ? humaniseScanError(e.message) : "Something went wrong.";
       track("scan_failed", {
@@ -343,8 +395,21 @@ export default function Home() {
         deep: useDeep,
         error: message,
       });
-      setError(message);
-      setResult(null);
+      document.title = BASE_TITLE;
+      if (presented) {
+        // The deep pass died after the quick preview went up. The preview is
+        // real; keep it, say what happened, and let the countdown start.
+        setDeepPending(false);
+        setExpiresAt(Date.now() + SITE.resultsMinutes * 60_000);
+        setToast({
+          id: Date.now(),
+          text: "The deep scan could not finish, so these are the files from the quick look. Scanning again often completes.",
+          tone: "partial",
+        });
+      } else {
+        setError(message);
+        setResult(null);
+      }
     } finally {
       // A superseded scan must not clear the spinner belonging to the new one.
       if (abortRef.current === controller) {
@@ -359,6 +424,20 @@ export default function Home() {
     abortRef.current?.abort();
     abortRef.current = null;
     setScanning(false);
+    setDeepPending(false);
+    document.title = BASE_TITLE;
+  }, []);
+
+  // Whoever left mid-scan and was called back by the "✓ scan ready" title
+  // gets the ordinary title again the moment they arrive.
+  useEffect(() => {
+    const restore = () => {
+      if (document.visibilityState === "visible" && document.title.startsWith("✓")) {
+        document.title = BASE_TITLE;
+      }
+    };
+    document.addEventListener("visibilitychange", restore);
+    return () => document.removeEventListener("visibilitychange", restore);
   }, []);
 
   const onMeasure = useCallback((id: string, w: number, h: number) => {
@@ -518,7 +597,7 @@ export default function Home() {
             href="#top"
             className="flex items-center gap-2 pr-4 text-[14px] font-semibold tracking-tight"
           >
-            <Mark className="h-[15px] w-auto" />
+            <Mark size={15} />
             pagehaul
           </a>
           <span className="mr-1.5 h-4 w-px bg-border" />
@@ -535,8 +614,7 @@ export default function Home() {
               {label}
             </a>
           ))}
-          <span className="ml-1.5 flex items-center gap-1.5">
-            <AmbienceToggle />
+          <span className="ml-1.5">
             <ThemeToggle />
           </span>
           <GithubNote />
@@ -579,7 +657,16 @@ export default function Home() {
                 <span className="h-3 w-px bg-border" />
                 <span>{(result.ms / 1000).toFixed(1)}s</span>
                 <span className="h-3 w-px bg-border" />
-                <span>{ranDeep ? "deep" : "quick"}</span>
+                {deepPending ? (
+                  // The quick look is up; the deep scan is still working
+                  // behind it. Say so where the depth label normally sits.
+                  <span className="flex items-center gap-1.5 text-accent">
+                    <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-accent" />
+                    deep scan finishing…
+                  </span>
+                ) : (
+                  <span>{ranDeep ? "deep" : "quick"}</span>
+                )}
                 {expiresAt && !expiring && (
                   <>
                     <span className="h-3 w-px bg-border" />
@@ -589,13 +676,16 @@ export default function Home() {
               </div>
             </div>
 
-            {result.notes.length > 0 && (
+            {/* The quick preview's notes tell people to run a deep scan —
+                nonsense while one is finishing right behind it. Notes return
+                with the deep result. */}
+            {result.notes.length > 0 && !deepPending && (
               <div className="mb-6 rounded-lg border border-warn/25 bg-warn-soft px-4 py-3 text-[13.5px] leading-relaxed text-warn">
                 {result.notes.join(" ")}
               </div>
             )}
 
-            {!ranDeep && counts.all < 10 && (
+            {!ranDeep && !deepPending && counts.all < 10 && (
               <div className="mb-6 flex flex-wrap items-center gap-3 rounded-lg border border-accent-line bg-accent-soft px-4 py-3">
                 <p className="text-[13.5px]">
                   This page loads most of its content with JavaScript.

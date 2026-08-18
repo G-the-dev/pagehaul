@@ -2,7 +2,6 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { SITE, LEGAL_LINKS } from "@/lib/site";
 import { Mark } from "@/components/Mark";
-import { AmbienceToggle } from "@/components/AmbienceToggle";
 
 /**
  * The shell every page that is not the tool itself sits inside.
@@ -33,18 +32,15 @@ export function PageShell({
             href="/"
             className="flex items-center gap-2 text-[15px] font-semibold tracking-tight"
           >
-            <Mark className="h-4 w-auto" />
+            <Mark size={16} />
             {SITE.name}
           </Link>
-          <span className="flex items-center gap-3">
-            <AmbienceToggle />
-            <Link
-              href="/"
-              className="font-mono text-[11px] uppercase tracking-[0.12em] text-muted-foreground transition-colors hover:text-foreground"
-            >
-              Back to the tool
-            </Link>
-          </span>
+          <Link
+            href="/"
+            className="font-mono text-[11px] uppercase tracking-[0.12em] text-muted-foreground transition-colors hover:text-foreground"
+          >
+            Back to the tool
+          </Link>
         </div>
       </header>
 
