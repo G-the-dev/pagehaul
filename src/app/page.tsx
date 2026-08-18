@@ -8,7 +8,6 @@ import { Hero } from "@/components/Hero";
 import { ScanProgress } from "@/components/ScanProgress";
 import { Faq, Footer } from "@/components/Sections";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { GithubNote } from "@/components/GithubNote";
 import { Toast, type ToastMessage, type ToastTone } from "@/components/Toast";
 import { Countdown } from "@/components/Countdown";
 import { SITE } from "@/lib/site";
@@ -605,7 +604,15 @@ export default function Home() {
           ))}
           <span className="ml-auto flex items-center gap-1.5 sm:ml-1.5">
             <ThemeToggle />
-            <GithubNote />
+            {/* The nav's one loud button goes to the feedback form while the
+                platform is finding its feet — a tester's report is worth more
+                than a star. The repo keeps its link in the footer. */}
+            <a
+              href="/contact"
+              className="rounded-full bg-foreground px-5 py-2 text-[13px] font-semibold text-background transition-opacity hover:opacity-90"
+            >
+              Feedback
+            </a>
           </span>
         </nav>
       </header>

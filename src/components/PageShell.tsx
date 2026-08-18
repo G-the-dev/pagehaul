@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
 import type { ReactNode } from "react";
 import { SITE, LEGAL_LINKS } from "@/lib/site";
 import { Mark } from "@/components/Mark";
@@ -35,10 +36,13 @@ export function PageShell({
             <Mark size={16} />
             {SITE.name}
           </Link>
+          {/* Dressed as the button it is. Bare uppercase text read as a
+              label, and nobody presses a label. */}
           <Link
             href="/"
-            className="font-mono text-[11px] uppercase tracking-[0.12em] text-muted-foreground transition-colors hover:text-foreground"
+            className="inline-flex items-center gap-2 rounded-full border border-border px-4 py-2 font-mono text-[11px] uppercase tracking-[0.12em] text-muted-foreground transition-colors hover:border-border-strong hover:text-foreground"
           >
+            <ArrowLeft className="h-3.5 w-3.5" />
             Back to the tool
           </Link>
         </div>
