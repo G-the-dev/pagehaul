@@ -213,8 +213,19 @@ export function DetailDialog({
           </div>
         </div>
 
-        {(asset.kind === "image" || asset.kind === "svg") && (
-          <div className="relative overflow-hidden rounded-lg border border-border">
+        {(asset.kind === "image" ||
+          asset.kind === "svg" ||
+          asset.kind === "screenshot") && (
+          <div
+            className={`relative rounded-lg border border-border ${
+              // A full-page capture is many screens tall; contained in 46vh it
+              // would shrink to a sliver. Full width, scrolled within the box,
+              // reads like the page it is a picture of.
+              asset.kind === "screenshot"
+                ? "max-h-[46vh] overflow-y-auto"
+                : "overflow-hidden"
+            }`}
+          >
             {/* The full file can be megabytes and arrive slowly. The tile's
                 thumbnail is already in the browser's cache, so it stands in —
                 blurred and dimmed so it reads as "loading", not as the image —
@@ -232,7 +243,11 @@ export function DetailDialog({
             <img
               src={selectedUrl}
               alt={asset.alt ?? ""}
-              className="relative mx-auto max-h-[46vh] bg-checker object-contain"
+              className={
+                asset.kind === "screenshot"
+                  ? "relative w-full"
+                  : "relative mx-auto max-h-[46vh] bg-checker object-contain"
+              }
             />
           </div>
         )}

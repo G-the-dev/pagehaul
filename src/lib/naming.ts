@@ -170,6 +170,7 @@ function fromAlt(alt: string): string | null {
 
 const KIND_NOUN: Record<AssetKind, string> = {
   image: "Image",
+  screenshot: "Screenshot",
   svg: "Icon",
   video: "Video",
   audio: "Audio",

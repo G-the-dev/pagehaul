@@ -55,6 +55,7 @@ type Tab = "all" | AssetKind | "design";
 const TABS: { id: Tab; label: string }[] = [
   { id: "all", label: "All" },
   { id: "image", label: "Images" },
+  { id: "screenshot", label: "Screenshots" },
   { id: "svg", label: "Icons" },
   { id: "video", label: "Video" },
   { id: "audio", label: "Audio" },

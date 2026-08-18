@@ -367,6 +367,88 @@ const AUDIO_FROM_CODE_MAX = 60;
 /** Candidates existence-checked before listing. */
 const AUDIO_VERIFY_MAX = 24;
 
+/**
+ * Screenshots of the rendered page, taken at the end of the scan.
+ *
+ * By then the browser has already opened the page, scrolled it end to end and
+ * let the lazy content land, so the capture is nearly free — and it is the one
+ * thing a list of addresses cannot give a designer: what the page actually
+ * looks like, section by section, ready to drop into a reference board.
+ *
+ * The shots travel inside the scan's own JSON as data URLs. Nothing changes
+ * about the architecture: the server still stores nothing, the pixels move
+ * once, live in the tab, and expire with the results. The budget below is what
+ * keeps that JSON inside the platform's response cap (about 4.5MB) with room
+ * for the asset list beside it.
+ */
+const SHOT_JPEG_QUALITY = 74;
+const SHOT_MAX_SECTIONS = 10;
+/** The full-page capture stops here; the section shots cover a longer page. */
+const SHOT_MAX_FULL_HEIGHT = 12_000;
+/** Base64 characters across every shot together. */
+const SHOT_BUDGET_CHARS = 2_500_000;
+
+/**
+ * Where the sections are. Landmarks first; a page built from bare divs
+ * declares none, so the direct children of <main> — or of the tallest
+ * wrapper — stand in. Each shot is named by the heading inside it, which is
+ * the name a designer would reach for.
+ *
+ * A string on purpose, for the same reason COLLECT_MEDIA is one.
+ */
+const READ_SHOT_PLAN = `(() => {
+  const vw = window.innerWidth;
+  const docHeight = Math.max(
+    document.documentElement.scrollHeight,
+    document.body ? document.body.scrollHeight : 0,
+  );
+  const sections = [];
+  const taken = [];
+  const labelOf = (el, fallback) => {
+    const h = el.querySelector('h1, h2, h3');
+    const t = h && h.textContent ? h.textContent.trim().replace(/\\s+/g, ' ') : '';
+    if (t.length >= 3) return t.length > 42 ? t.slice(0, 39).trimEnd() + '…' : t;
+    return fallback;
+  };
+  const push = (el, fallback) => {
+    if (sections.length >= 14) return;
+    // One shot per stretch of page: an element inside — or wrapped around —
+    // one already taken is the same stretch again.
+    if (taken.some((t) => t.contains(el) || el.contains(t))) return;
+    const r = el.getBoundingClientRect();
+    const y = r.top + window.scrollY;
+    if (r.width < vw * 0.5 || r.height < 160 || r.height > 6000) return;
+    if (y + r.height < 0 || y > docHeight) return;
+    taken.push(el);
+    sections.push({
+      x: Math.max(0, Math.round(r.left + window.scrollX)),
+      y: Math.max(0, Math.round(y)),
+      w: Math.round(Math.min(r.width, vw)),
+      h: Math.round(r.height),
+      label: labelOf(el, fallback),
+    });
+  };
+  document.querySelectorAll('header').forEach((el) => push(el, 'Header'));
+  document.querySelectorAll('section, article').forEach((el) => push(el, ''));
+  if (sections.length < 3) {
+    let host = document.querySelector('main');
+    if (!host) {
+      let tallest = 0;
+      const kids = document.body ? Array.from(document.body.children) : [];
+      for (const el of kids) {
+        const h = el.scrollHeight || 0;
+        if (h > tallest) { tallest = h; host = el; }
+      }
+    }
+    if (host) Array.from(host.children).forEach((el) => push(el, ''));
+  }
+  document.querySelectorAll('footer').forEach((el) => push(el, 'Footer'));
+  sections.sort((a, b) => a.y - b.y);
+  let n = 0;
+  for (const s of sections) if (!s.label) s.label = 'Section ' + (++n);
+  return { docHeight, viewportWidth: vw, sections };
+})()`;
+
 function mineAudioUrls(text: string, limit = 40): string[] {
   const out: string[] = [];
   const seen = new Set<string>();
@@ -1159,6 +1241,104 @@ export async function deepScan(
       });
     }
 
+    // ---- screenshots -----------------------------------------------------
+    // Taken last, once every read is in hand, so a capture that kills a
+    // stressed browser costs only the shots and never the files. See the
+    // SHOT_* constants for what this is and why it is budgeted.
+    const screenshots: Asset[] = [];
+    if (timeLeft() > 10_000) {
+      // Drop to 1x for the captures. Layout is CSS-px identical, so nothing
+      // moves; the raster Chromium has to hold for a beyond-viewport shot
+      // halves, which is what keeps a long page from pushing a serverless
+      // browser over its memory edge. Media reads are all done by now, so the
+      // retina srcset picks the 2x viewport existed for are already recorded.
+      const viewOk = await safeEval<boolean>(
+        () =>
+          page
+            .setViewport({ width: 1512, height: 950, deviceScaleFactor: 1 })
+            .then(() => true),
+        false,
+      );
+      if (viewOk) {
+        await new Promise((r) => setTimeout(r, 400));
+
+        const plan = await safeEval<{
+          docHeight: number;
+          viewportWidth: number;
+          sections: { x: number; y: number; w: number; h: number; label: string }[];
+        }>(
+          () => withTimeout(page.evaluate(READ_SHOT_PLAN), 8_000),
+          { docHeight: 0, viewportWidth: 0, sections: [] },
+          700,
+          "shotPlan",
+        );
+
+        let shotChars = 0;
+        const capture = async (
+          clip: { x: number; y: number; width: number; height: number },
+          label: string,
+        ): Promise<boolean> => {
+          if (shotChars > SHOT_BUDGET_CHARS || timeLeft() < 6_000) return false;
+          const b64 = await safeEval<string>(
+            () =>
+              withTimeout(
+                page.screenshot({
+                  type: "jpeg",
+                  quality: SHOT_JPEG_QUALITY,
+                  encoding: "base64",
+                  captureBeyondViewport: true,
+                  clip,
+                }) as Promise<string>,
+                9_000,
+              ),
+            "",
+            700,
+            "screenshot",
+          );
+          if (!b64) return false;
+          shotChars += b64.length;
+          screenshots.push({
+            id: idOf(`shot:${screenshots.length}:${label}`),
+            url: `data:image/jpeg;base64,${b64}`,
+            kind: "screenshot",
+            format: "JPG",
+            name: label,
+            displayName: "",
+            alt: label,
+            width: Math.round(clip.width),
+            height: Math.round(clip.height),
+            bytes: Math.round(b64.length * 0.75),
+            fromPage: target.toString(),
+            origin: "first-party",
+            inline: true,
+          });
+          return true;
+        };
+
+        if (plan.docHeight > 0) {
+          await capture(
+            {
+              x: 0,
+              y: 0,
+              width: plan.viewportWidth || 1512,
+              height: Math.min(plan.docHeight, SHOT_MAX_FULL_HEIGHT),
+            },
+            "Full page",
+          );
+          let missed = Math.max(0, plan.sections.length - SHOT_MAX_SECTIONS);
+          for (const s of plan.sections.slice(0, SHOT_MAX_SECTIONS)) {
+            const ok = await capture({ x: s.x, y: s.y, width: s.w, height: s.h }, s.label);
+            if (!ok) missed++;
+          }
+          if (screenshots.length > 0 && missed > 0) {
+            notes.push(
+              `${missed} section${missed === 1 ? "" : "s"} went unscreenshotted — the page ran past the scan's screenshot budget.`,
+            );
+          }
+        }
+      }
+    }
+
     const assets: Asset[] = [];
     for (const s of found.values()) {
       const d = meta.get(s.url);
@@ -1209,6 +1389,10 @@ export async function deepScan(
       if (label) a.fontFamily = label;
     }
 
+    // The captures join the list here, past the noise checks built for
+    // network files — a data URL holds no pixel-tracker names to misread.
+    assets.push(...screenshots);
+
     // One entry per picture rather than one per size. Payload mining in
     // particular yields whole families at once, since a feed names every
     // thumbnail it might need.
@@ -1217,8 +1401,8 @@ export async function deepScan(
     assignDisplayNames(assets);
 
     const RANK: Record<string, number> = {
-      image: 0, video: 1, svg: 2, font: 3, document: 4,
-      audio: 5, api: 6, data: 7, code: 8,
+      image: 0, screenshot: 1, video: 2, svg: 3, font: 4, document: 5,
+      audio: 6, api: 7, data: 8, code: 9,
     };
     assets.sort((x, y) => {
       if (!!x.noise !== !!y.noise) return x.noise ? 1 : -1;
@@ -1275,7 +1459,12 @@ export async function deepScan(
       notes.push(
         `${target.hostname} serves its media only to signed-in sessions, so an automated browser receives the page shell and nothing more. That is access control rather than a technical limit, and it is what a browser extension carrying your own session would solve.`,
       );
-    } else if (realMedia === 0 && assets.length < 5) {
+    } else if (
+      realMedia === 0 &&
+      // Screenshots are ours, not the page's — two captures of an empty shell
+      // must not make it count as a page that exposed something.
+      assets.filter((a) => a.kind !== "screenshot").length < 5
+    ) {
       notes.push(
         "The page rendered but exposed almost nothing. It may require a login or actively block automated browsers.",
       );

@@ -22,7 +22,14 @@ export function mergeScans(deep: ScanResult, quick: ScanResult): ScanResult {
   // count and the content type, none of which a static read can know.
   for (const a of deep.assets) byUrl.set(a.url, a);
 
+  // Screenshots are captures rather than addresses, so two scans' shots of
+  // the same page are byte-different and would both survive a URL merge —
+  // every section twice. The primary's captures stand; the secondary's only
+  // fill in when the primary has none at all.
+  const primaryHasShots = deep.assets.some((a) => a.kind === "screenshot");
+
   for (const a of quick.assets) {
+    if (a.kind === "screenshot" && primaryHasShots) continue;
     const existing = byUrl.get(a.url);
     if (!existing) {
       byUrl.set(a.url, { ...a });
@@ -53,8 +60,8 @@ export function mergeScans(deep: ScanResult, quick: ScanResult): ScanResult {
   assignDisplayNames(assets);
 
   const RANK: Record<string, number> = {
-    image: 0, video: 1, svg: 2, font: 3, document: 4,
-    audio: 5, api: 6, data: 7, code: 8,
+    image: 0, screenshot: 1, video: 2, svg: 3, font: 4, document: 5,
+    audio: 6, api: 7, data: 8, code: 9,
   };
   assets.sort((x, y) => {
     if (!!x.noise !== !!y.noise) return x.noise ? 1 : -1;

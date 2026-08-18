@@ -87,6 +87,12 @@ from 4 pictures to 909, Amazon 4 to 229, IMDb 230 to 438.
 `url()` backgrounds, inline styles, favicons, Open Graph and Twitter cards, and
 anything named in a JSON payload.
 
+**Screenshots** — a deep scan captures the rendered page itself: the full page and one
+shot per section, each named by the heading inside it. The browser has already opened
+the page and scrolled its lazy content in, so the captures cost almost nothing, and
+they arrive inside the scan result like every other file — nothing is stored
+server-side, and they download and zip like anything else.
+
 **Icons** — linked SVG, sprite sheets, and inline `<svg>` serialised so you can take it.
 
 **Video and audio** — sources, poster frames, caption tracks. Tiles show a real frame

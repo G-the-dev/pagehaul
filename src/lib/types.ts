@@ -1,5 +1,8 @@
 export type AssetKind =
   | "image"
+  /** Captures of the rendered page, taken by the deep scan: the full page and
+   *  one per section. Not files the site serves — the URL is a data URL. */
+  | "screenshot"
   | "svg"
   | "video"
   | "audio"
@@ -111,6 +114,7 @@ export interface ScanResult {
 
 export const KIND_LABEL: Record<AssetKind, string> = {
   image: "Images",
+  screenshot: "Screenshots",
   api: "Network",
   svg: "SVG",
   video: "Video",
@@ -124,6 +128,7 @@ export const KIND_LABEL: Record<AssetKind, string> = {
 /** Order the filter rail lists kinds in. */
 export const KIND_ORDER: AssetKind[] = [
   "image",
+  "screenshot",
   "svg",
   "video",
   "audio",

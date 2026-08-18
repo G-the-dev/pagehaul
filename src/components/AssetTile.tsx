@@ -103,7 +103,11 @@ export const AssetTile = memo(function AssetTile({
       : undefined;
   const corner = cornerLabel(asset);
   const showsImage =
-    !failed && (asset.kind === "image" || asset.kind === "svg" || !!asset.poster);
+    !failed &&
+    (asset.kind === "image" ||
+      asset.kind === "svg" ||
+      asset.kind === "screenshot" ||
+      !!asset.poster);
   /** A video with no poster still has frames; use one rather than a blank box. */
   const showsVideoFrame = !failed && asset.kind === "video" && !asset.poster;
 
@@ -172,7 +176,12 @@ export const AssetTile = memo(function AssetTile({
               className={
                 asset.transparent
                   ? "absolute inset-0 m-auto max-h-[78%] max-w-[78%] object-contain"
-                  : "h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
+                  : // A screenshot crops from the top — its top edge is where
+                    // the section starts, and centre-cropping a full-page
+                    // capture shows an arbitrary mid-scroll slice instead.
+                    `h-full w-full object-cover ${
+                      asset.kind === "screenshot" ? "object-top" : ""
+                    } transition-transform duration-500 group-hover:scale-[1.03]`
               }
             />
           ) : poster ? (

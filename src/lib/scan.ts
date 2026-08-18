@@ -694,7 +694,8 @@ export async function scan(rawUrl: string, opts: ScanOptions = {}): Promise<Scan
 
   // Most useful first: real imagery before chrome, big before small.
   const KIND_RANK: Record<string, number> = {
-    image: 0, video: 1, svg: 2, font: 3, document: 4, audio: 5, data: 6, code: 7,
+    image: 0, screenshot: 1, video: 2, svg: 3, font: 4, document: 5,
+    audio: 6, data: 7, code: 8,
   };
   assets.sort((x, y) => {
     if (!!x.noise !== !!y.noise) return x.noise ? 1 : -1;
