@@ -651,7 +651,7 @@ export default function Home() {
               {label}
             </a>
           ))}
-          <span className="ml-auto flex items-center gap-1.5 sm:ml-1.5">
+          <span className="ml-auto flex items-center gap-2.5 sm:ml-1.5">
             <ThemeToggle />
             {/* The nav's one loud button goes to the feedback form while the
                 platform is finding its feet — a tester's report is worth more
@@ -762,7 +762,7 @@ export default function Home() {
             <div className="-mx-6 mb-6 overflow-x-auto px-6">
               <div
                 role="tablist"
-                className="flex min-w-max gap-1 rounded-lg border border-border bg-surface-2/40 p-1"
+                className="flex min-w-max gap-2 rounded-lg border border-border bg-surface-2/40 p-1"
               >
                 {TABS.map((t) => {
                   const n = t.id === "all" ? counts.all : (counts[t.id] ?? 0);
@@ -1042,7 +1042,7 @@ function TabButton({
       // difference of two values and reads as nothing at all. It now lifts to
       // the next surface up with a lit top edge, so selection is legible
       // without colour, in either theme.
-      className={`flex items-center gap-1.5 whitespace-nowrap rounded-md px-3 py-1.5 text-[13px] font-medium transition-all ${
+      className={`flex items-center gap-1.5 whitespace-nowrap rounded-md px-3.5 py-1.5 text-[13px] font-medium transition-all ${
         active
           ? "bg-surface-3 text-foreground shadow-lift ring-1 ring-inset ring-[rgb(var(--raise)/0.14)]"
           : "text-muted-foreground hover:bg-[rgb(var(--raise)/0.05)] hover:text-foreground"

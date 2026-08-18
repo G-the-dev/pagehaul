@@ -106,7 +106,9 @@ export function ThemeToggle() {
       type="button"
       onClick={toggle}
       aria-label={isLight ? "Switch to dark theme" : "Switch to light theme"}
-      className="relative grid h-9 w-9 place-items-center rounded-full border border-border text-muted-foreground transition-colors hover:border-border-strong hover:text-foreground"
+      // h-10, to stand level with the Feedback pill beside it — two controls
+      // of different heights on one row read as an accident.
+      className="relative grid h-10 w-10 place-items-center rounded-full border border-border text-muted-foreground transition-colors hover:border-border-strong hover:text-foreground"
     >
       {/* Rendered only after mount, because the server cannot know which theme
           this visitor has chosen and guessing causes a hydration mismatch. */}
