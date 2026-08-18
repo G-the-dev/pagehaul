@@ -44,6 +44,16 @@ export function Hero({
   const [touched, setTouched] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  // The first thing anybody does here is paste a link, and a paste needs
+  // somewhere to land — so the box is focused on arrival, like a search
+  // engine's. Desktop only: on a phone, autofocus throws the keyboard over
+  // half the page before the person has read a word of it.
+  useEffect(() => {
+    if (window.matchMedia("(min-width: 640px)").matches) {
+      inputRef.current?.focus();
+    }
+  }, []);
+
   // Paste works from anywhere on the page. Clicking blank space drops focus,
   // and a person with a copied link should not have to find the box again —
   // if the paste lands nowhere editable and looks like an address, it goes
@@ -188,10 +198,6 @@ export function Hero({
               ref={inputRef}
               type="text"
               inputMode="url"
-              // The first thing anybody does here is paste a link, and a paste
-              // needs somewhere to land. Focused on arrival, like a search
-              // engine's box.
-              autoFocus
               value={url}
               onChange={(e) => setUrl(e.target.value)}
               onBlur={() => setTouched(true)}
@@ -200,7 +206,9 @@ export function Hero({
               placeholder="stripe.com"
               aria-label="Website link"
               disabled={scanning}
-              className={`h-12 flex-1 rounded-lg border bg-surface/80 px-4 text-[15px] backdrop-blur-md outline-none transition-colors placeholder:text-muted-foreground disabled:opacity-60 ${
+              // text-base below sm: iOS zooms the whole page into any input
+              // whose text is under 16px, which reads as the layout jumping.
+              className={`h-12 flex-1 rounded-lg border bg-surface/80 px-4 text-base backdrop-blur-md outline-none transition-colors placeholder:text-muted-foreground disabled:opacity-60 sm:text-[15px] ${
                 inputError ? "border-danger/60" : "border-border focus:border-border-strong"
               }`}
             />

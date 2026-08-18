@@ -16,6 +16,7 @@ import { humaniseScanError } from "@/lib/url-input";
 import { addRecent, getRecent, removeRecent, type Recent } from "@/lib/recent";
 import { Features, Audience, Steps } from "@/components/Features";
 import { Mark } from "@/components/Mark";
+import { MobileHaul } from "@/components/MobileHaul";
 import dynamic from "next/dynamic";
 import { track } from "@/lib/analytics";
 
@@ -542,7 +543,17 @@ export default function Home() {
 
   return (
     <main id="top" className="min-h-screen">
-      <header className="pointer-events-none fixed inset-x-0 top-0 z-50 flex justify-center px-4 pt-6">
+      {/* Phones get the honest recommendation, loudly, and nobody else sees
+          it: the desktop version is where previews and per-file browsing
+          live, and pretending otherwise helps no one. Tablets cope fine. */}
+      <div className="fixed inset-x-0 top-0 z-[60] sm:hidden">
+        <p className="bg-accent px-4 py-2.5 text-center text-[12.5px] font-semibold leading-snug text-accent-fg">
+          You&apos;re on the pocket version — open pagehaul on a desktop for
+          full previews and every asset.
+        </p>
+      </div>
+
+      <header className="pointer-events-none fixed inset-x-0 top-0 z-50 flex justify-center px-4 pt-16 sm:pt-6">
         <nav className="keep-blur pointer-events-auto flex items-center gap-1.5 rounded-full border border-border bg-surface/70 py-2 pl-6 pr-2 backdrop-blur-md">
           <a
             href="#top"
@@ -597,7 +608,10 @@ export default function Home() {
       {/* Results live on the same page, directly under the input, so a new
           link is always one scroll away. */}
       {result && (
-        <section ref={resultsRef} className="relative">
+        // scroll-margin, so arriving here by scrollIntoView lands the header
+        // row clear of the floating nav (and, on a phone, the banner too)
+        // instead of sliding the first line of results underneath them.
+        <section ref={resultsRef} className="relative scroll-mt-36 sm:scroll-mt-24">
           {/* Wider on a genuinely wide screen: 1400px centred on a 1920
               display left a quarter of it empty either side. */}
           <div className="mx-auto max-w-[1400px] px-6 py-10 2xl:max-w-[1800px]">
@@ -647,6 +661,20 @@ export default function Home() {
               </div>
             )}
 
+            {/* On a phone the grid of hundreds of tiles is homework, not
+                help. The phone gets the decision instead: tick the kinds you
+                want, take the zip. Everything from the tabs to the action
+                bar is the desktop's. */}
+            <div className="sm:hidden">
+              <MobileHaul
+                assets={deduped}
+                busy={busy}
+                progress={progress}
+                onDownload={(chosen) => runDownload(chosen, true)}
+              />
+            </div>
+
+            <div className="hidden sm:block">
             {/* tabs */}
             <div className="-mx-6 mb-6 overflow-x-auto px-6">
               <div
@@ -826,7 +854,7 @@ export default function Home() {
               </div>
               </div>
             )}
-
+            </div>
           </div>
         </section>
       )}
