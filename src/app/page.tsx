@@ -551,7 +551,10 @@ export default function Home() {
             <Mark size={15} />
             pagehaul
           </a>
-          <span className="mr-1.5 h-4 w-px bg-border" />
+          {/* The section links are a desktop luxury. On a phone they wrapped
+              the pill to three lines and pushed the brand and GitHub off both
+              edges; the sections are one thumb-scroll away anyway. */}
+          <span className="mr-1.5 hidden h-4 w-px bg-border sm:block" />
           {[
             ["What you get", "#what"],
             ["How", "#how"],
@@ -560,7 +563,7 @@ export default function Home() {
             <a
               key={href}
               href={href}
-              className="rounded-full px-3.5 py-2 text-[13px] text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground"
+              className="hidden rounded-full px-3.5 py-2 text-[13px] text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground sm:block"
             >
               {label}
             </a>
@@ -595,7 +598,9 @@ export default function Home() {
           link is always one scroll away. */}
       {result && (
         <section ref={resultsRef} className="relative">
-          <div className="mx-auto max-w-[1400px] px-6 py-10">
+          {/* Wider on a genuinely wide screen: 1400px centred on a 1920
+              display left a quarter of it empty either side. */}
+          <div className="mx-auto max-w-[1400px] px-6 py-10 2xl:max-w-[1800px]">
             <div className="mb-6 flex flex-wrap items-baseline justify-between gap-3">
               <h2 className="text-[1.6rem] font-medium tracking-tight">
                 {counts.all}{" "}
@@ -763,7 +768,9 @@ export default function Home() {
               */
               <div
                 className="sticky bottom-4 z-30 mx-auto mt-8 w-full transition-[max-width] duration-[420ms] ease-[cubic-bezier(0.16,1,0.3,1)]"
-                style={{ maxWidth: barCompact ? 560 : 1400 }}
+                // The open width only needs to exceed the container, which
+                // does the real capping — so one number serves 1400 and 1800.
+                style={{ maxWidth: barCompact ? 560 : 1800 }}
               >
               <div
                 className={`flex flex-wrap items-center gap-4 rounded-xl border border-border bg-surface/85 transition-[padding] duration-300 ${

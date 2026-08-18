@@ -236,8 +236,10 @@ export function DetailDialog({
       className="fixed inset-0 z-50 grid place-items-center bg-black/75 p-5 backdrop-blur-sm"
     >
       {/* Panel and arrows share one centred wrapper, so the arrows hug the
-          panel's edges rather than floating at the far sides of the window. */}
-      <div className="relative w-full max-w-2xl">
+          panel's edges rather than floating at the far sides of the window.
+          min-w-0, because a grid item's default minimum is its content's
+          width — the very thing that let a wide image outgrow the screen. */}
+      <div className="relative w-full min-w-0 max-w-2xl">
         {onPrev && (
           <button
             type="button"
@@ -294,6 +296,31 @@ export function DetailDialog({
                 {position} of {total}
               </span>
             )}
+            {/* The side chevrons live outside the panel and vanish below md,
+                which left a phone with no way to step at all. These stand in
+                where a thumb can reach them. */}
+            {(onPrev || onNext) && (
+              <span className="flex items-center gap-1.5 md:hidden">
+                <button
+                  type="button"
+                  onClick={onPrev}
+                  disabled={!onPrev}
+                  aria-label="Previous file"
+                  className="grid h-8 w-8 place-items-center rounded-lg border border-border text-muted-foreground transition-colors hover:border-border-strong hover:text-foreground disabled:opacity-30"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={onNext}
+                  disabled={!onNext}
+                  aria-label="Next file"
+                  className="grid h-8 w-8 place-items-center rounded-lg border border-border text-muted-foreground transition-colors hover:border-border-strong hover:text-foreground disabled:opacity-30"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+              </span>
+            )}
             <button
               type="button"
               onClick={onClose}
@@ -345,7 +372,10 @@ export function DetailDialog({
               className={
                 asset.kind === "screenshot"
                   ? "relative w-full"
-                  : "relative mx-auto max-h-[46vh] bg-checker object-contain"
+                  : // max-w-full matters: without it a wide photo's intrinsic
+                    // width becomes the panel's minimum, and on a phone the
+                    // whole dialog grew past the screen and clipped its edge.
+                    "relative mx-auto max-h-[46vh] max-w-full bg-checker object-contain"
               }
             />
           </div>
