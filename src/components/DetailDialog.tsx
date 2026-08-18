@@ -62,6 +62,7 @@ export function DetailDialog({
   const previewThumb = asset.thumbUrl ?? thumbnailUrl(asset.url);
   const panelRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const audioRef = useRef<HTMLAudioElement>(null);
 
   const copy = useCallback(() => {
     navigator.clipboard?.writeText(selectedUrl).then(
@@ -115,9 +116,10 @@ export function DetailDialog({
         case " ":
         case "k":
         case "K": {
-          // Space plays the video without having to click into it first. Only
-          // meaningful when a video is open; otherwise let the key be.
-          const v = videoRef.current;
+          // Space plays the file without having to click into it first. A
+          // dialog holds a video or an audio player, never both; toggle
+          // whichever is open, and otherwise let the key be.
+          const v = videoRef.current ?? audioRef.current;
           if (!v) break;
           e.preventDefault();
           if (v.paused) v.play().catch(() => {});
@@ -248,6 +250,7 @@ export function DetailDialog({
           // Keyed so stepping between files with the arrows swaps the player
           // rather than leaving the last file's audio loaded in it.
           <audio
+            ref={audioRef}
             key={selectedUrl}
             src={selectedUrl}
             controls
