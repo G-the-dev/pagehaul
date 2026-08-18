@@ -29,8 +29,14 @@ const EXT_KIND: Record<string, AssetKind> = {
   pdf: "document", doc: "document", docx: "document", xls: "document",
   xlsx: "document", ppt: "document", pptx: "document", txt: "document",
   rtf: "document", zip: "document", rar: "document",
-  // 3D models, in a kind of their own — a model is not a document.
-  glb: "model", gltf: "model", usdz: "model",
+  // 3D models, in a kind of their own — a model is not a document. The
+  // web serves many spellings of one idea: glTF and its binary twin, the
+  // print formats, the scan formats, gaussian splats, and the sidecars
+  // (obj's mtl, draco's drc) that a model is incomplete without.
+  glb: "model", gltf: "model", usdz: "model", usd: "model",
+  obj: "model", mtl: "model", fbx: "model", stl: "model",
+  ply: "model", dae: "model", "3mf": "model", drc: "model",
+  wrl: "model", x3d: "model", splat: "model", spz: "model",
   css: "code", js: "code", mjs: "code", map: "code",
   json: "data", xml: "data", csv: "data", rss: "data", atom: "data",
 };
@@ -42,7 +48,7 @@ const ALPHA = new Set(["png", "svg", "webp", "gif", "avif", "apng", "ico"]);
 const LINKED_DOC_EXT = new Set([
   "pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx",
   "csv", "json", "xml", "zip", "rtf", "txt",
-  "glb", "gltf", "usdz",
+  "glb", "gltf", "usdz", "obj", "fbx", "stl", "ply", "dae", "3mf",
 ]);
 
 
@@ -293,7 +299,7 @@ class Collector {
 }
 
 const MEDIA_URL_RE =
-  /https?:(?:\\?\/){2}[^"'\s\\<>()]+?\.(?:jpe?g|png|webp|avif|gif|svg|mp4|webm|m4v|mov|woff2?|pdf|glb|gltf|usdz)(?:\?[^"'\s\\<>()]*)?/gi;
+  /https?:(?:\\?\/){2}[^"'\s\\<>()]+?\.(?:jpe?g|png|webp|avif|gif|svg|mp4|webm|m4v|mov|woff2?|pdf|glb|gltf|usdz|obj|fbx|stl|ply|dae|drc|splat|spz)(?:\?[^"'\s\\<>()]*)?/gi;
 
 /**
  * Pulls media URLs straight out of the raw HTML, including ones embedded in JSON

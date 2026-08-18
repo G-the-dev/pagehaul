@@ -72,8 +72,14 @@ const EXT_KIND: Record<string, AssetKind> = {
   pdf: "document", doc: "document", docx: "document", xls: "document",
   xlsx: "document", ppt: "document", pptx: "document", csv: "document",
   zip: "document", txt: "document",
-  // 3D models, in a kind of their own — a model is not a document.
-  glb: "model", gltf: "model", usdz: "model",
+  // 3D models, in a kind of their own — a model is not a document. The
+  // web serves many spellings of one idea: glTF and its binary twin, the
+  // print formats, the scan formats, gaussian splats, and the sidecars
+  // (obj's mtl, draco's drc) that a model is incomplete without.
+  glb: "model", gltf: "model", usdz: "model", usd: "model",
+  obj: "model", mtl: "model", fbx: "model", stl: "model",
+  ply: "model", dae: "model", "3mf": "model", drc: "model",
+  wrl: "model", x3d: "model", splat: "model", spz: "model",
   js: "code", mjs: "code", cjs: "code", jsx: "code", ts: "code", tsx: "code",
   css: "code", map: "code",
   json: "data", xml: "data", rss: "data", atom: "data", wasm: "data",
@@ -342,7 +348,7 @@ const SCROLL_STEP = `(async () => {
  * part of a media URL that is reliably present.
  */
 const MEDIA_URL_RE =
-  /https?:(?:\\?\/){2}[^"'\s\\<>()]+?\.(?:jpe?g|png|webp|avif|gif|svg|mp4|webm|m4v|mov|mp3|wav|ogg|m4a|aac|flac|woff2?|pdf|glb|gltf|usdz)(?:\?[^"'\s\\<>()]*)?/gi;
+  /https?:(?:\\?\/){2}[^"'\s\\<>()]+?\.(?:jpe?g|png|webp|avif|gif|svg|mp4|webm|m4v|mov|mp3|wav|ogg|m4a|aac|flac|woff2?|pdf|glb|gltf|usdz|obj|fbx|stl|ply|dae|drc|splat|spz)(?:\?[^"'\s\\<>()]*)?/gi;
 
 /** Capped per response: one feed payload can name thousands of thumbnails. */
 const MINE_PER_RESPONSE = 300;
