@@ -16,16 +16,7 @@ import { humaniseScanError } from "@/lib/url-input";
 import { addRecent, getRecent, removeRecent, type Recent } from "@/lib/recent";
 import { Features, Audience, Steps } from "@/components/Features";
 import dynamic from "next/dynamic";
-import posthog from "posthog-js";
-
-/** Safe capture: quietly does nothing when analytics is not configured. */
-function track(event: string, props?: Record<string, unknown>) {
-  try {
-    if (posthog.__loaded) posthog.capture(event, props);
-  } catch {
-    /* analytics must never break the app */
-  }
-}
+import { track } from "@/lib/analytics";
 
 /** The host alone — what was scanned, never the whole address. */
 function hostOf(raw: string): string | undefined {

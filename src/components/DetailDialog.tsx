@@ -6,6 +6,7 @@ import type { Asset } from "@/lib/types";
 import { fetchAsset, formatBytes } from "@/lib/download";
 import { thumbnailUrl } from "@/lib/variants";
 import { cachedShotThumb } from "@/lib/shot-thumbs";
+import { track } from "@/lib/analytics";
 
 /**
  * The full-size look at one file.
@@ -44,6 +45,12 @@ export function DetailDialog({
   onNext?: () => void;
 }) {
   const [copied, setCopied] = useState<"idle" | "done" | "fail">("idle");
+
+  // Which files get looked at, by kind — the arrows fire this as they walk.
+  useEffect(() => {
+    track("preview", { kind: asset.kind, format: asset.format });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [asset.id]);
   // Which size of the family is chosen. Defaults to the one on the card and
   // drives the preview, the download and the copied address, so a family reads
   // as one file the person tunes rather than a wall of near-duplicates.
@@ -93,6 +100,7 @@ export function DetailDialog({
 
   const copy = useCallback(() => {
     const flash = (state: "done" | "fail") => {
+      if (state === "done") track("copy", { mode: copyMode, kind: asset.kind });
       setCopied(state);
       setTimeout(() => setCopied("idle"), 1800);
     };

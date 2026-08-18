@@ -20,6 +20,10 @@ const nextConfig: NextConfig = {
   },
   // PostHog's API paths end in a trailing slash; a redirect would break them.
   skipTrailingSlashRedirect: true,
+  // Ship source maps, so an error report carries a component name instead of
+  // "sq in chunk 20z8gmkna73og.js, sourcemap not found". The code is public
+  // on GitHub already; the maps give away nothing that isn't.
+  productionBrowserSourceMaps: true,
   // The chromium binary ships as .br archives that tracing does not pick up on
   // its own, so the deep-scan route has to include them explicitly.
   outputFileTracingIncludes: {

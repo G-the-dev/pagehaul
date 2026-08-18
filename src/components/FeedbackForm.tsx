@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { SITE } from "@/lib/site";
+import { track } from "@/lib/analytics";
 
 /**
  * A bug report or a piece of feedback, sent without leaving the page.
@@ -61,6 +62,8 @@ export function FeedbackForm() {
         setState("error");
         return;
       }
+      // The kind only — never the message, which is someone's own words.
+      track("feedback_sent", { kind });
       setState("sent");
     } catch {
       setError(`That did not send. Please email ${SITE.contactEmail} instead.`);
