@@ -636,10 +636,12 @@ export default function Home() {
         // row clear of the floating nav (and, on a phone, the banner too)
         // instead of sliding the first line of results underneath them.
         <section ref={resultsRef} className="relative scroll-mt-36 sm:scroll-mt-24">
-          {/* Wider on a genuinely wide screen — but not wall to wall. 1800px
-              on a 1920 display read as full-bleed; this keeps real margins
-              while still earning the seventh column. */}
-          <div className="mx-auto max-w-[1400px] px-6 py-10 2xl:max-w-[1680px] 2xl:px-10">
+          {/* Wider on a genuinely wide screen — but never wall to wall. The
+              cap alone was not enough: at window widths near the cap, the
+              padding was the only inset left, and the grid sat against the
+              glass. The padding grows with the screen so the margin is real
+              at every width. */}
+          <div className="mx-auto max-w-[1400px] px-6 py-10 xl:px-12 2xl:max-w-[1680px] 2xl:px-16">
             <div className="mb-6 flex flex-wrap items-baseline justify-between gap-3">
               <h2 className="text-[1.6rem] font-medium tracking-tight">
                 {counts.all}{" "}

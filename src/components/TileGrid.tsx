@@ -22,9 +22,10 @@ import { AssetTile } from "./AssetTile";
 
 /** Matches the Tailwind columns this grid used before it was virtualised. */
 function columnsFor(width: number): number {
-  // The container opens to 1800px on a 2xl screen; a seventh column keeps
-  // the tiles near the same size instead of inflating six of them.
-  if (width >= 1600) return 7;
+  // The container opens out on a 2xl screen; a seventh column keeps the
+  // tiles near the same size instead of inflating six of them. The bar sits
+  // where the widened padding still leaves room for it on a 1920 display.
+  if (width >= 1500) return 7;
   if (width >= 1280) return 6;
   if (width >= 1024) return 5;
   if (width >= 640) return 3;
