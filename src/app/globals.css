@@ -156,6 +156,18 @@
     /* Set by the theme script, not hard coded, so form controls and
        scrollbars match whichever theme is active. */
     scroll-behavior: smooth;
+    /* The page scrolls without showing its scrollbar. Two reasons: the bar
+       is visual noise beside the grid, and it is a moving part — a dialog
+       that locks the page removes it, and fifteen pixels of layout lurch in
+       and out with every open and close. No bar, no lurch. Wheel, keys and
+       touch all still scroll; inner panels keep their own bars. */
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  html::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+    display: none;
   }
   body {
     background: var(--background);

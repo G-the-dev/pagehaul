@@ -650,6 +650,16 @@ export default function Home() {
               </div>
             )}
 
+            {/* Marks the end of the list — deliberately ABOVE the bar. The bar
+                changes height as it squeezes, and a sentinel below it moves
+                with that change: squeeze, sentinel rises into view, open out,
+                sentinel pushed back under, squeeze again — an oscillation you
+                could watch. The end of the grid holds still whatever the bar
+                does, so observing it cannot feed back. */}
+            {tab !== "design" && visible.length > 0 && (
+              <div ref={barEndRef} aria-hidden className="h-px w-full" />
+            )}
+
             {tab !== "design" && visible.length > 0 && (
               // Full width while you are heading down the grid toward the
               // buttons, and drawn in to a pill while you are scrolling back up
@@ -721,12 +731,6 @@ export default function Home() {
               </div>
             )}
 
-            {/* Marks the end of the list. While this is off screen the bar is
-                stuck over the grid and squeezes; once it scrolls into view the
-                bar has arrived and opens back out. */}
-            {tab !== "design" && visible.length > 0 && (
-              <div ref={barEndRef} aria-hidden className="h-px w-full" />
-            )}
           </div>
         </section>
       )}
