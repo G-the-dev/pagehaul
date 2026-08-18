@@ -226,6 +226,23 @@ export default function Home() {
     [visible],
   );
 
+  // The arrows walk the list, so the files either side of the open one should
+  // already be on their way before the key is pressed. Fetch and pre-decode
+  // both neighbours; stepping then paints from cache instead of starting a
+  // download at the moment the person asks to see it.
+  useEffect(() => {
+    if (!expanded || expandedIndex < 0) return;
+    for (const n of [visible[expandedIndex + 1], visible[expandedIndex - 1]]) {
+      if (!n) continue;
+      if (n.kind !== "image" && n.kind !== "svg" && n.kind !== "screenshot") continue;
+      const img = new window.Image();
+      img.src = n.url;
+      img.decode?.().catch(() => {
+        /* a neighbour that fails to preload just loads on arrival */
+      });
+    }
+  }, [expanded, expandedIndex, visible]);
+
   const visibleBytes = visible.reduce((n, a) => n + (a.bytes ?? 0), 0);
   const activeTabLabel = TABS.find((t) => t.id === tab)?.label ?? "Files";
   const hasDesign =

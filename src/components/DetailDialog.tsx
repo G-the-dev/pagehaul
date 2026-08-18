@@ -5,6 +5,7 @@ import { Check, ChevronLeft, ChevronRight } from "lucide-react";
 import type { Asset } from "@/lib/types";
 import { fetchAsset, formatBytes } from "@/lib/download";
 import { thumbnailUrl } from "@/lib/variants";
+import { cachedShotThumb } from "@/lib/shot-thumbs";
 
 /**
  * The full-size look at one file.
@@ -58,8 +59,18 @@ export function DetailDialog({
   const shownDims =
     selDims || (asset.width && asset.height ? `${asset.width}x${asset.height}` : "n/a");
   const shownBytes = selected?.bytes ?? asset.bytes;
-  // What the grid already showed for this file — cached, so it paints at once.
-  const previewThumb = asset.thumbUrl ?? thumbnailUrl(asset.url);
+  // What the grid already showed for this file — the same address the tile
+  // used, which is the one actually in the browser's cache. The tile routes
+  // raster thumbnails through the image optimizer, so the raw thumbnail URL
+  // here would have been a fresh download wearing a "cached" comment.
+  const previewThumb = (() => {
+    if (asset.kind === "screenshot") return cachedShotThumb(asset.id) ?? null;
+    const base = asset.thumbUrl ?? asset.poster ?? asset.url;
+    const shown = asset.kind === "image" ? (thumbnailUrl(base) ?? base) : base;
+    return asset.kind === "image"
+      ? `/_next/image?url=${encodeURIComponent(shown)}&w=420&q=70`
+      : (asset.thumbUrl ?? thumbnailUrl(asset.url));
+  })();
   const panelRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -309,13 +320,20 @@ export function DetailDialog({
                 src={previewThumb}
                 alt=""
                 aria-hidden
+                decoding="async"
                 className="absolute inset-0 h-full w-full scale-105 object-cover opacity-40 blur-lg"
               />
             )}
+            {/* Keyed by the file, so stepping with the arrows unmounts the
+                old picture at once. Without the key the browser holds the
+                previous image in the element until the new one arrives, and
+                the dialog reads as changed everywhere except the picture. */}
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
+              key={asset.id}
               src={selectedUrl}
               alt={asset.alt ?? ""}
+              decoding="async"
               className={
                 asset.kind === "screenshot"
                   ? "relative w-full"

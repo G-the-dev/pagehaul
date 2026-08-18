@@ -5,6 +5,7 @@ import type { Asset } from "@/lib/types";
 import { Check } from "lucide-react";
 import { thumbnailUrl } from "@/lib/variants";
 import { cachedPoster, capturePoster } from "@/lib/frame-cache";
+import { cachedShotThumb, makeShotThumb } from "@/lib/shot-thumbs";
 import { formatBytes } from "@/lib/download";
 import { Tooltip } from "./ui/Tooltip";
 
@@ -81,6 +82,22 @@ export const AssetTile = memo(function AssetTile({
     [asset.kind, base],
   );
   const previewSrc = derived && !thumbRefused ? derived : base;
+  // A capture is megabytes of JPEG, and the virtualiser rebuilds this tile on
+  // every scroll-back. The tile shows a once-made small copy instead, so the
+  // full thing is decoded exactly once per scan.
+  const [shotThumb, setShotThumb] = useState<string | undefined>(() =>
+    asset.kind === "screenshot" ? cachedShotThumb(asset.id) : undefined,
+  );
+  useEffect(() => {
+    if (asset.kind !== "screenshot" || shotThumb) return;
+    let alive = true;
+    makeShotThumb(asset.id, asset.url).then((t) => {
+      if (alive && t) setShotThumb(t);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [asset.kind, asset.id, asset.url, shotThumb]);
   // Route raster thumbnails through the image optimizer, which fetches each one
   // once, resizes it, and serves it cached. Direct cross-origin requests to
   // hundreds of origins at once is what left tiles blank and reloaded them on
@@ -89,9 +106,12 @@ export const AssetTile = memo(function AssetTile({
   // origin.
   const [optFailed, setOptFailed] = useState(false);
   const usingOptimizer = asset.kind === "image" && !optFailed;
-  const imgSrc = usingOptimizer
-    ? `/_next/image?url=${encodeURIComponent(previewSrc)}&w=420&q=70`
-    : previewSrc;
+  const imgSrc =
+    asset.kind === "screenshot"
+      ? (shotThumb ?? asset.url)
+      : usingOptimizer
+        ? `/_next/image?url=${encodeURIComponent(previewSrc)}&w=420&q=70`
+        : previewSrc;
   // A frame we captured client-side on a previous mount (CORS videos), if any.
   const poster = asset.kind === "video" ? cachedPoster(asset.url) : undefined;
   // The server-captured poster for a video: a plain image that preloads and
