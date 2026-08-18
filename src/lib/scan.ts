@@ -29,6 +29,8 @@ const EXT_KIND: Record<string, AssetKind> = {
   pdf: "document", doc: "document", docx: "document", xls: "document",
   xlsx: "document", ppt: "document", pptx: "document", txt: "document",
   rtf: "document", zip: "document", rar: "document",
+  // 3D models, since the headline promises them.
+  glb: "document", gltf: "document", usdz: "document",
   css: "code", js: "code", mjs: "code", map: "code",
   json: "data", xml: "data", csv: "data", rss: "data", atom: "data",
 };
@@ -40,6 +42,7 @@ const ALPHA = new Set(["png", "svg", "webp", "gif", "avif", "apng", "ico"]);
 const LINKED_DOC_EXT = new Set([
   "pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx",
   "csv", "json", "xml", "zip", "rtf", "txt",
+  "glb", "gltf", "usdz",
 ]);
 
 
@@ -290,7 +293,7 @@ class Collector {
 }
 
 const MEDIA_URL_RE =
-  /https?:(?:\\?\/){2}[^"'\s\\<>()]+?\.(?:jpe?g|png|webp|avif|gif|svg|mp4|webm|m4v|mov|woff2?|pdf)(?:\?[^"'\s\\<>()]*)?/gi;
+  /https?:(?:\\?\/){2}[^"'\s\\<>()]+?\.(?:jpe?g|png|webp|avif|gif|svg|mp4|webm|m4v|mov|woff2?|pdf|glb|gltf|usdz)(?:\?[^"'\s\\<>()]*)?/gi;
 
 /**
  * Pulls media URLs straight out of the raw HTML, including ones embedded in JSON

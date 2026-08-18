@@ -72,6 +72,9 @@ const EXT_KIND: Record<string, AssetKind> = {
   pdf: "document", doc: "document", docx: "document", xls: "document",
   xlsx: "document", ppt: "document", pptx: "document", csv: "document",
   zip: "document", txt: "document",
+  // 3D models, since the headline promises them. They ride in the documents
+  // tab — few enough per page that a tab of their own would sit empty.
+  glb: "document", gltf: "document", usdz: "document",
   js: "code", mjs: "code", cjs: "code", jsx: "code", ts: "code", tsx: "code",
   css: "code", map: "code",
   json: "data", xml: "data", rss: "data", atom: "data", wasm: "data",
@@ -339,7 +342,7 @@ const SCROLL_STEP = `(async () => {
  * part of a media URL that is reliably present.
  */
 const MEDIA_URL_RE =
-  /https?:(?:\\?\/){2}[^"'\s\\<>()]+?\.(?:jpe?g|png|webp|avif|gif|svg|mp4|webm|m4v|mov|mp3|wav|ogg|m4a|aac|flac|woff2?|pdf)(?:\?[^"'\s\\<>()]*)?/gi;
+  /https?:(?:\\?\/){2}[^"'\s\\<>()]+?\.(?:jpe?g|png|webp|avif|gif|svg|mp4|webm|m4v|mov|mp3|wav|ogg|m4a|aac|flac|woff2?|pdf|glb|gltf|usdz)(?:\?[^"'\s\\<>()]*)?/gi;
 
 /** Capped per response: one feed payload can name thousands of thumbnails. */
 const MINE_PER_RESPONSE = 300;

@@ -554,7 +554,7 @@ export default function Home() {
       </div>
 
       <header className="pointer-events-none fixed inset-x-0 top-0 z-50 flex justify-center px-4 pt-16 sm:pt-6">
-        <nav className="keep-blur pointer-events-auto flex items-center gap-1.5 rounded-full border border-border bg-surface/70 py-2 pl-6 pr-2 backdrop-blur-md">
+        <nav className="keep-blur pointer-events-auto flex items-center gap-1.5 rounded-full border border-border bg-surface/70 py-2 pl-4 pr-1.5 backdrop-blur-md sm:pl-6 sm:pr-2">
           <a
             href="#top"
             className="flex items-center gap-2 pr-4 text-[14px] font-semibold tracking-tight"

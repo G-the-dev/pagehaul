@@ -89,7 +89,10 @@ export function Hero({
   const inputError = touched && url.trim() && !check.ok ? check.message : null;
 
   const [index, setIndex] = useState(0);
-  const words = useMemo(() => ["image", "icon", "video", "font", "asset"], []);
+  const words = useMemo(
+    () => ["image", "icon", "video", "audio", "font", "3D asset"],
+    [],
+  );
 
   useEffect(() => {
     const t = setTimeout(
