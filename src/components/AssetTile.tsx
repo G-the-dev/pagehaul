@@ -7,7 +7,7 @@ import { thumbnailUrl } from "@/lib/variants";
 import { cachedPoster, capturePoster } from "@/lib/frame-cache";
 import { cachedShotThumb, makeShotThumb } from "@/lib/shot-thumbs";
 import { cachedModelPoster, saveModelPoster } from "@/lib/model-thumbs";
-import { ModelPreview, modelRenderable } from "./ModelPreview";
+import { ModelLoading, ModelPreview, modelRenderable } from "./ModelPreview";
 import { formatBytes } from "@/lib/download";
 import { Tooltip } from "./ui/Tooltip";
 
@@ -129,6 +129,7 @@ export const AssetTile = memo(function AssetTile({
     asset.kind === "model" ? cachedModelPoster(asset.id) : undefined,
   );
   const [modelFailed, setModelFailed] = useState(false);
+  const [modelReady, setModelReady] = useState(false);
 
   const corner = cornerLabel(asset);
   const showsImage =
@@ -280,14 +281,24 @@ export const AssetTile = memo(function AssetTile({
           ) : asset.kind === "model" &&
             modelRenderable(asset.url) &&
             !modelFailed ? (
-            <ModelPreview
-              url={asset.url}
-              onFail={() => setModelFailed(true)}
-              onPoster={(d) => {
-                saveModelPoster(asset.id, d);
-                setModelPoster(d);
-              }}
-            />
+            <div className="relative h-full w-full">
+              {/* Something at once — a pulsing cube says "preview coming"
+                  while the engine and the model are still on their way. */}
+              {!modelReady && (
+                <div className="absolute inset-0">
+                  <ModelLoading label="loading preview" />
+                </div>
+              )}
+              <ModelPreview
+                url={asset.url}
+                onLoaded={() => setModelReady(true)}
+                onFail={() => setModelFailed(true)}
+                onPoster={(d) => {
+                  saveModelPoster(asset.id, d);
+                  setModelPoster(d);
+                }}
+              />
+            </div>
           ) : (
             <TypePlaceholder asset={asset} failed={failed} />
           )}

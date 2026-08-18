@@ -106,7 +106,7 @@ export function ThemeToggle() {
       type="button"
       onClick={toggle}
       aria-label={isLight ? "Switch to dark theme" : "Switch to light theme"}
-      className="relative grid h-8 w-8 place-items-center rounded-full border border-border text-muted-foreground transition-colors hover:border-border-strong hover:text-foreground"
+      className="relative grid h-9 w-9 place-items-center rounded-full border border-border text-muted-foreground transition-colors hover:border-border-strong hover:text-foreground"
     >
       {/* Rendered only after mount, because the server cannot know which theme
           this visitor has chosen and guessing causes a hydration mismatch. */}
@@ -118,7 +118,7 @@ export function ThemeToggle() {
           transition={{ duration: 0.32, ease: EASE }}
           className="grid place-items-center"
         >
-          {isLight ? <Sun className="h-3.5 w-3.5" /> : <Moon className="h-3.5 w-3.5" />}
+          {isLight ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
         </motion.span>
       )}
     </button>

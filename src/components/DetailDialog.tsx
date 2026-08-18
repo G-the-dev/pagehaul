@@ -6,7 +6,8 @@ import type { Asset } from "@/lib/types";
 import { fetchAsset, formatBytes } from "@/lib/download";
 import { thumbnailUrl } from "@/lib/variants";
 import { cachedShotThumb } from "@/lib/shot-thumbs";
-import { ModelPreview, modelRenderable } from "./ModelPreview";
+import { cachedModelPoster } from "@/lib/model-thumbs";
+import { ModelLoading, ModelPreview, modelRenderable } from "./ModelPreview";
 import { track } from "@/lib/analytics";
 
 /**
@@ -51,6 +52,14 @@ export function DetailDialog({
   useEffect(() => {
     track("preview", { kind: asset.kind, format: asset.format });
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [asset.id]);
+
+  /** 3D load state, reset when the arrows move to another file. */
+  const [modelReady, setModelReady] = useState(false);
+  const [modelLoad, setModelLoad] = useState(0);
+  useEffect(() => {
+    setModelReady(false);
+    setModelLoad(0);
   }, [asset.id]);
   // Which size of the family is chosen. Defaults to the one on the card and
   // drives the preview, the download and the copied address, so a family reads
@@ -393,9 +402,29 @@ export function DetailDialog({
         )}
         {asset.kind === "model" && modelRenderable(selectedUrl) && (
           // The model itself, turnable. Judging a 3D file from its filename
-          // was the whole complaint; here it can be looked around.
-          <div className="h-[46vh] overflow-hidden rounded-lg border border-border bg-surface-2/40">
-            <ModelPreview key={selectedUrl} url={selectedUrl} interactive />
+          // was the whole complaint; here it can be looked around. The frame
+          // the tile captured stands in instantly; failing that, a pulsing
+          // cube with a live percentage says the wait is moving.
+          <div className="relative h-[46vh] overflow-hidden rounded-lg border border-border bg-surface-2/40">
+            {!modelReady && !cachedModelPoster(asset.id) && (
+              <div className="absolute inset-0 z-10">
+                <ModelLoading
+                  label={
+                    modelLoad > 0
+                      ? `loading ${Math.round(modelLoad * 100)}%`
+                      : "loading 3D preview"
+                  }
+                />
+              </div>
+            )}
+            <ModelPreview
+              key={selectedUrl}
+              url={selectedUrl}
+              interactive
+              poster={cachedModelPoster(asset.id)}
+              onLoaded={() => setModelReady(true)}
+              onProgress={setModelLoad}
+            />
           </div>
         )}
         {asset.kind === "audio" && (

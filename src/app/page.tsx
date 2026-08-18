@@ -19,6 +19,7 @@ import { MobileHaul } from "@/components/MobileHaul";
 import dynamic from "next/dynamic";
 import { track } from "@/lib/analytics";
 import { startFaviconSpin, stopFaviconSpin } from "@/lib/scan-favicon";
+import { preloadModelViewer } from "@/components/ModelPreview";
 
 /** The host alone — what was scanned, never the whole address. */
 function hostOf(raw: string): string | undefined {
@@ -394,6 +395,15 @@ export default function Home() {
     document.title = BASE_TITLE;
   }, []);
 
+  // If the results hold a model, fetch the 3D engine now, while the person
+  // is still reading the grid. By the time they reach the 3D tab the chunk
+  // is cached, and the only wait left is the model itself.
+  useEffect(() => {
+    if (result?.assets.some((a) => a.kind === "model")) {
+      void preloadModelViewer();
+    }
+  }, [result]);
+
   // While a scan runs, the favicon's tiles slide clockwise around the gap —
   // the tab itself works, visibly, even from another tab. The mark returns
   // whole the moment the scan settles, however it settles.
@@ -619,7 +629,7 @@ export default function Home() {
                 than a star. The repo keeps its link in the footer. */}
             <a
               href="/contact"
-              className="rounded-full bg-foreground px-5 py-2 text-[13px] font-semibold text-background transition-opacity hover:opacity-90"
+              className="rounded-full bg-foreground px-5 py-2.5 text-[13.5px] font-semibold text-background transition-opacity hover:opacity-90"
             >
               Feedback
             </a>

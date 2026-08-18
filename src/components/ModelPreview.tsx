@@ -7,9 +7,11 @@ import { createElement, useEffect, useRef, useState } from "react";
  *
  * Uses <model-viewer>, the standard glTF renderer for the web, fetched as
  * its own chunk the first time a model is actually on screen — a visitor
- * who never meets a 3D asset never downloads a 3D engine. The file itself
- * is fetched from its origin; if that origin refuses a cross-origin read,
- * the same relay that rescues downloads serves the preview.
+ * who never meets a 3D asset never downloads a 3D engine. Callers that know
+ * a model is coming can warm the chunk early with preloadModelViewer, which
+ * is most of what makes the first open feel quick. The file itself is
+ * fetched from its origin; if that origin refuses a cross-origin read, the
+ * same relay that rescues downloads serves the preview.
  *
  * glb and gltf render. The formats no browser engine draws — fbx, stl,
  * usdz and friends — report failure through onFail, and the caller keeps
@@ -17,7 +19,7 @@ import { createElement, useEffect, useRef, useState } from "react";
  */
 
 let loader: Promise<unknown> | null = null;
-function ensureModelViewer(): Promise<unknown> {
+export function preloadModelViewer(): Promise<unknown> {
   loader ??= import("@google/model-viewer");
   return loader;
 }
@@ -28,15 +30,24 @@ interface ModelViewerEl extends HTMLElement {
 
 export function ModelPreview({
   url,
+  poster,
   interactive = false,
   onPoster,
+  onLoaded,
+  onProgress,
   onFail,
 }: {
   url: string;
+  /** A frame captured earlier — shown instantly while the real thing loads. */
+  poster?: string;
   /** Camera controls for the dialog; the tile just turns slowly. */
   interactive?: boolean;
   /** Called once with a captured frame, for the tile cache. */
   onPoster?: (dataUrl: string) => void;
+  /** The model is on screen and turning. */
+  onLoaded?: () => void;
+  /** Download progress, 0..1 — enough to show the wait is moving. */
+  onProgress?: (fraction: number) => void;
   /** The file would not load or render; show something else. */
   onFail?: () => void;
 }) {
@@ -47,7 +58,7 @@ export function ModelPreview({
 
   useEffect(() => {
     let alive = true;
-    ensureModelViewer().then(
+    preloadModelViewer().then(
       () => alive && setReady(true),
       () => alive && onFail?.(),
     );
@@ -63,6 +74,7 @@ export function ModelPreview({
 
     let captureTimer: ReturnType<typeof setTimeout> | undefined;
     const onLoad = () => {
+      onLoaded?.();
       // A beat after load, so the first real frame has painted before the
       // capture reads it back.
       captureTimer = setTimeout(() => {
@@ -73,6 +85,12 @@ export function ModelPreview({
           /* a refused readback only costs the cache, not the render */
         }
       }, 400);
+    };
+    const onProg = (e: Event) => {
+      const detail = (e as CustomEvent<{ totalProgress?: number }>).detail;
+      if (typeof detail?.totalProgress === "number") {
+        onProgress?.(detail.totalProgress);
+      }
     };
     const onError = () => {
       if (!triedRelay.current) {
@@ -85,19 +103,23 @@ export function ModelPreview({
       }
     };
     el.addEventListener("load", onLoad);
+    el.addEventListener("progress", onProg);
     el.addEventListener("error", onError);
     return () => {
       clearTimeout(captureTimer);
       el.removeEventListener("load", onLoad);
+      el.removeEventListener("progress", onProg);
       el.removeEventListener("error", onError);
     };
-  }, [ready, url, onPoster, onFail]);
+  }, [ready, url, onPoster, onLoaded, onProgress, onFail]);
 
   if (!ready) return null;
 
   return createElement("model-viewer", {
     ref,
     src,
+    ...(poster ? { poster } : {}),
+    loading: "eager",
     "auto-rotate": "",
     "interaction-prompt": "none",
     "shadow-intensity": "0.6",
@@ -109,4 +131,27 @@ export function ModelPreview({
 /** True when a browser engine can actually draw this model format. */
 export function modelRenderable(url: string): boolean {
   return /\.(glb|gltf)(\?|$)/i.test(url);
+}
+
+/** The stand-in while an engine or a model is still arriving: a cube with a
+ *  pulse, so the wait reads as "preview coming" rather than "nothing here". */
+export function ModelLoading({ label }: { label?: string }) {
+  return (
+    <div className="grid h-full w-full place-items-center">
+      <div className="flex animate-pulse flex-col items-center gap-2">
+        <svg
+          viewBox="0 0 48 48"
+          className="h-12 w-12 text-fg-2"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.6"
+          strokeLinejoin="round"
+        >
+          <path d="M24 6 40 15v18L24 42 8 33V15L24 6Z" />
+          <path d="M8 15l16 9 16-9M24 24v18" />
+        </svg>
+        {label && <span className="label-mono text-[9px]">{label}</span>}
+      </div>
+    </div>
+  );
 }
