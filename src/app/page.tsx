@@ -295,6 +295,9 @@ export default function Home() {
     setShown(48);
     setExpiring(false);
     setExpiredHost(null);
+    // A dissolve queued for the old results must not fire on the new ones.
+    expiryWaitRef.current?.();
+    expiryWaitRef.current = null;
     // The tab's own title reports progress, so someone who does switch away
     // has a reason to come back.
     document.title = `scanning ${hostOf(target) ?? "the page"}… · pagehaul`;
@@ -429,16 +432,42 @@ export default function Home() {
     setMeasured((prev) => (prev[id] ? prev : { ...prev, [id]: { w, h } }));
   }, []);
 
+  /** Cancels a dissolve waiting for the person to come back, if one is. */
+  const expiryWaitRef = useRef<(() => void) | null>(null);
+
   /**
    * The window closes. Scatter the tiles first, then drop the list.
    *
    * Deliberately two steps: clearing state immediately would unmount the tiles
    * and there would be nothing left to animate.
+   *
+   * And only ever in front of the person. A dissolve that plays in a hidden
+   * tab explains nothing — they come back to an empty page and a message
+   * about results they never saw leave. If the clock runs out while the tab
+   * is hidden, the tiles hold, and the scatter plays the moment they return:
+   * the disappearance itself is the explanation.
    */
   const beginExpiry = useCallback(() => {
-    setExpiring(true);
-    setExpanded(null);
-    setPickerOpen(false);
+    const scatter = () => {
+      setExpiring(true);
+      setExpanded(null);
+      setPickerOpen(false);
+    };
+    if (!document.hidden) {
+      scatter();
+      return;
+    }
+    const onBack = () => {
+      if (document.visibilityState !== "visible") return;
+      document.removeEventListener("visibilitychange", onBack);
+      expiryWaitRef.current = null;
+      // A beat for the tab to paint, so the person sees what they had
+      // before they watch it go.
+      setTimeout(scatter, 900);
+    };
+    expiryWaitRef.current = () =>
+      document.removeEventListener("visibilitychange", onBack);
+    document.addEventListener("visibilitychange", onBack);
   }, []);
 
   /** Called by the animation when the last particle has gone. */
