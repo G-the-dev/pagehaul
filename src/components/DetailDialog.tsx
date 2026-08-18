@@ -6,6 +6,7 @@ import type { Asset } from "@/lib/types";
 import { fetchAsset, formatBytes } from "@/lib/download";
 import { thumbnailUrl } from "@/lib/variants";
 import { cachedShotThumb } from "@/lib/shot-thumbs";
+import { ModelPreview, modelRenderable } from "./ModelPreview";
 import { track } from "@/lib/analytics";
 
 /**
@@ -389,6 +390,13 @@ export function DetailDialog({
             poster={asset.poster}
             className="max-h-[46vh] w-full rounded-lg"
           />
+        )}
+        {asset.kind === "model" && modelRenderable(selectedUrl) && (
+          // The model itself, turnable. Judging a 3D file from its filename
+          // was the whole complaint; here it can be looked around.
+          <div className="h-[46vh] overflow-hidden rounded-lg border border-border bg-surface-2/40">
+            <ModelPreview key={selectedUrl} url={selectedUrl} interactive />
+          </div>
         )}
         {asset.kind === "audio" && (
           // Keyed so stepping between files with the arrows swaps the player

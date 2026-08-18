@@ -6,6 +6,8 @@ import { Check } from "lucide-react";
 import { thumbnailUrl } from "@/lib/variants";
 import { cachedPoster, capturePoster } from "@/lib/frame-cache";
 import { cachedShotThumb, makeShotThumb } from "@/lib/shot-thumbs";
+import { cachedModelPoster, saveModelPoster } from "@/lib/model-thumbs";
+import { ModelPreview, modelRenderable } from "./ModelPreview";
 import { formatBytes } from "@/lib/download";
 import { Tooltip } from "./ui/Tooltip";
 
@@ -121,6 +123,13 @@ export const AssetTile = memo(function AssetTile({
     asset.kind === "video" && !poster && !posterFailed
       ? `/api/poster?url=${encodeURIComponent(asset.url)}`
       : undefined;
+  // A model renders live exactly once. The first mount pays for the WebGL
+  // context and captures a frame; every remount after that shows the frame.
+  const [modelPoster, setModelPoster] = useState<string | undefined>(() =>
+    asset.kind === "model" ? cachedModelPoster(asset.id) : undefined,
+  );
+  const [modelFailed, setModelFailed] = useState(false);
+
   const corner = cornerLabel(asset);
   const showsImage =
     !failed &&
@@ -259,6 +268,26 @@ export const AssetTile = memo(function AssetTile({
               }}
               className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
             />
+          ) : asset.kind === "model" && modelPoster ? (
+            /* The frame captured on an earlier mount — a model as cheap to
+               scroll past as a photograph. */
+            /* eslint-disable-next-line @next/next/no-img-element */
+            <img
+              src={modelPoster}
+              alt=""
+              className="h-full w-full object-contain p-2"
+            />
+          ) : asset.kind === "model" &&
+            modelRenderable(asset.url) &&
+            !modelFailed ? (
+            <ModelPreview
+              url={asset.url}
+              onFail={() => setModelFailed(true)}
+              onPoster={(d) => {
+                saveModelPoster(asset.id, d);
+                setModelPoster(d);
+              }}
+            />
           ) : (
             <TypePlaceholder asset={asset} failed={failed} />
           )}
@@ -353,6 +382,27 @@ function TypePlaceholder({ asset, failed }: { asset: Asset; failed: boolean }) {
               className="w-full max-w-[3px] flex-1 rounded-full bg-accent/60"
             />
           ))}
+        </div>
+      );
+    case "model":
+      // The formats no browser engine draws still deserve better than a
+      // bare format code: a cube says "3D" at a glance.
+      return (
+        <div className="grid h-full place-items-center">
+          <div className="flex flex-col items-center gap-2">
+            <svg
+              viewBox="0 0 48 48"
+              className="h-12 w-12 text-fg-2"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.6"
+              strokeLinejoin="round"
+            >
+              <path d="M24 6 40 15v18L24 42 8 33V15L24 6Z" />
+              <path d="M8 15l16 9 16-9M24 24v18" />
+            </svg>
+            <span className="label-mono text-[9px]">{asset.format}</span>
+          </div>
         </div>
       );
     case "document":
