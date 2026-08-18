@@ -244,6 +244,17 @@ export function DetailDialog({
             className="max-h-[46vh] w-full rounded-lg"
           />
         )}
+        {asset.kind === "audio" && (
+          // Keyed so stepping between files with the arrows swaps the player
+          // rather than leaving the last file's audio loaded in it.
+          <audio
+            key={selectedUrl}
+            src={selectedUrl}
+            controls
+            preload="metadata"
+            className="w-full"
+          />
+        )}
         {asset.preview && (
           <pre className="max-h-40 overflow-auto rounded-lg border border-border bg-surface-2 p-3 font-mono text-[11px] leading-relaxed text-fg-2">
             {asset.preview}

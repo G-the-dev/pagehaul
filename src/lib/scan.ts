@@ -21,7 +21,10 @@ const EXT_KIND: Record<string, AssetKind> = {
   svg: "svg",
   mp4: "video", webm: "video", ogv: "video", mov: "video", m4v: "video",
   m3u8: "video", mpd: "video",
-  mp3: "audio", wav: "audio", ogg: "audio", aac: "audio", m4a: "audio", flac: "audio",
+  // No audio, deliberately: sound is a deep-scan feature. The audio a page
+  // actually plays almost never sits in its markup — it is fetched by a hover
+  // handler or a player script — so the odd <audio> tag a static read can see
+  // promised a coverage it could not deliver. One scan owns the kind.
   woff: "font", woff2: "font", ttf: "font", otf: "font", eot: "font",
   pdf: "document", doc: "document", docx: "document", xls: "document",
   xlsx: "document", ppt: "document", pptx: "document", txt: "document",
@@ -287,7 +290,7 @@ class Collector {
 }
 
 const MEDIA_URL_RE =
-  /https?:(?:\\?\/){2}[^"'\s\\<>()]+?\.(?:jpe?g|png|webp|avif|gif|svg|mp4|webm|m4v|mov|mp3|wav|ogg|m4a|aac|flac|woff2?|pdf)(?:\?[^"'\s\\<>()]*)?/gi;
+  /https?:(?:\\?\/){2}[^"'\s\\<>()]+?\.(?:jpe?g|png|webp|avif|gif|svg|mp4|webm|m4v|mov|woff2?|pdf)(?:\?[^"'\s\\<>()]*)?/gi;
 
 /**
  * Pulls media URLs straight out of the raw HTML, including ones embedded in JSON
@@ -483,15 +486,7 @@ async function scanOnePage(
     });
   });
 
-  $("audio").each((_, el) => {
-    const $el = $(el);
-    const section = sectionOf($, el);
-    const src = $el.attr("src");
-    if (src) c.add(abs(base, src), { fromPage: finalUrl, section });
-    $el.find("source[src]").each((__, s) => {
-      c.add(abs(base, $(s).attr("src")!), { fromPage: finalUrl, section });
-    });
-  });
+  // <audio> is read by the deep scan only — see the note on EXT_KIND.
 
   // --- icons, social images, manifest ------------------------------------
   $('link[rel*="icon"], link[rel="apple-touch-icon"], link[rel="manifest"]').each((_, el) => {

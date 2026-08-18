@@ -342,6 +342,92 @@ const MINE_PER_RESPONSE = 300;
 /** The document is mined once and holds the whole page, so it gets more room. */
 const MINE_PER_DOCUMENT = 900;
 
+/**
+ * Audio addresses written in code rather than markup.
+ *
+ * A hover sound leaves no other trace. It is fetched on mouseover — nobody
+ * hovers during a scan, so it never crosses the network — and it plays through
+ * the Web Audio API, so no <audio> element ever exists for the DOM walk to
+ * find. The one place it does exist is as a string in a script:
+ * "/sounds/tap.mp3" sitting in a bundle, waiting for an event handler.
+ *
+ * Quoted, so a bare extension in a MIME table never matches, and matched with
+ * the quote pair intact so a string is read whole. Relative paths are the
+ * common spelling in a bundle, so they are kept and resolved against the page.
+ */
+const AUDIO_IN_CODE_RE =
+  /(["'`])([^"'`\s<>()\\]+\.(?:mp3|wav|ogg|oga|m4a|aac|flac|opus|weba)(?:\?[^"'`\s<>()\\]*)?)\1/gi;
+
+/** Cheap pre-test, so most bundles are dismissed without running the miner. */
+const AUDIO_EXT_HINT_RE = /\.(?:mp3|wav|ogg|oga|m4a|aac|flac|opus|weba)\b/i;
+
+/** Capped across the whole scan: a page speaking of more audio than this in
+ *  its code is a music library, and its API will name the files properly. */
+const AUDIO_FROM_CODE_MAX = 60;
+/** Candidates existence-checked before listing. */
+const AUDIO_VERIFY_MAX = 24;
+
+function mineAudioUrls(text: string, limit = 40): string[] {
+  const out: string[] = [];
+  const seen = new Set<string>();
+  // JSON embedded in a script escapes its slashes; undo that first.
+  const src = text.includes("\\/") ? text.replace(/\\\//g, "/") : text;
+  AUDIO_IN_CODE_RE.lastIndex = 0;
+  let m: RegExpExecArray | null;
+  while ((m = AUDIO_IN_CODE_RE.exec(src)) && out.length < limit) {
+    const raw = m[2].replace(/&amp;/g, "&");
+    if (seen.has(raw)) continue;
+    seen.add(raw);
+    // An absolute URL, or a path with at least one segment. A bare
+    // "notification.mp3" is usually a label in a settings object, not a file
+    // at the site root, so it does not qualify.
+    if (!/^https?:\/\//i.test(raw) && !raw.includes("/")) continue;
+    out.push(raw);
+  }
+  return out;
+}
+
+/**
+ * Which of the mined addresses are real, asked of the origin itself.
+ *
+ * A string in minified code is a claim, not a file — webpack writes paths that
+ * only exist once a public prefix is glued on, and a library ships example
+ * names its user never serves. One HEAD each settles it. Only a definite
+ * "not here" (404/410) or an unreachable host removes a candidate; an origin
+ * that answers HEAD rudely (403, 405) still holds the file, and stays listed.
+ * The whole pass shares one budget so a slow origin cannot stall the scan.
+ */
+async function verifyAudioUrls(
+  urls: string[],
+  budgetMs: number,
+): Promise<Map<string, number | undefined>> {
+  const out = new Map<string, number | undefined>();
+  await Promise.race([
+    Promise.allSettled(
+      urls.map(async (u) => {
+        const ctrl = new AbortController();
+        const timer = setTimeout(() => ctrl.abort(), Math.min(3_500, budgetMs));
+        try {
+          const res = await fetch(u, {
+            method: "HEAD",
+            redirect: "follow",
+            signal: ctrl.signal,
+          });
+          if (res.status === 404 || res.status === 410) return;
+          const len = Number(res.headers.get("content-length") ?? 0);
+          out.set(u, len > 0 ? len : undefined);
+        } catch {
+          /* unreachable — drop rather than list a dead address */
+        } finally {
+          clearTimeout(timer);
+        }
+      }),
+    ),
+    new Promise((r) => setTimeout(r, budgetMs)),
+  ]);
+  return out;
+}
+
 function mineMediaUrls(text: string, limit = MINE_PER_RESPONSE): string[] {
   const out: string[] = [];
   const seen = new Set<string>();
@@ -383,6 +469,8 @@ export async function deepScan(
   const target = assertPublicHttpUrl(rawUrl);
   const notes: string[] = [];
   const found = new Map<string, Seen>();
+  /** Audio spoken of only in the site's code, held raw and resolved later. */
+  const audioFromCode = new Set<string>();
   /** Set when the page interrupted us, so a thin result explains itself. */
   let renderNote = "";
 
@@ -501,6 +589,28 @@ export async function deepScan(
                 format: (uext || "img").toUpperCase(),
                 fromPayload: true,
               });
+            }
+          } catch {
+            /* body already consumed or streamed */
+          }
+        }
+
+        // Scripts get the same reading, for one kind only. Mining scripts for
+        // images would drown the result in icon paths and route fragments;
+        // audio is rare enough in code to take whole, and code is the only
+        // place a hover sound exists at all — see AUDIO_IN_CODE_RE.
+        if (
+          rtype === "script" &&
+          !tooBigToRead &&
+          audioFromCode.size < AUDIO_FROM_CODE_MAX
+        ) {
+          try {
+            const txt = await res.text();
+            if (txt.length <= MAX_BODY_CHARS && AUDIO_EXT_HINT_RE.test(txt)) {
+              for (const u of mineAudioUrls(txt)) {
+                if (audioFromCode.size >= AUDIO_FROM_CODE_MAX) break;
+                audioFromCode.add(u);
+              }
             }
           } catch {
             /* body already consumed or streamed */
@@ -934,8 +1044,67 @@ export async function deepScan(
           fromPayload: true,
         });
       }
+      // Inline scripts never arrive as network responses, so the audio they
+      // speak of is only reachable here, in the serialised page.
+      if (AUDIO_EXT_HINT_RE.test(html)) {
+        for (const u of mineAudioUrls(html)) {
+          if (audioFromCode.size >= AUDIO_FROM_CODE_MAX) break;
+          audioFromCode.add(u);
+        }
+      }
     } catch {
       /* a page that refuses to serialise is not a failed scan */
+    }
+
+    // Turn the audio mined out of code into listed files: resolve each string
+    // against the page it belongs to, and ask the origin whether it is real.
+    // Verification is skipped when the wall is close — a candidate listed
+    // unchecked beats a scan that overran and returned nothing.
+    if (audioFromCode.size) {
+      let baseHref = target.toString();
+      try {
+        const landed = page.url();
+        if (landed && landed.startsWith("http")) baseHref = landed;
+      } catch {
+        /* the target is base enough */
+      }
+      const candidates: string[] = [];
+      const resolved = new Set<string>();
+      for (const raw of audioFromCode) {
+        try {
+          // The same guard every server-side fetch gets. A page could write
+          // an internal address into its code precisely so the verification
+          // pass would probe it on the server's behalf.
+          const u = assertPublicHttpUrl(new URL(raw, baseHref).toString());
+          const s = u.toString();
+          if (found.has(s) || resolved.has(s)) continue;
+          resolved.add(s);
+          candidates.push(s);
+        } catch {
+          /* not an address after all, or not one we may fetch */
+        }
+      }
+      const shortlist = candidates.slice(0, AUDIO_VERIFY_MAX);
+      const verified =
+        timeLeft() > 6_000
+          ? await verifyAudioUrls(
+              shortlist,
+              Math.min(4_500, timeLeft() - 2_000),
+            )
+          : new Map<string, number | undefined>(
+              shortlist.map((u) => [u, undefined]),
+            );
+      for (const [u, bytes] of verified) {
+        if (found.size > MAX_ASSETS) break;
+        const uext = extOf(u);
+        found.set(u, {
+          url: u,
+          kind: "audio",
+          format: (uext || "audio").toUpperCase(),
+          fromPayload: true,
+          bytes,
+        });
+      }
     }
 
     // Read design again now that everything has loaded. On a healthy page this

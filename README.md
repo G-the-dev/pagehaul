@@ -90,7 +90,11 @@ anything named in a JSON payload.
 **Icons** — linked SVG, sprite sheets, and inline `<svg>` serialised so you can take it.
 
 **Video and audio** — sources, poster frames, caption tracks. Tiles show a real frame
-from the file rather than a play button on an empty square.
+from the file rather than a play button on an empty square. Audio comes from the deep
+scan alone, because the audio a page actually plays almost never sits in its markup: a
+hover sound played through the Web Audio API never crosses the network during a scan
+and builds no `<audio>` element, so its address is mined out of the site's scripts and
+checked against the origin before it is listed.
 
 **Fonts** — named by the typeface they declare, read from `@font-face` on the live page
 and from fetched stylesheets. On framer.com: 350 fonts, 349 of them named.
