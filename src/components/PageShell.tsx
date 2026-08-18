@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { SITE, LEGAL_LINKS } from "@/lib/site";
+import { Mark } from "@/components/Mark";
 
 /**
  * The shell every page that is not the tool itself sits inside.
@@ -27,7 +28,11 @@ export function PageShell({
     <main className="min-h-screen">
       <header className="border-b border-border">
         <div className="mx-auto flex max-w-3xl items-center justify-between px-6 py-5">
-          <Link href="/" className="text-[15px] font-semibold tracking-tight">
+          <Link
+            href="/"
+            className="flex items-center gap-2 text-[15px] font-semibold tracking-tight"
+          >
+            <Mark className="h-4 w-auto" />
             {SITE.name}
           </Link>
           <Link

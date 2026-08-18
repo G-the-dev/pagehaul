@@ -15,6 +15,7 @@ import { SITE } from "@/lib/site";
 import { humaniseScanError } from "@/lib/url-input";
 import { addRecent, getRecent, removeRecent, type Recent } from "@/lib/recent";
 import { Features, Audience, Steps } from "@/components/Features";
+import { Mark } from "@/components/Mark";
 import dynamic from "next/dynamic";
 import { track } from "@/lib/analytics";
 
@@ -512,7 +513,11 @@ export default function Home() {
     <main id="top" className="min-h-screen">
       <header className="pointer-events-none fixed inset-x-0 top-0 z-50 flex justify-center px-4 pt-6">
         <nav className="keep-blur pointer-events-auto flex items-center gap-1.5 rounded-full border border-border bg-surface/70 py-2 pl-6 pr-2 backdrop-blur-md">
-          <a href="#top" className="pr-4 text-[14px] font-semibold tracking-tight">
+          <a
+            href="#top"
+            className="flex items-center gap-2 pr-4 text-[14px] font-semibold tracking-tight"
+          >
+            <Mark className="h-[15px] w-auto" />
             pagehaul
           </a>
           <span className="mr-1.5 h-4 w-px bg-border" />
