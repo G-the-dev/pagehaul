@@ -3,6 +3,23 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   // Chromium ships a binary that must not be bundled.
   serverExternalPackages: ["puppeteer-core", "@sparticuz/chromium"],
+  // PostHog calls go through our own origin, because content blockers filter
+  // the posthog domain by name and the analytics would otherwise undercount
+  // exactly the technical audience this site has.
+  async rewrites() {
+    return [
+      {
+        source: "/ingest/static/:path*",
+        destination: "https://us-assets.i.posthog.com/static/:path*",
+      },
+      {
+        source: "/ingest/:path*",
+        destination: "https://us.i.posthog.com/:path*",
+      },
+    ];
+  },
+  // PostHog's API paths end in a trailing slash; a redirect would break them.
+  skipTrailingSlashRedirect: true,
   // The chromium binary ships as .br archives that tracing does not pick up on
   // its own, so the deep-scan route has to include them explicitly.
   outputFileTracingIncludes: {

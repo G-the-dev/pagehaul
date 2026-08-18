@@ -16,6 +16,26 @@ import { humaniseScanError } from "@/lib/url-input";
 import { addRecent, getRecent, removeRecent, type Recent } from "@/lib/recent";
 import { Features, Audience, Steps } from "@/components/Features";
 import dynamic from "next/dynamic";
+import posthog from "posthog-js";
+
+/** Safe capture: quietly does nothing when analytics is not configured. */
+function track(event: string, props?: Record<string, unknown>) {
+  try {
+    if (posthog.__loaded) posthog.capture(event, props);
+  } catch {
+    /* analytics must never break the app */
+  }
+}
+
+/** The host alone — what was scanned, never the whole address. */
+function hostOf(raw: string): string | undefined {
+  try {
+    return new URL(/^https?:\/\//i.test(raw) ? raw : `https://${raw}`).hostname
+      .replace(/^www\./, "");
+  } catch {
+    return undefined;
+  }
+}
 
 /*
   Fetched on use, not on arrival.
@@ -295,6 +315,13 @@ export default function Home() {
         );
       }
       if (!res.ok) throw new Error(humaniseScanError(data.error ?? "That scan did not work."));
+      track("scan", {
+        host: hostOf(target),
+        deep: useDeep,
+        assets: data.assets.length,
+        ms: data.ms,
+        partial: !!data.partial,
+      });
       setResult(data as ScanResult);
       setRanDeep(useDeep);
       setShown(48);
@@ -309,6 +336,7 @@ export default function Home() {
       // Abandoning on purpose is not a failure, and saying "Something went
       // wrong" to someone who just pressed Cancel is a lie.
       if (e instanceof DOMException && e.name === "AbortError") return;
+      track("scan_failed", { host: hostOf(target), deep: useDeep });
       setError(
         e instanceof Error
           ? humaniseScanError(e.message)
@@ -396,6 +424,7 @@ export default function Home() {
 
   async function runDownload(list: Asset[], asZip: boolean) {
     if (!list.length || busy) return;
+    track("download", { files: list.length, zip: asZip, kind: tab });
     setBusy(true);
     setToast(null);
 

@@ -5,7 +5,7 @@ import { SITE } from "@/lib/site";
 export const metadata: Metadata = {
   title: `Privacy · ${SITE.name}`,
   description:
-    "What pagehaul collects, what it does not, and how long anything is kept. There are no accounts, no analytics and no advertising.",
+    "What pagehaul collects, what it does not, and how long anything is kept. There are no accounts and no advertising; analytics shows us how the site is used.",
 };
 
 export default function PrivacyPage() {
@@ -13,19 +13,26 @@ export default function PrivacyPage() {
     <PageShell
       eyebrow="Privacy"
       title="What we collect, and what we do not."
-      lede="Short, because there is not much to say. There are no accounts, no analytics, no advertising and no tracking cookies."
+      lede="Short, because there is not much to say. There are no accounts and no advertising; we run analytics so we can see how the site is used and where it fails."
       updated={SITE.legalUpdated}
     >
-      <Clause n="01" title="What we do not collect">
+      <Clause n="01" title="Analytics, and what it sees">
         <p>
           No account is required to use {SITE.name}, so we hold no name, email
-          address or password. We run no analytics, no advertising and no
-          third-party tracking scripts on this site.
+          address or password. There is no advertising, and nothing about you is
+          sold to anyone.
         </p>
         <p>
-          We set no tracking cookies. The only thing stored in your browser is
-          your choice of light or dark theme, kept in local storage on your own
-          device. It never reaches us and you can clear it at any time.
+          We use PostHog for product analytics: pages visited, buttons pressed,
+          and session replays showing how the interface behaved. A replay
+          captures the {SITE.name} interface as you saw it — including the
+          results of a scan on your screen. We use this to find what is broken
+          and what is confusing, and for nothing else.
+        </p>
+        <p>
+          Beyond that, your browser keeps your theme choice and your recent
+          scans in local storage, on your own device. Those never reach us and
+          you can clear them at any time.
         </p>
       </Clause>
 
@@ -64,10 +71,11 @@ export default function PrivacyPage() {
 
       <Clause n="04" title="Services we rely on">
         <p>
-          The site is hosted on Vercel and finished archives are stored briefly on
-          Cloudflare R2. Both process requests on our behalf and will see the
-          usual technical information any web request carries, including IP
-          address, as part of serving and protecting the service.
+          The site is hosted on Vercel, finished archives are stored briefly on
+          Cloudflare R2, and analytics is processed by PostHog. Each processes
+          requests on our behalf and will see the usual technical information
+          any web request carries, including IP address, as part of serving and
+          protecting the service.
         </p>
         <p>
           When you scan a page, your browser and our server both make requests to
