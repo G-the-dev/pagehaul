@@ -161,7 +161,9 @@ export function Section({
     // defer-paint lets the browser skip styling and painting a section it
     // cannot see. Every one of these sits below the fold on arrival.
     <section id={id} className={`defer-paint relative ${className}`}>
-      <div className={`relative mx-auto ${max} px-6 py-28 sm:px-8 sm:py-36`}>
+      {/* Roomy on a desktop, tighter on a phone — 112px of air between
+          sections read as emptiness on a screen four sections tall. */}
+      <div className={`relative mx-auto ${max} px-6 py-16 sm:px-8 sm:py-36`}>
         {children}
       </div>
     </section>

@@ -139,25 +139,28 @@ export function Hero({
             reverse on the wrap from the last word back to the first, because
             the first was sitting above rather than below.
 
-            The invisible copies share the same grid cell purely to hold the
-            slot at the width of the longest word, so the headline never
-            reflows mid rotation.
+            The slot is sized by an invisible copy of the CURRENT word, not the
+            longest one. Holding the widest word's width was fine while the
+            words were all close in length; "3D asset" joined and every shorter
+            word sat in a slot twice its size, with the gap to show for it.
+            The layout animation glides the width between words instead.
           */}
           {/* The clip window has to sit a descender's depth below the
               baseline, or a rotating word ending in g/p/y loses its tail to
               overflow-hidden. The padding opens that room; the matching
               negative margin keeps the line box the same height, so nothing
               reflows. */}
-          <span className="relative inline-grid overflow-hidden align-baseline pb-[0.14em] -mb-[0.14em]">
-            {words.map((w) => (
-              <span
-                key={w}
-                aria-hidden
-                className="invisible col-start-1 row-start-1 whitespace-nowrap font-semibold"
-              >
-                {w}
-              </span>
-            ))}
+          <motion.span
+            layout
+            transition={{ duration: 0.45, ease: EASE }}
+            className="relative inline-grid overflow-hidden align-baseline pb-[0.14em] -mb-[0.14em]"
+          >
+            <span
+              aria-hidden
+              className="invisible col-start-1 row-start-1 whitespace-nowrap font-semibold"
+            >
+              {words[index]}
+            </span>
             <AnimatePresence mode="popLayout" initial={false}>
               <motion.span
                 key={index}
@@ -170,7 +173,7 @@ export function Hero({
                 {words[index]}
               </motion.span>
             </AnimatePresence>
-          </span>{" "}
+          </motion.span>{" "}
           on any page.
         </motion.h1>
 

@@ -144,6 +144,19 @@ export default function Home() {
    */
   const [barResizing, setBarResizing] = useState(false);
 
+  /**
+   * True once the page has been scrolled meaningfully. The phone's banner
+   * makes its case at the top and then gets out of the way — while reading,
+   * only the nav deserves the pixels.
+   */
+  const [scrolled, setScrolled] = useState(false);
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 48);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
   useEffect(() => {
     setBarResizing(true);
     const t = setTimeout(() => setBarResizing(false), 460);
@@ -547,14 +560,22 @@ export default function Home() {
       {/* Phones get the honest recommendation, loudly, and nobody else sees
           it: the desktop version is where previews and per-file browsing
           live, and pretending otherwise helps no one. Tablets cope fine. */}
-      <div className="fixed inset-x-0 top-0 z-[60] sm:hidden">
+      <div
+        className={`fixed inset-x-0 top-0 z-[60] transition-transform duration-300 sm:hidden ${
+          scrolled ? "-translate-y-full" : ""
+        }`}
+      >
         <p className="bg-accent px-4 py-2.5 text-center text-[12.5px] font-semibold leading-snug text-accent-fg">
           You&apos;re on the pocket version — open pagehaul on a desktop for
           full previews and every asset.
         </p>
       </div>
 
-      <header className="pointer-events-none fixed inset-x-0 top-0 z-50 flex justify-center px-4 pt-16 sm:pt-6">
+      <header
+        className={`pointer-events-none fixed inset-x-0 top-0 z-50 flex justify-center px-4 transition-[padding] duration-300 sm:pt-6 ${
+          scrolled ? "pt-3" : "pt-16"
+        }`}
+      >
         {/* Full width on the phone — brand left, controls right — and the
             centred floating pill everywhere else. */}
         <nav className="keep-blur pointer-events-auto flex w-full items-center gap-1.5 rounded-full border border-border bg-surface/70 py-2 pl-4 pr-1.5 backdrop-blur-md sm:w-auto sm:pl-6 sm:pr-2">
@@ -615,9 +636,10 @@ export default function Home() {
         // row clear of the floating nav (and, on a phone, the banner too)
         // instead of sliding the first line of results underneath them.
         <section ref={resultsRef} className="relative scroll-mt-36 sm:scroll-mt-24">
-          {/* Wider on a genuinely wide screen: 1400px centred on a 1920
-              display left a quarter of it empty either side. */}
-          <div className="mx-auto max-w-[1400px] px-6 py-10 2xl:max-w-[1800px]">
+          {/* Wider on a genuinely wide screen — but not wall to wall. 1800px
+              on a 1920 display read as full-bleed; this keeps real margins
+              while still earning the seventh column. */}
+          <div className="mx-auto max-w-[1400px] px-6 py-10 2xl:max-w-[1680px] 2xl:px-10">
             <div className="mb-6 flex flex-wrap items-baseline justify-between gap-3">
               <h2 className="text-[1.6rem] font-medium tracking-tight">
                 {counts.all}{" "}
