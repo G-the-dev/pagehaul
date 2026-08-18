@@ -52,8 +52,12 @@ const SCROLL_BUDGET_MS = 20_000;
  * plain-text error page, and the caller receives something that is not even
  * JSON. Stopping early and returning a partial result is strictly better than
  * being stopped and returning nothing.
+ *
+ * Sized to hold the screenshot pass as well as the gathering: at 45 seconds a
+ * heavy page spent everything on the scroll and the mining, and the captures
+ * were squeezed out silently. Still well inside the route's per-pass deadline.
  */
-const TOTAL_BUDGET_MS = 45_000;
+const TOTAL_BUDGET_MS = 52_000;
 /** Screens with no new height and no new media before we call it the end. */
 const SCROLL_QUIET_STEPS = 3;
 
@@ -1096,6 +1100,117 @@ export async function deepScan(
     );
     await safeEval(() => withTimeout(page.evaluate("window.scrollTo(0, 0)"), 3_000), null);
 
+    // ---- screenshots -----------------------------------------------------
+    // Taken as soon as the page has been walked, ahead of the payload mining
+    // and the late design read. Those reads are each guarded and incremental,
+    // but they spend freely, and on a heavy page a pass placed after them
+    // found the budget already gone — stripe.com came back with every file
+    // and not one capture. The captures are wrapped in safeEval like every
+    // other page operation, so a shot that dies costs the shots alone. See
+    // the SHOT_* constants for what this is and why it is budgeted.
+    const screenshots: Asset[] = [];
+    if (timeLeft() > 12_000) {
+      // Drop to 1x for the captures. Layout is CSS-px identical, so nothing
+      // moves; the raster Chromium has to hold for a beyond-viewport shot
+      // halves, which is what keeps a long page from pushing a serverless
+      // browser over its memory edge. Media reads are all done by now, so the
+      // retina srcset picks the 2x viewport existed for are already recorded.
+      const viewOk = await safeEval<boolean>(
+        () =>
+          page
+            .setViewport({ width: 1512, height: 950, deviceScaleFactor: 1 })
+            .then(() => true),
+        false,
+      );
+      if (viewOk) {
+        await new Promise((r) => setTimeout(r, 400));
+
+        const plan = await safeEval<{
+          docHeight: number;
+          viewportWidth: number;
+          sections: { x: number; y: number; w: number; h: number; label: string }[];
+        }>(
+          () => withTimeout(page.evaluate(READ_SHOT_PLAN), 8_000),
+          { docHeight: 0, viewportWidth: 0, sections: [] },
+          700,
+          "shotPlan",
+        );
+
+        let shotChars = 0;
+        const capture = async (
+          clip: { x: number; y: number; width: number; height: number },
+          label: string,
+        ): Promise<boolean> => {
+          // The floor here is what the payload mining and the audio checks
+          // behind this pass need — the captures must not starve them.
+          if (shotChars > SHOT_BUDGET_CHARS || timeLeft() < 8_000) return false;
+          const b64 = await safeEval<string>(
+            () =>
+              withTimeout(
+                page.screenshot({
+                  type: "jpeg",
+                  quality: SHOT_JPEG_QUALITY,
+                  encoding: "base64",
+                  captureBeyondViewport: true,
+                  clip,
+                }) as Promise<string>,
+                9_000,
+              ),
+            "",
+            700,
+            "screenshot",
+          );
+          if (!b64) return false;
+          shotChars += b64.length;
+          screenshots.push({
+            id: idOf(`shot:${screenshots.length}:${label}`),
+            url: `data:image/jpeg;base64,${b64}`,
+            kind: "screenshot",
+            format: "JPG",
+            name: label,
+            displayName: "",
+            alt: label,
+            width: Math.round(clip.width),
+            height: Math.round(clip.height),
+            bytes: Math.round(b64.length * 0.75),
+            fromPage: target.toString(),
+            origin: "first-party",
+            inline: true,
+          });
+          return true;
+        };
+
+        if (plan.docHeight > 0) {
+          await capture(
+            {
+              x: 0,
+              y: 0,
+              width: plan.viewportWidth || 1512,
+              height: Math.min(plan.docHeight, SHOT_MAX_FULL_HEIGHT),
+            },
+            "Full page",
+          );
+          let missed = Math.max(0, plan.sections.length - SHOT_MAX_SECTIONS);
+          for (const s of plan.sections.slice(0, SHOT_MAX_SECTIONS)) {
+            const ok = await capture({ x: s.x, y: s.y, width: s.w, height: s.h }, s.label);
+            if (!ok) missed++;
+          }
+          if (screenshots.length > 0 && missed > 0) {
+            notes.push(
+              `${missed} section${missed === 1 ? "" : "s"} went unscreenshotted — the page ran past the scan's screenshot budget.`,
+            );
+          }
+        }
+      }
+    }
+    // Silence would read as "this page has no sections". Say what happened.
+    if (screenshots.length === 0) {
+      notes.push(
+        "No screenshot could be taken — the page either used up the scan's time or would not hold still for a capture.",
+      );
+    }
+
+
     // Mine the rendered document as well as the network.
     //
     // A server-rendered app ships its data inside the page: __NEXT_DATA__, a
@@ -1239,104 +1354,6 @@ export async function deepScan(
         kind: EXT_KIND[ext] ?? "image",
         format: (ext || "img").toUpperCase(),
       });
-    }
-
-    // ---- screenshots -----------------------------------------------------
-    // Taken last, once every read is in hand, so a capture that kills a
-    // stressed browser costs only the shots and never the files. See the
-    // SHOT_* constants for what this is and why it is budgeted.
-    const screenshots: Asset[] = [];
-    if (timeLeft() > 10_000) {
-      // Drop to 1x for the captures. Layout is CSS-px identical, so nothing
-      // moves; the raster Chromium has to hold for a beyond-viewport shot
-      // halves, which is what keeps a long page from pushing a serverless
-      // browser over its memory edge. Media reads are all done by now, so the
-      // retina srcset picks the 2x viewport existed for are already recorded.
-      const viewOk = await safeEval<boolean>(
-        () =>
-          page
-            .setViewport({ width: 1512, height: 950, deviceScaleFactor: 1 })
-            .then(() => true),
-        false,
-      );
-      if (viewOk) {
-        await new Promise((r) => setTimeout(r, 400));
-
-        const plan = await safeEval<{
-          docHeight: number;
-          viewportWidth: number;
-          sections: { x: number; y: number; w: number; h: number; label: string }[];
-        }>(
-          () => withTimeout(page.evaluate(READ_SHOT_PLAN), 8_000),
-          { docHeight: 0, viewportWidth: 0, sections: [] },
-          700,
-          "shotPlan",
-        );
-
-        let shotChars = 0;
-        const capture = async (
-          clip: { x: number; y: number; width: number; height: number },
-          label: string,
-        ): Promise<boolean> => {
-          if (shotChars > SHOT_BUDGET_CHARS || timeLeft() < 6_000) return false;
-          const b64 = await safeEval<string>(
-            () =>
-              withTimeout(
-                page.screenshot({
-                  type: "jpeg",
-                  quality: SHOT_JPEG_QUALITY,
-                  encoding: "base64",
-                  captureBeyondViewport: true,
-                  clip,
-                }) as Promise<string>,
-                9_000,
-              ),
-            "",
-            700,
-            "screenshot",
-          );
-          if (!b64) return false;
-          shotChars += b64.length;
-          screenshots.push({
-            id: idOf(`shot:${screenshots.length}:${label}`),
-            url: `data:image/jpeg;base64,${b64}`,
-            kind: "screenshot",
-            format: "JPG",
-            name: label,
-            displayName: "",
-            alt: label,
-            width: Math.round(clip.width),
-            height: Math.round(clip.height),
-            bytes: Math.round(b64.length * 0.75),
-            fromPage: target.toString(),
-            origin: "first-party",
-            inline: true,
-          });
-          return true;
-        };
-
-        if (plan.docHeight > 0) {
-          await capture(
-            {
-              x: 0,
-              y: 0,
-              width: plan.viewportWidth || 1512,
-              height: Math.min(plan.docHeight, SHOT_MAX_FULL_HEIGHT),
-            },
-            "Full page",
-          );
-          let missed = Math.max(0, plan.sections.length - SHOT_MAX_SECTIONS);
-          for (const s of plan.sections.slice(0, SHOT_MAX_SECTIONS)) {
-            const ok = await capture({ x: s.x, y: s.y, width: s.w, height: s.h }, s.label);
-            if (!ok) missed++;
-          }
-          if (screenshots.length > 0 && missed > 0) {
-            notes.push(
-              `${missed} section${missed === 1 ? "" : "s"} went unscreenshotted — the page ran past the scan's screenshot budget.`,
-            );
-          }
-        }
-      }
     }
 
     const assets: Asset[] = [];
