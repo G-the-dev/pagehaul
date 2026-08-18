@@ -25,6 +25,7 @@ const OFFERED: AssetKind[] = [
   "video",
   "audio",
   "font",
+  "model",
   "document",
 ];
 

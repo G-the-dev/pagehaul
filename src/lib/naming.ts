@@ -175,6 +175,7 @@ const KIND_NOUN: Record<AssetKind, string> = {
   video: "Video",
   audio: "Audio",
   font: "Font",
+  model: "Model",
   document: "Document",
   code: "Script",
   data: "Data",

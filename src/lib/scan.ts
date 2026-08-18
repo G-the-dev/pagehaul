@@ -29,8 +29,8 @@ const EXT_KIND: Record<string, AssetKind> = {
   pdf: "document", doc: "document", docx: "document", xls: "document",
   xlsx: "document", ppt: "document", pptx: "document", txt: "document",
   rtf: "document", zip: "document", rar: "document",
-  // 3D models, since the headline promises them.
-  glb: "document", gltf: "document", usdz: "document",
+  // 3D models, in a kind of their own — a model is not a document.
+  glb: "model", gltf: "model", usdz: "model",
   css: "code", js: "code", mjs: "code", map: "code",
   json: "data", xml: "data", csv: "data", rss: "data", atom: "data",
 };
@@ -702,8 +702,8 @@ export async function scan(rawUrl: string, opts: ScanOptions = {}): Promise<Scan
 
   // Most useful first: real imagery before chrome, big before small.
   const KIND_RANK: Record<string, number> = {
-    image: 0, screenshot: 1, video: 2, svg: 3, font: 4, document: 5,
-    audio: 6, data: 7, code: 8,
+    image: 0, screenshot: 1, video: 2, svg: 3, model: 4, font: 5, document: 6,
+    audio: 7, data: 8, code: 9,
   };
   assets.sort((x, y) => {
     if (!!x.noise !== !!y.noise) return x.noise ? 1 : -1;

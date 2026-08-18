@@ -7,6 +7,8 @@ export type AssetKind =
   | "video"
   | "audio"
   | "font"
+  /** 3D models: glb, gltf, usdz. Their own kind — a model is not a document. */
+  | "model"
   | "document"
   | "code"
   | "data"
@@ -120,6 +122,7 @@ export const KIND_LABEL: Record<AssetKind, string> = {
   video: "Video",
   audio: "Audio",
   font: "Fonts",
+  model: "3D",
   document: "Documents",
   code: "Code",
   data: "Data",
@@ -133,6 +136,7 @@ export const KIND_ORDER: AssetKind[] = [
   "video",
   "audio",
   "font",
+  "model",
   "document",
   "data",
   "code",

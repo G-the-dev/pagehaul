@@ -72,9 +72,8 @@ const EXT_KIND: Record<string, AssetKind> = {
   pdf: "document", doc: "document", docx: "document", xls: "document",
   xlsx: "document", ppt: "document", pptx: "document", csv: "document",
   zip: "document", txt: "document",
-  // 3D models, since the headline promises them. They ride in the documents
-  // tab — few enough per page that a tab of their own would sit empty.
-  glb: "document", gltf: "document", usdz: "document",
+  // 3D models, in a kind of their own — a model is not a document.
+  glb: "model", gltf: "model", usdz: "model",
   js: "code", mjs: "code", cjs: "code", jsx: "code", ts: "code", tsx: "code",
   css: "code", map: "code",
   json: "data", xml: "data", rss: "data", atom: "data", wasm: "data",
@@ -87,6 +86,7 @@ const MIME_KIND: [RegExp, AssetKind][] = [
   [/^video\/|application\/(x-mpegurl|vnd\.apple\.mpegurl|dash\+xml)/, "video"],
   [/^audio\//, "audio"],
   [/^font\/|application\/(x-)?font|application\/vnd\.ms-fontobject/, "font"],
+  [/^model\//, "model"],
   [/^application\/pdf|officedocument|msword|ms-excel|ms-powerpoint|zip/, "document"],
   [/^(text|application)\/(javascript|ecmascript)|^text\/css/, "code"],
   [/^application\/(json|ld\+json)|^text\/xml|^application\/xml/, "data"],
@@ -1467,8 +1467,8 @@ export async function deepScan(
     assignDisplayNames(assets);
 
     const RANK: Record<string, number> = {
-      image: 0, screenshot: 1, video: 2, svg: 3, font: 4, document: 5,
-      audio: 6, api: 7, data: 8, code: 9,
+      image: 0, screenshot: 1, video: 2, svg: 3, model: 4, font: 5, document: 6,
+      audio: 7, api: 8, data: 9, code: 10,
     };
     assets.sort((x, y) => {
       if (!!x.noise !== !!y.noise) return x.noise ? 1 : -1;

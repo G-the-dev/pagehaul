@@ -76,6 +76,7 @@ const TABS: { id: Tab; label: string }[] = [
   { id: "video", label: "Video" },
   { id: "audio", label: "Audio" },
   { id: "font", label: "Fonts" },
+  { id: "model", label: "3D" },
   { id: "document", label: "Docs" },
   { id: "api", label: "Network" },
   { id: "code", label: "Code" },
@@ -554,7 +555,9 @@ export default function Home() {
       </div>
 
       <header className="pointer-events-none fixed inset-x-0 top-0 z-50 flex justify-center px-4 pt-16 sm:pt-6">
-        <nav className="keep-blur pointer-events-auto flex items-center gap-1.5 rounded-full border border-border bg-surface/70 py-2 pl-4 pr-1.5 backdrop-blur-md sm:pl-6 sm:pr-2">
+        {/* Full width on the phone — brand left, controls right — and the
+            centred floating pill everywhere else. */}
+        <nav className="keep-blur pointer-events-auto flex w-full items-center gap-1.5 rounded-full border border-border bg-surface/70 py-2 pl-4 pr-1.5 backdrop-blur-md sm:w-auto sm:pl-6 sm:pr-2">
           <a
             href="#top"
             className="flex items-center gap-2 pr-4 text-[14px] font-semibold tracking-tight"
@@ -579,10 +582,10 @@ export default function Home() {
               {label}
             </a>
           ))}
-          <span className="ml-1.5">
+          <span className="ml-auto flex items-center gap-1.5 sm:ml-1.5">
             <ThemeToggle />
+            <GithubNote />
           </span>
-          <GithubNote />
         </nav>
       </header>
 

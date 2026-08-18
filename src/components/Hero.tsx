@@ -209,9 +209,13 @@ export function Hero({
               placeholder="stripe.com"
               aria-label="Website link"
               disabled={scanning}
+              // sm:flex-1, never flex-1: on the phone this container stacks as
+              // a column, and a flex-basis of 0% on the column's main axis
+              // overrides h-12 entirely — the box collapsed to its text
+              // height, 23px, while the button beside it stood at 48.
               // text-base below sm: iOS zooms the whole page into any input
               // whose text is under 16px, which reads as the layout jumping.
-              className={`h-12 flex-1 rounded-lg border bg-surface/80 px-4 text-base backdrop-blur-md outline-none transition-colors placeholder:text-muted-foreground disabled:opacity-60 sm:text-[15px] ${
+              className={`h-12 rounded-lg border bg-surface/80 px-4 text-base backdrop-blur-md outline-none transition-colors placeholder:text-muted-foreground disabled:opacity-60 sm:flex-1 sm:text-[15px] ${
                 inputError ? "border-danger/60" : "border-border focus:border-border-strong"
               }`}
             />

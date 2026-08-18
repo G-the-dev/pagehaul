@@ -60,8 +60,8 @@ export function mergeScans(deep: ScanResult, quick: ScanResult): ScanResult {
   assignDisplayNames(assets);
 
   const RANK: Record<string, number> = {
-    image: 0, screenshot: 1, video: 2, svg: 3, font: 4, document: 5,
-    audio: 6, api: 7, data: 8, code: 9,
+    image: 0, screenshot: 1, video: 2, svg: 3, model: 4, font: 5, document: 6,
+    audio: 7, api: 8, data: 9, code: 10,
   };
   assets.sort((x, y) => {
     if (!!x.noise !== !!y.noise) return x.noise ? 1 : -1;
