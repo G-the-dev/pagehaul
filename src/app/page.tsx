@@ -315,12 +315,18 @@ export default function Home() {
         );
       }
       if (!res.ok) throw new Error(humaniseScanError(data.error ?? "That scan did not work."));
+      // The full address as well as the host: the privacy policy already
+      // discloses recording submitted addresses, and "what do people scan"
+      // is the first product question analytics exists to answer. The notes
+      // ride along so a thin result explains itself in the event stream too.
       track("scan", {
         host: hostOf(target),
+        url: target,
         deep: useDeep,
         assets: data.assets.length,
         ms: data.ms,
         partial: !!data.partial,
+        notes: data.notes.length ? data.notes : undefined,
       });
       setResult(data as ScanResult);
       setRanDeep(useDeep);
@@ -336,12 +342,15 @@ export default function Home() {
       // Abandoning on purpose is not a failure, and saying "Something went
       // wrong" to someone who just pressed Cancel is a lie.
       if (e instanceof DOMException && e.name === "AbortError") return;
-      track("scan_failed", { host: hostOf(target), deep: useDeep });
-      setError(
-        e instanceof Error
-          ? humaniseScanError(e.message)
-          : "Something went wrong.",
-      );
+      const message =
+        e instanceof Error ? humaniseScanError(e.message) : "Something went wrong.";
+      track("scan_failed", {
+        host: hostOf(target),
+        url: target,
+        deep: useDeep,
+        error: message,
+      });
+      setError(message);
       setResult(null);
     } finally {
       // A superseded scan must not clear the spinner belonging to the new one.
@@ -424,12 +433,21 @@ export default function Home() {
 
   async function runDownload(list: Asset[], asZip: boolean) {
     if (!list.length || busy) return;
-    track("download", { files: list.length, zip: asZip, kind: tab });
     setBusy(true);
     setToast(null);
 
     if (list.length === 1) {
       const out = await downloadOne(list[0]);
+      // The outcome, not the attempt: "downloads that failed" is the number
+      // that says whether the product works, and only the result knows it.
+      track("download", {
+        files: 1,
+        zip: false,
+        kind: list[0].kind,
+        format: list[0].format,
+        added: out.ok ? 1 : 0,
+        failed: out.ok ? 0 : 1,
+      });
       if (out.ok) {
         say(named(list[0], "Downloaded"));
       } else {
@@ -455,6 +473,14 @@ export default function Home() {
         ? await downloadAsZip(list, `${host}-assets`, setProgress)
         : await downloadEachSeparately(list, setProgress);
 
+      track("download", {
+        files: list.length,
+        zip: asZip,
+        kind: tab,
+        added: out.added,
+        failed: out.failed.length,
+      });
+
       if (out.failed.length === 0)
         say(
           asZip
@@ -469,6 +495,13 @@ export default function Home() {
           "partial",
         );
     } catch {
+      track("download", {
+        files: list.length,
+        zip: asZip,
+        kind: tab,
+        added: 0,
+        failed: list.length,
+      });
       say("The download could not be completed.", "failed");
     } finally {
       setBusy(false);
