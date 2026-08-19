@@ -29,8 +29,16 @@ export type Browser = Awaited<ReturnType<typeof rawLaunch>>;
  */
 let sharedBrowser: Promise<Browser> | null = null;
 
-/** Scans allowed to drive the browser at once; the rest wait their turn. */
-const MAX_CONCURRENT_SCANS = 3;
+/**
+ * Scans allowed to drive the browser at once; the rest wait their turn.
+ *
+ * Two, not three: a serverless CPU renders every open page at once, and
+ * with three heavy scans sharing it, all three ran starved — lean probes
+ * tripping, screenshots timing out, walls hit. Two at full speed finish
+ * sooner than three at a crawl, and the queue is fair because the route
+ * only starts a scan's clock once it holds a slot.
+ */
+const MAX_CONCURRENT_SCANS = 2;
 let running = 0;
 const waiting: (() => void)[] = [];
 
@@ -48,6 +56,15 @@ export async function acquireSlot(): Promise<void> {
 export function releaseSlot(): void {
   running--;
   waiting.shift()?.();
+}
+
+/**
+ * How many scans hold a slot right now. A scan that has company on the CPU
+ * runs everything slower through no fault of the page's, and budgets tuned
+ * for a solo browser misjudge it — this lets them scale to the crowd.
+ */
+export function busySlots(): number {
+  return running;
 }
 
 /**

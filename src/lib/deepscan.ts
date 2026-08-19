@@ -8,7 +8,7 @@ import type {
 import { assignDisplayNames } from "./naming";
 import { groupVariants } from "./variants";
 import { assertPublicHttpUrl } from "./scan";
-import { acquireSlot, releaseSlot, newScanPage } from "./browser";
+import { newScanPage, busySlots } from "./browser";
 
 /**
  * Deep scan drives a real browser and records every response it receives, then
@@ -622,11 +622,10 @@ export async function deepScan(
   /** Set when the page interrupted us, so a thin result explains itself. */
   let renderNote = "";
 
-  // A slot first, then the shared browser, then a private context inside it.
-  // The context is what gets closed at the end; the browser stays warm for
-  // whoever scans next.
-  await acquireSlot();
-  scanTrace.push("slot ok");
+  // The caller holds the browser slot — acquired before this scan's clock
+  // started, so time spent queued behind another scan never counts against
+  // this one's own budget. The page context is what gets closed at the end;
+  // the browser stays warm for whoever scans next.
   let scanPage: Awaited<ReturnType<typeof newScanPage>> | null = null;
   try {
     const page = await newScanPage();
@@ -1254,8 +1253,30 @@ export async function deepScan(
     // A pegged page gets a token window only: software-rastering a WebGL
     // monster for screenshots spent twenty seconds returning nothing, and
     // those seconds are the difference between answering and the wall.
-    const SHOT_SLICE_MS = pegged ? 8_000 : process.env.VERCEL ? 28_000 : 15_000;
-    const SHOT_EACH_MS = process.env.VERCEL ? 12_000 : 9_000;
+    // A scan with company doubles every capture's cost — two pages rastering
+    // on one CPU — so a crowded browser earns a wider window and more patience
+    // per shot. This never touches the wall: the window below is still clamped
+    // to the pass deadline, so the extra patience only spends time the scan
+    // actually has.
+    const crowded = busySlots() >= 2;
+    const SHOT_SLICE_MS = pegged
+      ? crowded
+        ? 16_000
+        : 8_000
+      : process.env.VERCEL
+        ? crowded
+          ? 50_000
+          : 28_000
+        : crowded
+          ? 30_000
+          : 15_000;
+    const SHOT_EACH_MS = process.env.VERCEL
+      ? crowded
+        ? 20_000
+        : 12_000
+      : crowded
+        ? 16_000
+        : 9_000;
     const shotWindow = Math.min(deadline - 8_000, Date.now() + SHOT_SLICE_MS);
     const shotTime = () => shotWindow - Date.now();
     if (shotTime() > 6_000) {
@@ -1359,6 +1380,50 @@ export async function deepScan(
             );
           }
         }
+      }
+    }
+    // Last resort: nothing landed — the planned captures timed out, or the
+    // clock left no room to plan any. A plain viewport shot asks the renderer
+    // only for the raster it is already holding, which even a pegged WebGL
+    // page hands over in a couple of seconds, and one honest view of the top
+    // beats "no screenshot could be taken".
+    if (screenshots.length === 0) {
+      await safeEval<void>(
+        () => withTimeout(page.evaluate("scrollTo(0,0)") as Promise<void>, 1_500),
+        undefined,
+      );
+      await new Promise((r) => setTimeout(r, 300));
+      const vp = page.viewport();
+      const b64 = await safeEval<string>(
+        () =>
+          withTimeout(
+            page.screenshot({
+              type: "jpeg",
+              quality: SHOT_JPEG_QUALITY,
+              encoding: "base64",
+            }) as Promise<string>,
+            6_000,
+          ),
+        "",
+        700,
+        "viewportShot",
+      );
+      if (b64) {
+        screenshots.push({
+          id: idOf("shot:0:viewport"),
+          url: `data:image/jpeg;base64,${b64}`,
+          kind: "screenshot",
+          format: "JPG",
+          name: "Top of the page",
+          displayName: "",
+          alt: "Top of the page",
+          width: vp?.width ?? 1280,
+          height: vp?.height ?? 800,
+          bytes: Math.round(b64.length * 0.75),
+          fromPage: target.toString(),
+          origin: "first-party",
+          inline: true,
+        });
       }
     }
     console.log(
@@ -1679,6 +1744,5 @@ export async function deepScan(
       scanPage?.close().catch(() => {}),
       new Promise((r) => setTimeout(r, 2_000)),
     ]);
-    releaseSlot();
   }
 }

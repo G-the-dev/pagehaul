@@ -2,11 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { scan } from "@/lib/scan";
 import { deepScan, getScanTrace } from "@/lib/deepscan";
 import { mergeScans } from "@/lib/merge";
+import { acquireSlot, releaseSlot } from "@/lib/browser";
 import type { ScanResult } from "@/lib/types";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-export const maxDuration = 120;
+export const maxDuration = 300;
 
 /**
  * Recently finished scans, so asking for the same page twice is instant.
@@ -125,14 +126,15 @@ export async function POST(req: NextRequest) {
       const target = normalise(body.url);
       const startedAt = Date.now();
 
-      // A hard wall on the whole deep scan. The platform kills a function at
-      // 120 seconds, and the caller then receives nothing — not even the files
-      // already found. A page heavy enough to run that long is exactly where
-      // someone still wants what was collected, so the work is bounded well
-      // inside that limit: one deep pass runs to a deadline, a further pass runs
-      // only when it clearly fits, and if anything overruns the wall the static
-      // read answers instead. The outcome is always a result, never a timeout.
-      const WALL_MS = 88_000;
+      // A hard wall on the whole deep scan, well inside the platform's own
+      // kill. The wall is long enough to cover waiting for a browser slot
+      // AND a full scan: several tabs scanning at once queue behind a
+      // two-slot browser, and a queued scan that was judged by a clock that
+      // started before its turn came back gutted every time. The clock now
+      // starts when the slot is held; the wall covers the whole visit; and
+      // if anything overruns it, the static read answers instead. The
+      // outcome is always a result, never a timeout.
+      const WALL_MS = 150_000;
       const wall = startedAt + WALL_MS;
       const remaining = () => wall - Date.now();
       // Each deep pass returns with headroom under the wall — enough for the
@@ -149,6 +151,10 @@ export async function POST(req: NextRequest) {
       );
 
       const deepFlow = (async (): Promise<typeof result | null> => {
+        // One slot for the whole visit, retries included — held before any
+        // pass clock starts, so queue time is never billed to the scan.
+        await acquireSlot();
+        try {
         // First pass, bounded so it returns well before the wall.
         let deep = await deepScan(target, { deadline: passDeadline() }).catch(
           (e) => {
@@ -206,6 +212,9 @@ export async function POST(req: NextRequest) {
           };
         }
         return null;
+        } finally {
+          releaseSlot();
+        }
       })();
 
       // The wall itself: if the deep work has not answered by now, hand back the
