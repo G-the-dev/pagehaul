@@ -118,8 +118,12 @@ export async function POST(req: NextRequest) {
           },
         );
 
-        // Failed outright — try once more, but only if a whole pass still fits.
-        if (!deep && remaining() > 50_000) {
+        // Failed outright — try once more when a useful pass still fits. The
+        // bar sits lower than a full pass on purpose: a heavy WebGL site can
+        // kill the first attempt's browser outright, and forty seconds of
+        // lean retry recovers the models and media that load early, which
+        // beats handing the static read's shell back untried.
+        if (!deep && remaining() > 40_000) {
           deep = await deepScan(target, { deadline: passDeadline() }).catch(
             () => null,
           );

@@ -822,6 +822,17 @@ export async function deepScan(
       console.log(
         `[deepscan] main thread pegged (probe ${Date.now() - probeStart}ms); running lean`,
       );
+      // Retina was for srcset picks, and those are already made. From here
+      // the 2x viewport only means the renderer rasterises four times the
+      // pixels per frame — on serverless hardware that is software-drawn
+      // WebGL, and it is exactly what buries the browser under a heavy
+      // scene. Drop to 1x and a smaller stage; the page's own loading is
+      // what we are keeping alive.
+      await safeEval(
+        () =>
+          page.setViewport({ width: 1280, height: 800, deviceScaleFactor: 1 }),
+        null,
+      );
     }
 
     // Only now, having looked, decide whether the interruption actually cost
