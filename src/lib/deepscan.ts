@@ -1264,8 +1264,8 @@ export async function deepScan(
     const SHOT_SLICE_MS = pegged
       ? process.env.VERCEL
         ? crowded
-          ? 35_000
-          : 25_000
+          ? 40_000
+          : 30_000
         : crowded
           ? 16_000
           : 8_000
