@@ -163,6 +163,21 @@ export function Footer() {
               <p className="max-w-[26ch] text-[13.5px] leading-relaxed text-muted-foreground">
                 Every asset on any page, one click away.
               </p>
+              {/* Directory badge — kept quiet on purpose: dimmed until
+                  hovered, sized by the badge itself. The rel value is what
+                  their verifier looks for; leave it as issued. */}
+              <a
+                href="https://maidensail.com/startup/pagehaul"
+                rel="dofollow"
+                className="mt-5 inline-block opacity-60 transition-opacity hover:opacity-100"
+              >
+                <img
+                  src="https://maidensail.com/badge/pagehaul.svg"
+                  alt="Featured on Maidensail"
+                  height={36}
+                  className="h-9 w-auto"
+                />
+              </a>
             </div>
 
             <div>
