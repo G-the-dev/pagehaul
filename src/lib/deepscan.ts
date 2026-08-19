@@ -1279,6 +1279,9 @@ export async function deepScan(
         : 9_000;
     const shotWindow = Math.min(deadline - 8_000, Date.now() + SHOT_SLICE_MS);
     const shotTime = () => shotWindow - Date.now();
+    mark(
+      `shots: window=${(shotTime() / 1000).toFixed(1)}s crowded=${crowded} pegged=${pegged}`,
+    );
     if (shotTime() > 6_000) {
       // Drop to 1x for the captures. Layout is CSS-px identical, so nothing
       // moves; the raster Chromium has to hold for a beyond-viewport shot
@@ -1292,6 +1295,7 @@ export async function deepScan(
             .then(() => true),
         false,
       );
+      mark(`shots: viewOk=${viewOk}`);
       if (viewOk) {
         await new Promise((r) => setTimeout(r, 400));
 
@@ -1330,6 +1334,7 @@ export async function deepScan(
             700,
             "screenshot",
           );
+          mark(`shot ${label}: ${b64 ? "ok" : "fail"}`);
           if (!b64) return false;
           shotChars += b64.length;
           screenshots.push({
@@ -1350,6 +1355,9 @@ export async function deepScan(
           return true;
         };
 
+        mark(
+          `shots: plan docHeight=${plan.docHeight} sections=${plan.sections.length}`,
+        );
         if (plan.docHeight > 0) {
           // Sections first, full page last. The tall capture is the one that
           // can take a constrained renderer down with it, so the small shots
@@ -1394,20 +1402,24 @@ export async function deepScan(
       );
       await new Promise((r) => setTimeout(r, 300));
       const vp = page.viewport();
-      const b64 = await safeEval<string>(
-        () =>
-          withTimeout(
-            page.screenshot({
-              type: "jpeg",
-              quality: SHOT_JPEG_QUALITY,
-              encoding: "base64",
-            }) as Promise<string>,
-            6_000,
-          ),
-        "",
-        700,
-        "viewportShot",
-      );
+      let b64 = "";
+      try {
+        b64 = (await withTimeout(
+          page.screenshot({
+            type: "jpeg",
+            quality: SHOT_JPEG_QUALITY,
+            encoding: "base64",
+          }) as Promise<string>,
+          // A serverless renderer composites in software; the raster it is
+          // holding still takes seconds to encode there.
+          process.env.VERCEL ? 12_000 : 6_000,
+        )) as string;
+        mark("fallback shot: ok");
+      } catch (e) {
+        mark(
+          `fallback shot: ${(e instanceof Error ? e.message : String(e)).slice(0, 80)}`,
+        );
+      }
       if (b64) {
         screenshots.push({
           id: idOf("shot:0:viewport"),

@@ -225,7 +225,13 @@ export async function POST(req: NextRequest) {
       const raced = await Promise.race([deepFlow, wallGuard]);
 
       if (raced && raced !== "wall") {
-        result = raced;
+        // The trace rides along on every deep result, not just walled ones —
+        // the platform's logs are the one place it cannot be read from, and
+        // "the scan finished but a phase quietly failed" is exactly the case
+        // that needs diagnosing. The UI never shows it.
+        result = { ...raced, debug: getScanTrace() } as typeof raced & {
+          debug: string[];
+        };
       } else {
         const quick = await quickPromise;
         if (!quick) throw new Error("That page could not be read in time.");
