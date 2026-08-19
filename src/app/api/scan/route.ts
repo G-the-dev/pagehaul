@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { scan } from "@/lib/scan";
-import { deepScan } from "@/lib/deepscan";
+import { deepScan, getScanTrace } from "@/lib/deepscan";
 import { mergeScans } from "@/lib/merge";
 
 export const runtime = "nodejs";
@@ -188,7 +188,11 @@ export async function POST(req: NextRequest) {
             "This page was too heavy to finish a deep scan within the time limit, so these are the files declared in its markup. A quick scan is instant, and a deep scan may finish on a second try.",
           ],
           partial: true,
-        };
+          // Where the deep pass actually got to before the wall — carried in
+          // the payload because the platform's own logs are the one place
+          // this cannot be read from. The UI never shows it.
+          debug: getScanTrace(),
+        } as typeof quick & { debug: string[] };
       }
     } else {
       result = await scan(normalise(body.url), {

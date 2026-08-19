@@ -590,11 +590,25 @@ interface Seen {
   preview?: string;
 }
 
+/**
+ * Breadcrumbs from the most recent scan on this instance, for diagnosing a
+ * pass that dies where logs cannot be read. Coarse and overwritten per scan;
+ * two concurrent scans interleave, which is fine for what this is.
+ */
+let scanTrace: string[] = [];
+export function getScanTrace(): string[] {
+  return [...scanTrace];
+}
+
 export async function deepScan(
   rawUrl: string,
   opts: { deadline?: number } = {},
 ): Promise<ScanResult> {
   const started = Date.now();
+  scanTrace = [];
+  const mark = (s: string) =>
+    scanTrace.push(`${((Date.now() - started) / 1000).toFixed(1)}s ${s}`);
+  mark("start");
   // A wall the scan will not cross, whatever is left undone: at it, the scan
   // stops gathering and returns what it holds. The route sets it so a page too
   // heavy to finish yields its collected files as a partial result, rather than
@@ -612,9 +626,11 @@ export async function deepScan(
   // The context is what gets closed at the end; the browser stays warm for
   // whoever scans next.
   await acquireSlot();
+  scanTrace.push("slot ok");
   let scanPage: Awaited<ReturnType<typeof newScanPage>> | null = null;
   try {
     const page = await newScanPage();
+    mark("page");
     scanPage = page;
     await page.setViewport({ width: 1512, height: 950, deviceScaleFactor: 2 });
     // Say who we actually are, minus the word "Headless".
@@ -783,6 +799,7 @@ export async function deepScan(
       }
     });
 
+    mark("nav-begin");
     let navHiccup = false;
     try {
       await page.goto(target.toString(), {
@@ -805,6 +822,7 @@ export async function deepScan(
     await page
       .waitForNetworkIdle({ idleTime: 900, timeout: IDLE_TIMEOUT_MS })
       .catch(() => {});
+    mark("nav-done");
     if (navHiccup) await new Promise((r) => setTimeout(r, 1_200));
 
     // One cheap probe decides the page's temperament. A WebGL site can peg
@@ -813,6 +831,7 @@ export async function deepScan(
     // log, which needs no cooperation from the page, carries the real haul.
     // Measure once; on a pegged page spend evaluate time like it is scarce,
     // because it is.
+    mark("probe-begin");
     const probeStart = Date.now();
     await safeEval(() => withTimeout(page.evaluate("1"), 4_000), null);
     const pegged = Date.now() - probeStart > 1_500;
@@ -1102,6 +1121,7 @@ export async function deepScan(
     // pegged page it is also the least likely to finish — the DOM there is
     // usually a shell around a canvas, with little palette worth walking
     // four thousand elements for. Lean runs keep the cheap token read only.
+    mark(pegged ? "lean" : "design-begin");
     let earlyDesign = pegged ? EMPTY_PAGE_DATA : await readDesign();
     let earlyTokens = await readTokensNow();
     console.log(
@@ -1148,6 +1168,7 @@ export async function deepScan(
     // A pegged page rarely honours a synthetic scroll at all — scroll-jacked
     // WebGL sites drive their own camera — so the pass there is short: a few
     // tries, tight timeouts, and the network log carries the rest.
+    mark("scroll-begin");
     const scrollDeadline = Math.min(
       Date.now() + (pegged ? 8_000 : SCROLL_BUDGET_MS),
       started + TOTAL_BUDGET_MS,
@@ -1177,6 +1198,7 @@ export async function deepScan(
       }
     }
 
+    mark("scroll-done");
     // Everything past this point is optional polish, so it only happens if
     // there is time for it.
     const timeLeft = () =>
@@ -1214,6 +1236,7 @@ export async function deepScan(
     // captures are wrapped in safeEval like every other page operation, so a
     // shot that dies costs the shots alone. See the SHOT_* constants for
     // what this is and why it is budgeted.
+    mark("shots-begin");
     const screenshots: Asset[] = [];
     // A serverless CPU rasters slowly — the same section that captures in two
     // seconds on a laptop can need ten there — so the window and the patience
@@ -1340,6 +1363,7 @@ export async function deepScan(
     }
 
 
+    mark("shots-done");
     // Mine the rendered document as well as the network.
     //
     // A server-rendered app ships its data inside the page: __NEXT_DATA__, a
@@ -1386,6 +1410,7 @@ export async function deepScan(
     // against the page it belongs to, and ask the origin whether it is real.
     // Verification is skipped when the wall is close — a candidate listed
     // unchecked beats a scan that overran and returned nothing.
+    mark("mine-done");
     if (audioFromCode.size) {
       let baseHref = target.toString();
       try {
@@ -1487,6 +1512,7 @@ export async function deepScan(
       });
     }
 
+    mark("build");
     const assets: Asset[] = [];
     for (const s of found.values()) {
       const d = meta.get(s.url);
