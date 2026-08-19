@@ -1250,19 +1250,25 @@ export async function deepScan(
     // seconds on a laptop can need ten there — so the window and the patience
     // per shot both grow where the browser is serverless. The route's wall
     // still holds either way.
-    // A pegged page gets a token window only: software-rastering a WebGL
-    // monster for screenshots spent twenty seconds returning nothing, and
-    // those seconds are the difference between answering and the wall.
+    // A pegged page keeps a tighter window — its captures are the slowest
+    // and the likeliest to return nothing — but on serverless it still gets
+    // a real one: a WebGL page under a software compositor needs fifteen to
+    // twenty seconds to hand over a single raster, and an eight-second token
+    // meant every such page shipped with no screenshot at all.
     // A scan with company doubles every capture's cost — two pages rastering
     // on one CPU — so a crowded browser earns a wider window and more patience
-    // per shot. This never touches the wall: the window below is still clamped
-    // to the pass deadline, so the extra patience only spends time the scan
-    // actually has.
+    // per shot. None of this touches the wall: the window below is still
+    // clamped to the pass deadline, so the extra patience only spends time
+    // the scan actually has.
     const crowded = busySlots() >= 2;
     const SHOT_SLICE_MS = pegged
-      ? crowded
-        ? 16_000
-        : 8_000
+      ? process.env.VERCEL
+        ? crowded
+          ? 35_000
+          : 25_000
+        : crowded
+          ? 16_000
+          : 8_000
       : process.env.VERCEL
         ? crowded
           ? 50_000
@@ -1271,7 +1277,7 @@ export async function deepScan(
           ? 30_000
           : 15_000;
     const SHOT_EACH_MS = process.env.VERCEL
-      ? crowded
+      ? pegged || crowded
         ? 20_000
         : 12_000
       : crowded
@@ -1359,10 +1365,24 @@ export async function deepScan(
           `shots: plan docHeight=${plan.docHeight} sections=${plan.sections.length}`,
         );
         if (plan.docHeight > 0) {
-          // Sections first, full page last. The tall capture is the one that
+          const fullHeight = Math.min(
+            plan.docHeight,
+            process.env.VERCEL ? SHOT_MAX_FULL_HEIGHT_SERVERLESS : SHOT_MAX_FULL_HEIGHT,
+          );
+          const takeFull = () =>
+            capture(
+              { x: 0, y: 0, width: plan.viewportWidth || 1512, height: fullHeight },
+              // A capped capture is the top of the page, and saying "full"
+              // about it would be a small lie told on every long page.
+              fullHeight < plan.docHeight ? "Top of the page" : "Full page",
+            );
+          // Sections first, full page last: the tall capture is the one that
           // can take a constrained renderer down with it, so the small shots
           // are banked before it is tried, and a slice of the byte budget is
           // held back so a section-rich page cannot spend the full shot's room.
+          // Except on a pegged page, where the window may hold one capture at
+          // most — that one should be the whole page, not the first section.
+          if (pegged) await takeFull();
           let missed = Math.max(0, plan.sections.length - SHOT_MAX_SECTIONS);
           for (const s of plan.sections.slice(0, SHOT_MAX_SECTIONS)) {
             const ok = await capture(
@@ -1372,16 +1392,7 @@ export async function deepScan(
             );
             if (!ok) missed++;
           }
-          const fullHeight = Math.min(
-            plan.docHeight,
-            process.env.VERCEL ? SHOT_MAX_FULL_HEIGHT_SERVERLESS : SHOT_MAX_FULL_HEIGHT,
-          );
-          await capture(
-            { x: 0, y: 0, width: plan.viewportWidth || 1512, height: fullHeight },
-            // A capped capture is the top of the page, and saying "full"
-            // about it would be a small lie told on every long page.
-            fullHeight < plan.docHeight ? "Top of the page" : "Full page",
-          );
+          if (!pegged) await takeFull();
           if (screenshots.length > 0 && missed > 0) {
             notes.push(
               `${missed} section${missed === 1 ? "" : "s"} went unscreenshotted — the page ran past the scan's screenshot budget.`,
@@ -1410,9 +1421,17 @@ export async function deepScan(
             quality: SHOT_JPEG_QUALITY,
             encoding: "base64",
           }) as Promise<string>,
-          // A serverless renderer composites in software; the raster it is
-          // holding still takes seconds to encode there.
-          process.env.VERCEL ? 12_000 : 6_000,
+          // A serverless renderer composites in software and takes fifteen
+          // seconds to hand over even the raster it holds — but never spend
+          // past the deadline's margin, so this last resort cannot be the
+          // thing that pushes the scan into the route's wall.
+          Math.max(
+            3_000,
+            Math.min(
+              process.env.VERCEL ? 20_000 : 6_000,
+              deadline - Date.now() - 4_000,
+            ),
+          ),
         )) as string;
         mark("fallback shot: ok");
       } catch (e) {
