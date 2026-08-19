@@ -40,10 +40,12 @@ export function TileGrid({
   assets,
   onOpen,
   onMeasure,
+  onBlank,
 }: {
   assets: Asset[];
   onOpen: (a: Asset) => void;
   onMeasure: (id: string, w: number, h: number) => void;
+  onBlank?: (id: string) => void;
 }) {
   const listRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(0);
@@ -122,7 +124,13 @@ export function TileGrid({
               }}
             >
               {slice.map((a) => (
-                <Cell key={a.id} asset={a} onOpen={onOpen} onMeasure={onMeasure} />
+                <Cell
+                  key={a.id}
+                  asset={a}
+                  onOpen={onOpen}
+                  onMeasure={onMeasure}
+                  onBlank={onBlank}
+                />
               ))}
             </div>
           );
@@ -143,10 +151,12 @@ const Cell = memo(function Cell({
   asset,
   onOpen,
   onMeasure,
+  onBlank,
 }: {
   asset: Asset;
   onOpen: (a: Asset) => void;
   onMeasure: (id: string, w: number, h: number) => void;
+  onBlank?: (id: string) => void;
 }) {
   const open = useCallback(() => onOpen(asset), [onOpen, asset]);
   return (
@@ -157,6 +167,7 @@ const Cell = memo(function Cell({
         selectable={false}
         onToggle={open}
         onMeasure={onMeasure}
+        onBlank={onBlank}
       />
     </div>
   );

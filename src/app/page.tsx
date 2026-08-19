@@ -19,7 +19,13 @@ import { MobileHaul } from "@/components/MobileHaul";
 import dynamic from "next/dynamic";
 import { track } from "@/lib/analytics";
 import { startFaviconSpin, stopFaviconSpin } from "@/lib/scan-favicon";
-import { preloadModelViewer } from "@/components/ModelPreview";
+import {
+  ModelPreview,
+  modelRenderable,
+  preloadModelViewer,
+} from "@/components/ModelPreview";
+import { cachedModelPoster, saveModelPoster } from "@/lib/model-thumbs";
+import { thumbnailUrl } from "@/lib/variants";
 
 /** The host alone — what was scanned, never the whole address. */
 function hostOf(raw: string): string | undefined {
@@ -92,6 +98,20 @@ export default function Home() {
   const [result, setResult] = useState<ScanResult | null>(null);
   const [tab, setTab] = useState<Tab>("all");
   const [measured, setMeasured] = useState<Record<string, { w: number; h: number }>>({});
+  /**
+   * Files whose thumbnail loaded and turned out to be one flat colour — a
+   * placeholder JPEG, an empty vector. They reclassify as noise the moment
+   * the pixels give them away, the same way a measured 1x1 pixel does.
+   */
+  const [blankIds, setBlankIds] = useState<Set<string>>(new Set());
+  const onBlank = useCallback((id: string) => {
+    setBlankIds((prev) => {
+      if (prev.has(id)) return prev;
+      const next = new Set(prev);
+      next.add(id);
+      return next;
+    });
+  }, []);
   const [progress, setProgress] = useState<ZipProgress | null>(null);
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState<ToastMessage | null>(null);
@@ -202,14 +222,22 @@ export default function Home() {
     if (!result) return [];
     return result.assets.map((a) => {
       const m = measured[a.id];
-      if (!m || a.width) return a;
+      const blank = blankIds.has(a.id);
+      if ((!m || a.width) && !blank) return a;
       // A file the server could not size can still measure 1x1 the moment
       // its tile loads — a tracking pixel, drawn as a blank card until now.
-      // It reclassifies itself as noise as soon as it is known.
-      const noise = a.noise || (m.w <= 2 && m.h <= 2) || undefined;
-      return { ...a, width: m.w, height: m.h, noise };
+      // It reclassifies itself as noise as soon as it is known; a thumbnail
+      // that loads as one flat colour does the same.
+      const noise =
+        a.noise || blank || (m && !a.width && m.w <= 2 && m.h <= 2) || undefined;
+      return {
+        ...a,
+        width: a.width ?? m?.w,
+        height: a.height ?? m?.h,
+        noise,
+      };
     });
-  }, [result, measured]);
+  }, [result, measured, blankIds]);
 
   /**
    * The same picture at nine sizes is one picture. A CDN serving 236, 474 and
@@ -298,6 +326,7 @@ export default function Home() {
     // A dissolve queued for the old results must not fire on the new ones.
     expiryWaitRef.current?.();
     expiryWaitRef.current = null;
+    setBlankIds(new Set());
     // The tab's own title reports progress, so someone who does switch away
     // has a reason to come back.
     document.title = `scanning ${hostOf(target) ?? "the page"}… · pagehaul`;
@@ -405,6 +434,41 @@ export default function Home() {
     if (result?.assets.some((a) => a.kind === "model")) {
       void preloadModelViewer();
     }
+  }, [result]);
+
+  // Warm the tabs nobody has opened yet. The visible grid loads eagerly on
+  // its own; this quietly fetches the thumbnails and video posters of the
+  // rest during idle time, capped, so switching tabs meets pictures instead
+  // of a wall of grey. Low priority — a scan the person is actively reading
+  // always outranks a tab they might visit.
+  useEffect(() => {
+    if (!result) return;
+    const idle =
+      "requestIdleCallback" in window
+        ? (cb: () => void) =>
+            (window as Window & { requestIdleCallback: (cb: () => void) => number })
+              .requestIdleCallback(cb)
+        : (cb: () => void) => window.setTimeout(cb, 1200);
+    idle(() => {
+      let budget = 60;
+      for (const a of result.assets) {
+        if (budget <= 0) break;
+        if (a.noise || a.inline || a.isLargest === false) continue;
+        let src: string | null = null;
+        if (a.kind === "image") {
+          const base = a.thumbUrl ?? thumbnailUrl(a.url) ?? a.url;
+          src = `/_next/image?url=${encodeURIComponent(base)}&w=420&q=70`;
+        } else if (a.kind === "video" && !a.poster) {
+          src = `/api/poster?url=${encodeURIComponent(a.url)}`;
+        } else {
+          continue;
+        }
+        const img = new window.Image();
+        img.fetchPriority = "low";
+        img.src = src;
+        budget--;
+      }
+    });
   }, [result]);
 
   // While a scan runs, the favicon's tiles slide clockwise around the gap —
@@ -837,6 +901,7 @@ export default function Home() {
                 assets={visible.slice(0, shown)}
                 onOpen={setExpanded}
                 onMeasure={onMeasure}
+                onBlank={onBlank}
               />
             )}
 
@@ -1017,8 +1082,61 @@ export default function Home() {
 
       <PixelDissolve active={expiring} onDone={finishExpiry} />
 
+      {/* Renders each model once, offscreen, the moment results land — the
+          poster is captured before anyone reaches the 3D tab, so the tab
+          opens onto pictures instead of loading cubes. */}
+      {result && <ModelWarmer assets={result.assets} />}
+
       <Toast message={toast} onDismiss={hush} />
     </main>
+  );
+}
+
+/**
+ * Renders models offscreen so their posters exist before anyone asks.
+ *
+ * Each renderable model without a cached poster gets one hidden render;
+ * the captured frame goes into the poster cache and the hidden viewer
+ * unmounts. Capped, because every render is a WebGL context.
+ */
+function ModelWarmer({ assets }: { assets: Asset[] }) {
+  const [done, setDone] = useState<Set<string>>(new Set());
+  const targets = assets
+    .filter(
+      (a) =>
+        a.kind === "model" &&
+        modelRenderable(a.url) &&
+        !cachedModelPoster(a.id) &&
+        !done.has(a.id),
+    )
+    .slice(0, 3);
+  if (targets.length === 0) return null;
+
+  const finish = (id: string) =>
+    setDone((prev) => {
+      const next = new Set(prev);
+      next.add(id);
+      return next;
+    });
+
+  return (
+    <div
+      aria-hidden
+      className="pointer-events-none fixed -left-[9999px] top-0 opacity-0"
+    >
+      {targets.map((t) => (
+        <div key={t.id} className="h-[280px] w-[280px]">
+          <ModelPreview
+            url={t.url}
+            onPoster={(d) => {
+              saveModelPoster(t.id, d);
+              finish(t.id);
+            }}
+            onFail={() => finish(t.id)}
+          />
+        </div>
+      ))}
+    </div>
   );
 }
 

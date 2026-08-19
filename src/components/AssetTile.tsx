@@ -16,6 +16,8 @@ interface Props {
   selected: boolean;
   onToggle: (id: string) => void;
   onMeasure: (id: string, w: number, h: number) => void;
+  /** The tile's image loaded and turned out to be one flat colour. */
+  onBlank?: (id: string) => void;
   /** Picker mode: click means select, so the preview affordance is hidden. */
   compact?: boolean;
   /** Results mode shows no checkbox — a click downloads instead. */
@@ -29,6 +31,48 @@ function cornerLabel(a: Asset): string | null {
 }
 
 /**
+ * True when a loaded image is one flat colour — a blank.
+ *
+ * Placeholder JPEGs and empty vector wrappers load successfully and render
+ * as nothing: a white rectangle wearing a real filename. Sampling a few
+ * pixels tells them apart from pictures. An image that mixes transparent
+ * and opaque pixels has a shape and is spared — a white logo on a
+ * transparent ground is a real logo, not a blank. A canvas the browser
+ * refuses to read back (cross-origin without CORS) proves nothing, so the
+ * file is kept.
+ */
+function looksBlank(el: HTMLImageElement): boolean {
+  try {
+    const S = 12;
+    const c = document.createElement("canvas");
+    c.width = S;
+    c.height = S;
+    const ctx = c.getContext("2d", { willReadFrequently: true });
+    if (!ctx) return false;
+    ctx.drawImage(el, 0, 0, S, S);
+    const d = ctx.getImageData(0, 0, S, S).data;
+    let opaque = 0;
+    let transparent = 0;
+    let rMin = 255, rMax = 0, gMin = 255, gMax = 0, bMin = 255, bMax = 0;
+    for (let i = 0; i < d.length; i += 4) {
+      if (d[i + 3] < 8) {
+        transparent++;
+        continue;
+      }
+      opaque++;
+      rMin = Math.min(rMin, d[i]); rMax = Math.max(rMax, d[i]);
+      gMin = Math.min(gMin, d[i + 1]); gMax = Math.max(gMax, d[i + 1]);
+      bMin = Math.min(bMin, d[i + 2]); bMax = Math.max(bMax, d[i + 2]);
+    }
+    if (opaque === 0) return true; // nothing visible at all
+    if (transparent > 0) return false; // has a silhouette — a real shape
+    return rMax - rMin + (gMax - gMin) + (bMax - bMin) < 24; // one flat colour
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Memoised because the virtualiser re-renders the row list on every scroll
  * step, and a tile whose asset has not changed has nothing to redo. The
  * callbacks it receives are stable, so the comparison actually holds.
@@ -38,6 +82,7 @@ export const AssetTile = memo(function AssetTile({
   selected,
   onToggle,
   onMeasure,
+  onBlank,
   compact,
   selectable = true,
 }: Props) {
@@ -201,6 +246,16 @@ export const AssetTile = memo(function AssetTile({
                 // is how a 1200px original ends up labelled 236x314.
                 if (el.naturalWidth && previewSrc === asset.url) {
                   onMeasure(asset.id, el.naturalWidth, el.naturalHeight);
+                }
+                // Loaded is not the same as showing something. A placeholder
+                // JPEG or an empty vector renders as a flat rectangle wearing
+                // a real filename; the pixels are the only honest witness.
+                if (
+                  onBlank &&
+                  (asset.kind === "image" || asset.kind === "svg") &&
+                  looksBlank(el)
+                ) {
+                  onBlank(asset.id);
                 }
               }}
               className={

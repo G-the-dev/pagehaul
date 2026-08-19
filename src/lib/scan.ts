@@ -470,6 +470,26 @@ async function scanOnePage(
     // Skip trivial one-path icons that are almost always decorative chrome.
     const markup = $.html($el);
     if (!markup || markup.length < 120) return;
+
+    // Only keep an svg that can draw something on its own. A sprite
+    // reference — <use href="#icon"> pointing at a symbol defined elsewhere
+    // in the page — serialises into a file that renders nothing, and a
+    // defs-only container (clip paths, gradients, filters) is plumbing, not
+    // a picture. Pages ship dozens of both, and every one used to become an
+    // empty card called "Inline Svg N".
+    const withoutDefs = markup.replace(/<defs[\s\S]*?<\/defs>/gi, "");
+    const drawsDirectly =
+      /<(path|rect|circle|ellipse|line|polyline|polygon|text|image)\b/i.test(
+        withoutDefs,
+      );
+    const uses = [...markup.matchAll(/<use\b[^>]*href="#?([^"]+)"/gi)].map(
+      (m) => m[1],
+    );
+    const idsInside = new Set(
+      [...markup.matchAll(/\bid="([^"]+)"/g)].map((m) => m[1]),
+    );
+    const resolvableUse = uses.some((u) => idsInside.has(u));
+    if (!drawsDirectly && !resolvableUse) return;
     const withNs = markup.includes("xmlns=")
       ? markup
       : markup.replace("<svg", '<svg xmlns="http://www.w3.org/2000/svg"');
