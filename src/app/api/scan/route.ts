@@ -134,7 +134,12 @@ export async function POST(req: NextRequest) {
       // starts when the slot is held; the wall covers the whole visit; and
       // if anything overruns it, the static read answers instead. The
       // outcome is always a result, never a timeout.
-      const WALL_MS = 150_000;
+      // Sized as queue plus one full pass with margin: behind a two-slot
+      // browser a fourth tab waits out a whole first wave (~70s) before its
+      // own 72-second pass begins, and a shorter wall re-billed that wait to
+      // the queued scan by clamping its pass deadline — which starved exactly
+      // the scans the queue was meant to protect.
+      const WALL_MS = 180_000;
       const wall = startedAt + WALL_MS;
       const remaining = () => wall - Date.now();
       // Each deep pass returns with headroom under the wall — enough for the

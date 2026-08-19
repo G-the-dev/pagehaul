@@ -1367,7 +1367,16 @@ export async function deepScan(
         if (plan.docHeight > 0) {
           const fullHeight = Math.min(
             plan.docHeight,
-            process.env.VERCEL ? SHOT_MAX_FULL_HEIGHT_SERVERLESS : SHOT_MAX_FULL_HEIGHT,
+            // A pegged page rasters so slowly that a tall capture never
+            // lands — eight thousand pixels of a WebGL monster burned its
+            // whole twenty seconds and returned nothing. Half the height
+            // is half the raster, and a top-of-page that arrives beats a
+            // full page that does not.
+            pegged
+              ? 4_000
+              : process.env.VERCEL
+                ? SHOT_MAX_FULL_HEIGHT_SERVERLESS
+                : SHOT_MAX_FULL_HEIGHT,
           );
           const takeFull = () =>
             capture(
