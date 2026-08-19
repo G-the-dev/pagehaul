@@ -69,7 +69,19 @@ export async function newScanPage() {
   for (let attempt = 0; ; attempt++) {
     const browser = await getBrowser();
     try {
-      return await browser.newPage();
+      // Raced against a clock, because a browser that died of memory can
+      // leave a socket that still reports connected — newPage against that
+      // corpse waits on the protocol timeout, which outlives every deadline
+      // a scan has, and one dead browser then walls every scan the instance
+      // serves until it recycles. Fifteen seconds is enough for any living
+      // browser to open a tab; past it, the corpse is discarded and a fresh
+      // launch gets one try.
+      return await Promise.race([
+        browser.newPage(),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error("newPage timed out")), 15_000),
+        ),
+      ]);
     } catch (e) {
       sharedBrowser = null;
       try {
@@ -125,6 +137,10 @@ async function rawLaunch() {
   if (process.env.VERCEL) {
     const chromium = (await import("@sparticuz/chromium")).default;
     return puppeteer.launch({
+      // Every CDP call answers inside this or fails. The default is three
+      // minutes, which is how a dying browser held scans hostage past every
+      // wall the route has.
+      protocolTimeout: 45_000,
       args: [
         ...chromium.args,
         "--hide-scrollbars",
@@ -145,6 +161,7 @@ async function rawLaunch() {
     executablePath:
       process.env.CHROME_PATH ||
       "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+    protocolTimeout: 45_000,
     headless: true,
     args: [
       "--no-sandbox",
