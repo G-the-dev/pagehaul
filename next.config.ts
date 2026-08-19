@@ -33,21 +33,13 @@ const nextConfig: NextConfig = {
     "/api/poster": ["./node_modules/@sparticuz/chromium/bin/**"],
   },
   images: {
-    // The scanner previews images from any site the user pastes, so the
-    // optimizer has to accept any https host. It fetches each thumbnail once,
-    // resizes it, re-encodes to WebP/AVIF, and serves it cached — which is
-    // what stops hundreds of raw cross-origin requests from hammering origins
-    // (the blank tiles) and what makes a scrolled-back tile instant instead of
-    // a fresh fetch.
-    remotePatterns: [{ protocol: "https", hostname: "**" }],
-    formats: ["image/webp"],
-    // Next 16 rejects any quality not listed here.
-    qualities: [70],
-    // A tile is ~200px; these are the widths we actually request.
-    imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
-    deviceSizes: [420, 640, 828],
-    // Cache an optimized thumbnail for a day at the edge.
-    minimumCacheTTL: 86400,
+    // The optimizer is off on purpose. A scanner's thumbnails are other
+    // sites' never-seen-before URLs, so nearly every one was a billable
+    // cache miss — the whole monthly transformation allowance disappeared
+    // into a few days of scanning. Tiles load straight from their origins;
+    // the smallest-known-variant selection and the browser's cache do the
+    // work the optimizer was doing, for free.
+    unoptimized: true,
   },
 };
 

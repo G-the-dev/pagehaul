@@ -483,8 +483,9 @@ export default function Home() {
         if (a.noise || a.inline || a.isLargest === false) continue;
         let src: string | null = null;
         if (a.kind === "image") {
-          const base = a.thumbUrl ?? thumbnailUrl(a.url) ?? a.url;
-          src = `/_next/image?url=${encodeURIComponent(base)}&w=420&q=70`;
+          // The same address the tile itself uses, so this warms the cache
+          // the grid will actually read from.
+          src = a.thumbUrl ?? thumbnailUrl(a.url) ?? a.url;
         } else if (a.kind === "video" && !a.poster) {
           src = `/api/poster?url=${encodeURIComponent(a.url)}`;
         } else {

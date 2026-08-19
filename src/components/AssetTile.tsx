@@ -145,20 +145,15 @@ export const AssetTile = memo(function AssetTile({
       alive = false;
     };
   }, [asset.kind, asset.id, asset.url, shotThumb]);
-  // Route raster thumbnails through the image optimizer, which fetches each one
-  // once, resizes it, and serves it cached. Direct cross-origin requests to
-  // hundreds of origins at once is what left tiles blank and reloaded them on
-  // every scroll. SVG is served direct (the optimizer refuses it and it is
-  // already tiny), and if the optimizer cannot fetch a host we fall back to the
-  // origin.
-  const [optFailed, setOptFailed] = useState(false);
-  const usingOptimizer = asset.kind === "image" && !optFailed;
+  // Raster thumbnails load straight from their origin. They went through the
+  // platform's image optimizer once, but a scanner's images are other sites'
+  // never-seen-before URLs — nearly every tile was a billable cache miss, and
+  // the optimizer's whole monthly allowance vanished into a few days of
+  // scanning. The smallest-known-variant choice above keeps requests modest,
+  // the browser's own cache carries scroll-back, and blank detection already
+  // fails open when a cross-origin canvas refuses to be read.
   const imgSrc =
-    asset.kind === "screenshot"
-      ? (shotThumb ?? asset.url)
-      : usingOptimizer
-        ? `/_next/image?url=${encodeURIComponent(previewSrc)}&w=420&q=70`
-        : previewSrc;
+    asset.kind === "screenshot" ? (shotThumb ?? asset.url) : previewSrc;
   // A frame we captured client-side on a previous mount (CORS videos), if any.
   const poster = asset.kind === "video" ? cachedPoster(asset.url) : undefined;
   // The server-captured poster for a video: a plain image that preloads and
@@ -246,11 +241,10 @@ export const AssetTile = memo(function AssetTile({
               loading="eager"
               decoding="async"
               onError={() => {
-                // Peel back one layer at a time: optimizer to origin, then a
-                // downscaled request the CDN would not honour to the address the
-                // page itself used, then give up to the placeholder.
-                if (usingOptimizer) setOptFailed(true);
-                else if (derived && !thumbRefused) setThumbRefused(true);
+                // Peel back one layer at a time: a downscaled request the CDN
+                // would not honour falls back to the address the page itself
+                // used, then give up to the placeholder.
+                if (derived && !thumbRefused) setThumbRefused(true);
                 else setFailed(true);
               }}
               onLoad={(e) => {

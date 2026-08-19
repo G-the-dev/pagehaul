@@ -77,15 +77,13 @@ export function DetailDialog({
     selDims || (asset.width && asset.height ? `${asset.width}x${asset.height}` : "n/a");
   const shownBytes = selected?.bytes ?? asset.bytes;
   // What the grid already showed for this file — the same address the tile
-  // used, which is the one actually in the browser's cache. The tile routes
-  // raster thumbnails through the image optimizer, so the raw thumbnail URL
-  // here would have been a fresh download wearing a "cached" comment.
+  // used, which is the one actually in the browser's cache.
   const previewThumb = (() => {
     if (asset.kind === "screenshot") return cachedShotThumb(asset.id) ?? null;
     const base = asset.thumbUrl ?? asset.poster ?? asset.url;
     const shown = asset.kind === "image" ? (thumbnailUrl(base) ?? base) : base;
     return asset.kind === "image"
-      ? `/_next/image?url=${encodeURIComponent(shown)}&w=420&q=70`
+      ? shown
       : (asset.thumbUrl ?? thumbnailUrl(asset.url));
   })();
   const panelRef = useRef<HTMLDivElement>(null);
