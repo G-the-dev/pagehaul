@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { scan } from "@/lib/scan";
 import { deepScan, getScanTrace } from "@/lib/deepscan";
 import { mergeScans } from "@/lib/merge";
+import type { ScanResult } from "@/lib/types";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -41,6 +42,44 @@ function cacheSet(key: string, body: string): void {
     const oldest = cache.keys().next().value;
     if (oldest === undefined) break;
     cache.delete(oldest);
+  }
+}
+
+/**
+ * What this instance has ever found at an address, so a rescan can only
+ * grow. A live page is a moving target — a carousel rotates, a lazy loader
+ * wins one race and loses the next — and two honest scans of the same
+ * address can disagree by a handful of files. People read that as the scan
+ * being broken, and their rule is the right one: more is fine, less is
+ * never. Each result is unioned with the last known set before it is
+ * returned. Held per instance and slim — screenshots are per-scan captures
+ * and stay out of it.
+ */
+const UNION_TTL_MS = 30 * 60_000;
+const UNION_MAX = 24;
+const lastKnown = new Map<string, { at: number; result: ScanResult }>();
+
+function priorFor(key: string): ScanResult | null {
+  const hit = lastKnown.get(key);
+  if (!hit) return null;
+  if (Date.now() - hit.at > UNION_TTL_MS) {
+    lastKnown.delete(key);
+    return null;
+  }
+  return hit.result;
+}
+
+function rememberUnion(key: string, result: ScanResult): void {
+  const slim: ScanResult = {
+    ...result,
+    assets: result.assets.filter((a) => a.kind !== "screenshot"),
+    notes: [],
+  };
+  lastKnown.set(key, { at: Date.now(), result: slim });
+  while (lastKnown.size > UNION_MAX) {
+    const oldest = lastKnown.keys().next().value;
+    if (oldest === undefined) break;
+    lastKnown.delete(oldest);
   }
 }
 
@@ -200,6 +239,13 @@ export async function POST(req: NextRequest) {
         maxPages: typeof body.maxPages === "number" ? body.maxPages : undefined,
       });
     }
+    // A rescan may only grow: union with everything this instance has found
+    // at the address before. The fresh scan wins every conflict; the prior
+    // contributes only the files the fresh pass happened to miss.
+    const prior = priorFor(cacheKey);
+    if (prior) result = mergeScans(result, prior);
+    rememberUnion(cacheKey, result);
+
     const payload = JSON.stringify(result);
     if (!result.partial) cacheSet(cacheKey, payload);
     return new NextResponse(payload, {

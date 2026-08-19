@@ -12,6 +12,7 @@ import { Toast, type ToastMessage, type ToastTone } from "@/components/Toast";
 import { Countdown } from "@/components/Countdown";
 import { SITE } from "@/lib/site";
 import { humaniseScanError } from "@/lib/url-input";
+import { mergeScans } from "@/lib/merge";
 import { addRecent, getRecent, removeRecent, type Recent } from "@/lib/recent";
 import { Features, Audience, Steps } from "@/components/Features";
 import { Mark } from "@/components/Mark";
@@ -132,6 +133,15 @@ export default function Home() {
   const heroRef = useRef<HTMLDivElement>(null);
   /** Lets a scan in flight be abandoned. A deep scan can run most of a minute. */
   const abortRef = useRef<AbortController | null>(null);
+  /**
+   * Everything this tab has ever found per site, so a rescan can only grow.
+   * A live page is a moving target and two honest scans can disagree by a
+   * few files; people rightly read "fewer than last time" as broken. Each
+   * fresh result is unioned with the tab's last known set for that host —
+   * the fresh scan wins conflicts, the prior only contributes what the
+   * fresh pass happened to miss. Screenshots stay per-scan.
+   */
+  const lastByHostRef = useRef<Map<string, ScanResult>>(new Map());
 
   // The addresses scanned before, from this browser's own storage. Loaded after
   // mount so the server render (which cannot see localStorage) stays the
@@ -362,7 +372,20 @@ export default function Home() {
     };
 
     try {
-      const data = await request(useDeep);
+      const fresh = await request(useDeep);
+      // A rescan may only grow — union with what this tab already knows.
+      const hostKey = hostOf(target) ?? target;
+      const prior = lastByHostRef.current.get(hostKey);
+      const data = prior ? mergeScans(fresh, prior) : fresh;
+      lastByHostRef.current.set(hostKey, {
+        ...data,
+        assets: data.assets.filter((a) => a.kind !== "screenshot"),
+        notes: [],
+      });
+      if (lastByHostRef.current.size > 4) {
+        const oldest = lastByHostRef.current.keys().next().value;
+        if (oldest !== undefined) lastByHostRef.current.delete(oldest);
+      }
       // The full address as well as the host: the privacy policy already
       // discloses recording submitted addresses, and "what do people scan"
       // is the first product question analytics exists to answer. The notes
@@ -372,9 +395,9 @@ export default function Home() {
         url: target,
         deep: useDeep,
         assets: data.assets.length,
-        ms: data.ms,
-        partial: !!data.partial,
-        notes: data.notes.length ? data.notes : undefined,
+        ms: fresh.ms,
+        partial: !!fresh.partial,
+        notes: fresh.notes.length ? fresh.notes : undefined,
       });
       setResult(data);
       setRanDeep(useDeep);

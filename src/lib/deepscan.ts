@@ -1182,7 +1182,12 @@ export async function deepScan(
     for (let i = 0; i < SCROLL_STEPS && Date.now() < scrollDeadline; i++) {
       const step = await safeEval<{ height: number; atBottom: boolean }>(
         () => withTimeout(page.evaluate(SCROLL_STEP), evalMs),
-        { height: lastHeight, atBottom: true },
+        // A timed-out step proves nothing. The old fallback claimed "at the
+        // bottom, nothing grew", so three slow answers in a row ended the
+        // scroll early and a flaky run returned fewer files than a lucky
+        // one — the same page, different counts. Height -1 marks it
+        // inconclusive instead.
+        { height: -1, atBottom: false },
       );
       const before = media.size;
       absorb(
@@ -1191,6 +1196,7 @@ export async function deepScan(
           [],
         ),
       );
+      if (step.height < 0) continue; // the page did not answer; judge nothing
 
       const grew = media.size > before || step.height !== lastHeight;
       lastHeight = step.height;
