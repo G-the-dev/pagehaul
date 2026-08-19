@@ -47,10 +47,27 @@ export function getRecent(): Recent[] {
   }
 }
 
+/**
+ * One site, one chip. "likova.space", "https://likova.space" and
+ * "likova.space/" are the same place three ways, and exact-string matching
+ * let all three stand in the row. The key is the normalised host and path.
+ */
+function keyFor(url: string): string {
+  try {
+    const u = new URL(/^https?:\/\//i.test(url) ? url : `https://${url}`);
+    const host = u.hostname.toLowerCase().replace(/^www\./, "");
+    const path = u.pathname.replace(/\/+$/, "");
+    return `${host}${path}`;
+  } catch {
+    return url.trim().toLowerCase();
+  }
+}
+
 /** Records a scanned address at the front of the list and returns the new list. */
 export function addRecent(url: string): Recent[] {
   const entry: Recent = { url, label: labelFor(url) };
-  const rest = getRecent().filter((r) => r.url !== url);
+  const key = keyFor(url);
+  const rest = getRecent().filter((r) => keyFor(r.url) !== key);
   const next = [entry, ...rest].slice(0, MAX);
   try {
     localStorage.setItem(KEY, JSON.stringify(next));

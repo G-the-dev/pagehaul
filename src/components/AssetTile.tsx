@@ -267,7 +267,13 @@ export const AssetTile = memo(function AssetTile({
                 // a real filename; the pixels are the only honest witness.
                 if (
                   onBlank &&
-                  (asset.kind === "image" || asset.kind === "svg") &&
+                  (asset.kind === "image" ||
+                    asset.kind === "svg" ||
+                    // Our own captures are not above suspicion: a section
+                    // that draws itself with WebGL or reveals on scroll can
+                    // photograph as a white rectangle, and a blank we made
+                    // is still a blank.
+                    asset.kind === "screenshot") &&
                   looksBlank(el)
                 ) {
                   onBlank(asset.id);

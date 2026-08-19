@@ -517,9 +517,14 @@ export default function Home() {
    */
   const beginExpiry = useCallback(() => {
     const scatter = () => {
-      setExpiring(true);
+      // The dissolve draws only the tiles on screen, and dust nobody sees
+      // explains nothing — so first put the grid in front of the person:
+      // back to the tab that has tiles, scrolled into view, then let go.
+      setTab("all");
       setExpanded(null);
       setPickerOpen(false);
+      resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      setTimeout(() => setExpiring(true), 700);
     };
     if (!document.hidden) {
       scatter();
