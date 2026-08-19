@@ -807,6 +807,23 @@ export async function deepScan(
       .catch(() => {});
     if (navHiccup) await new Promise((r) => setTimeout(r, 1_200));
 
+    // One cheap probe decides the page's temperament. A WebGL site can peg
+    // the main thread flat with its own render loop, and every evaluate we
+    // run after that crawls or burns its whole timeout — while the network
+    // log, which needs no cooperation from the page, carries the real haul.
+    // Measure once; on a pegged page spend evaluate time like it is scarce,
+    // because it is.
+    const probeStart = Date.now();
+    await safeEval(() => withTimeout(page.evaluate("1"), 4_000), null);
+    const pegged = Date.now() - probeStart > 1_500;
+    /** What a single page-side call may cost on this page. */
+    const evalMs = pegged ? 3_500 : 7_000;
+    if (pegged) {
+      console.log(
+        `[deepscan] main thread pegged (probe ${Date.now() - probeStart}ms); running lean`,
+      );
+    }
+
     // Only now, having looked, decide whether the interruption actually cost
     // anything. A page that came back with a rendered body is an ordinary load —
     // warning about it and hiding its files behind a "partial" flag is a false
@@ -1070,7 +1087,11 @@ export async function deepScan(
         4,
       );
 
-    let earlyDesign = await readDesign();
+    // The computed-style walk is the single most expensive read, and on a
+    // pegged page it is also the least likely to finish — the DOM there is
+    // usually a shell around a canvas, with little palette worth walking
+    // four thousand elements for. Lean runs keep the cheap token read only.
+    let earlyDesign = pegged ? EMPTY_PAGE_DATA : await readDesign();
     let earlyTokens = await readTokensNow();
     console.log(
       `[deepscan] early design: palette=${earlyDesign.palette.length} type=${earlyDesign.typography.length} tokens=${earlyDesign.tokens.length} liteTokens=${earlyTokens.length}`,
@@ -1088,7 +1109,7 @@ export async function deepScan(
       !earlyDesign.palette.length &&
       !earlyDesign.tokens.length &&
       !earlyTokens.length;
-    if (readsDead && Date.now() < deadline - 25_000) {
+    if (!pegged && readsDead && Date.now() < deadline - 25_000) {
       const landed = page.url();
       const renavOk = await safeEval<boolean>(
         () =>
@@ -1113,8 +1134,11 @@ export async function deepScan(
       }
     }
 
+    // A pegged page rarely honours a synthetic scroll at all — scroll-jacked
+    // WebGL sites drive their own camera — so the pass there is short: a few
+    // tries, tight timeouts, and the network log carries the rest.
     const scrollDeadline = Math.min(
-      Date.now() + SCROLL_BUDGET_MS,
+      Date.now() + (pegged ? 8_000 : SCROLL_BUDGET_MS),
       started + TOTAL_BUDGET_MS,
       deadline,
     );
@@ -1122,13 +1146,13 @@ export async function deepScan(
     let quiet = 0;
     for (let i = 0; i < SCROLL_STEPS && Date.now() < scrollDeadline; i++) {
       const step = await safeEval<{ height: number; atBottom: boolean }>(
-        () => withTimeout(page.evaluate(SCROLL_STEP), 7_000),
+        () => withTimeout(page.evaluate(SCROLL_STEP), evalMs),
         { height: lastHeight, atBottom: true },
       );
       const before = media.size;
       absorb(
         await safeEval<MediaRec[]>(
-          () => withTimeout(page.evaluate(COLLECT_MEDIA), 7_000),
+          () => withTimeout(page.evaluate(COLLECT_MEDIA), evalMs),
           [],
         ),
       );
@@ -1148,14 +1172,20 @@ export async function deepScan(
       Math.min(started + TOTAL_BUDGET_MS, deadline) - Date.now();
 
     if (timeLeft() > 10_000) {
-      await page
-        .waitForNetworkIdle({ idleTime: 800, timeout: 6000 })
-        .catch(() => {});
-      await new Promise((r) => setTimeout(r, SETTLE_MS));
+      if (pegged) {
+        // A pegged page never goes network-idle; waiting for it to is just
+        // paying the timeout. A short fixed breath catches the stragglers.
+        await new Promise((r) => setTimeout(r, 1_200));
+      } else {
+        await page
+          .waitForNetworkIdle({ idleTime: 800, timeout: 6000 })
+          .catch(() => {});
+        await new Promise((r) => setTimeout(r, SETTLE_MS));
+      }
     }
     absorb(
       await safeEval<MediaRec[]>(
-        () => withTimeout(page.evaluate(COLLECT_MEDIA), 7_000),
+        () => withTimeout(page.evaluate(COLLECT_MEDIA), evalMs),
         [],
       ),
     );
@@ -1405,7 +1435,9 @@ export async function deepScan(
     const haveEarly =
       earlyDesign.palette.length > 0 || earlyDesign.tokens.length > 0;
     const lateDesign =
-      !haveEarly && Date.now() < deadline - 8_000
+      // Never on a pegged page: the walk that was skipped early for being
+      // hopeless has not become hopeful since.
+      !pegged && !haveEarly && Date.now() < deadline - 8_000
         ? await readDesign()
         : EMPTY_PAGE_DATA;
     const pageData: PageData = {
