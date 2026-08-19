@@ -1294,16 +1294,22 @@ export async function deepScan(
       // halves, which is what keeps a long page from pushing a serverless
       // browser over its memory edge. Media reads are all done by now, so the
       // retina srcset picks the 2x viewport existed for are already recorded.
-      const viewOk = await safeEval<boolean>(
-        () =>
-          page
-            .setViewport({ width: 1512, height: 950, deviceScaleFactor: 1 })
-            .then(() => true),
-        false,
-      );
+      // A pegged page keeps the viewport lean mode already gave it — the
+      // switch to 1512 forces a relayout and repaint that cost ten seconds
+      // of a fifteen-second window on a page like this, for nothing but a
+      // slightly wider frame.
+      const viewOk = pegged
+        ? true
+        : await safeEval<boolean>(
+            () =>
+              page
+                .setViewport({ width: 1512, height: 950, deviceScaleFactor: 1 })
+                .then(() => true),
+            false,
+          );
       mark(`shots: viewOk=${viewOk}`);
       if (viewOk) {
-        await new Promise((r) => setTimeout(r, 400));
+        if (!pegged) await new Promise((r) => setTimeout(r, 400));
 
         const plan = await safeEval<{
           docHeight: number;
@@ -1431,11 +1437,13 @@ export async function deepScan(
             encoding: "base64",
           }) as Promise<string>,
           // A serverless renderer composites in software and takes fifteen
-          // seconds to hand over even the raster it holds — but never spend
-          // past the deadline's margin, so this last resort cannot be the
-          // thing that pushes the scan into the route's wall.
+          // seconds to hand over even the raster it holds, so the floor is
+          // real there even when the deadline is spent — the route's wall
+          // keeps a margin far wider than this, and one screenshot is worth
+          // a few seconds of overrun. The ceiling still yields to the
+          // deadline so a scan with time in hand is not slowed at all.
           Math.max(
-            3_000,
+            process.env.VERCEL ? 8_000 : 3_000,
             Math.min(
               process.env.VERCEL ? 20_000 : 6_000,
               deadline - Date.now() - 4_000,

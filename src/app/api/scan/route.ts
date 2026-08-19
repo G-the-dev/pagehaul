@@ -266,6 +266,14 @@ export async function POST(req: NextRequest) {
     if (prior) result = mergeScans(result, prior);
     rememberUnion(cacheKey, result);
 
+    // Two passes merged can carry one pass's "no screenshot could be taken"
+    // alongside the other pass's screenshot. The capture settles it.
+    if (result.assets.some((a) => a.kind === "screenshot")) {
+      result.notes = result.notes.filter(
+        (n) => !/no screenshot could be taken/i.test(n),
+      );
+    }
+
     const payload = JSON.stringify(result);
     if (!result.partial) cacheSet(cacheKey, payload);
     return new NextResponse(payload, {
