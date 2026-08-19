@@ -20,7 +20,17 @@ import { createElement, useEffect, useRef, useState } from "react";
 
 let loader: Promise<unknown> | null = null;
 export function preloadModelViewer(): Promise<unknown> {
-  loader ??= import("@google/model-viewer");
+  loader ??= import("@google/model-viewer").then((mod) => {
+    // Draco-compressed models — most production glTF is — need a decoder,
+    // and model-viewer fetches it from Google's CDN by default: one more
+    // external dependency to be blocked, filtered or slow. The decoder
+    // ships from our own origin instead, always.
+    const MV = (
+      mod as { ModelViewerElement?: { dracoDecoderLocation?: string } }
+    ).ModelViewerElement;
+    if (MV) MV.dracoDecoderLocation = "/draco/";
+    return mod;
+  });
   return loader;
 }
 
@@ -53,20 +63,39 @@ export function ModelPreview({
 }) {
   const ref = useRef<ModelViewerEl>(null);
   const [ready, setReady] = useState(false);
-  const [src, setSrc] = useState(url);
-  const triedRelay = useRef(false);
+  const [src, setSrc] = useState<string | null>(null);
 
   useEffect(() => {
     let alive = true;
-    preloadModelViewer().then(
-      () => alive && setReady(true),
+    // The file arrives as a local blob: fetched here (through the relay when
+    // the origin refuses CORS) and repaired on the way — material-less
+    // production glTF crashes the renderer otherwise.
+    Promise.all([
+      preloadModelViewer(),
+      import("@/lib/model-thumbs").then((m) => m.prepareModel(url)),
+    ]).then(
+      ([, prepared]) => {
+        if (!alive) {
+          URL.revokeObjectURL(prepared);
+          return;
+        }
+        setSrc(prepared);
+        setReady(true);
+      },
       () => alive && onFail?.(),
     );
     return () => {
       alive = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [url]);
+
+  // The blob outlives the element only until the element goes.
+  useEffect(() => {
+    return () => {
+      if (src?.startsWith("blob:")) URL.revokeObjectURL(src);
+    };
+  }, [src]);
 
   useEffect(() => {
     const el = ref.current;
@@ -92,16 +121,7 @@ export function ModelPreview({
         onProgress?.(detail.totalProgress);
       }
     };
-    const onError = () => {
-      if (!triedRelay.current) {
-        // The origin refused the browser's read. Our relay is not bound by
-        // CORS, and the preview arrives from our own origin instead.
-        triedRelay.current = true;
-        setSrc(`/api/download?url=${encodeURIComponent(url)}`);
-      } else {
-        onFail?.();
-      }
-    };
+    const onError = () => onFail?.();
     el.addEventListener("load", onLoad);
     el.addEventListener("progress", onProg);
     el.addEventListener("error", onError);
@@ -113,7 +133,7 @@ export function ModelPreview({
     };
   }, [ready, url, onPoster, onLoaded, onProgress, onFail]);
 
-  if (!ready) return null;
+  if (!ready || !src) return null;
 
   return createElement("model-viewer", {
     ref,

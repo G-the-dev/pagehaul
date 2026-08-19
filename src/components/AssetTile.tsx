@@ -6,8 +6,8 @@ import { Check } from "lucide-react";
 import { thumbnailUrl } from "@/lib/variants";
 import { cachedPoster, capturePoster } from "@/lib/frame-cache";
 import { cachedShotThumb, makeShotThumb } from "@/lib/shot-thumbs";
-import { cachedModelPoster, saveModelPoster } from "@/lib/model-thumbs";
-import { ModelLoading, ModelPreview, modelRenderable } from "./ModelPreview";
+import { cachedModelPoster, ensureModelPoster } from "@/lib/model-thumbs";
+import { ModelLoading, modelRenderable } from "./ModelPreview";
 import { formatBytes } from "@/lib/download";
 import { Tooltip } from "./ui/Tooltip";
 
@@ -168,13 +168,28 @@ export const AssetTile = memo(function AssetTile({
     asset.kind === "video" && !poster && !posterFailed
       ? `/api/poster?url=${encodeURIComponent(asset.url)}`
       : undefined;
-  // A model renders live exactly once. The first mount pays for the WebGL
-  // context and captures a frame; every remount after that shows the frame.
+  // A model tile never runs live 3D. It asks the render queue for a poster —
+  // one hidden render at a time, browser-wide, because a grid of viewers
+  // exhausts the WebGL context limit and the browser starts shooting the
+  // oldest — and shows the loading cube until its turn produces the frame.
   const [modelPoster, setModelPoster] = useState<string | undefined>(() =>
     asset.kind === "model" ? cachedModelPoster(asset.id) : undefined,
   );
   const [modelFailed, setModelFailed] = useState(false);
-  const [modelReady, setModelReady] = useState(false);
+  useEffect(() => {
+    if (asset.kind !== "model" || modelPoster || !modelRenderable(asset.url)) {
+      return;
+    }
+    let alive = true;
+    ensureModelPoster(asset.id, asset.url).then((p) => {
+      if (!alive) return;
+      if (p) setModelPoster(p);
+      else setModelFailed(true);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [asset.kind, asset.id, asset.url, modelPoster]);
 
   const corner = cornerLabel(asset);
   const showsImage =
@@ -336,24 +351,9 @@ export const AssetTile = memo(function AssetTile({
           ) : asset.kind === "model" &&
             modelRenderable(asset.url) &&
             !modelFailed ? (
-            <div className="relative h-full w-full">
-              {/* Something at once — a pulsing cube says "preview coming"
-                  while the engine and the model are still on their way. */}
-              {!modelReady && (
-                <div className="absolute inset-0">
-                  <ModelLoading label="loading preview" />
-                </div>
-              )}
-              <ModelPreview
-                url={asset.url}
-                onLoaded={() => setModelReady(true)}
-                onFail={() => setModelFailed(true)}
-                onPoster={(d) => {
-                  saveModelPoster(asset.id, d);
-                  setModelPoster(d);
-                }}
-              />
-            </div>
+            /* In the queue. The pulse says a preview is on its way; the
+               poster replaces it the moment this model's turn completes. */
+            <ModelLoading label="rendering preview" />
           ) : (
             <TypePlaceholder asset={asset} failed={failed} />
           )}

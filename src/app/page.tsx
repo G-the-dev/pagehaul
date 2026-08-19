@@ -19,12 +19,8 @@ import { MobileHaul } from "@/components/MobileHaul";
 import dynamic from "next/dynamic";
 import { track } from "@/lib/analytics";
 import { startFaviconSpin, stopFaviconSpin } from "@/lib/scan-favicon";
-import {
-  ModelPreview,
-  modelRenderable,
-  preloadModelViewer,
-} from "@/components/ModelPreview";
-import { cachedModelPoster, saveModelPoster } from "@/lib/model-thumbs";
+import { modelRenderable, preloadModelViewer } from "@/components/ModelPreview";
+import { ensureModelPoster } from "@/lib/model-thumbs";
 import { thumbnailUrl } from "@/lib/variants";
 
 /** The host alone — what was scanned, never the whole address. */
@@ -427,12 +423,20 @@ export default function Home() {
     document.title = BASE_TITLE;
   }, []);
 
-  // If the results hold a model, fetch the 3D engine now, while the person
-  // is still reading the grid. By the time they reach the 3D tab the chunk
-  // is cached, and the only wait left is the model itself.
+  // If the results hold models, start rendering their posters now, while
+  // the person is still reading the grid. The queue does one at a time —
+  // WebGL contexts are the scarce thing — so by the time the 3D tab is
+  // opened, the early ones are pictures and the rest are visibly on their
+  // way.
   useEffect(() => {
-    if (result?.assets.some((a) => a.kind === "model")) {
-      void preloadModelViewer();
+    if (!result) return;
+    const models = result.assets.filter(
+      (a) => a.kind === "model" && modelRenderable(a.url),
+    );
+    if (models.length === 0) return;
+    void preloadModelViewer();
+    for (const a of models.slice(0, 12)) {
+      void ensureModelPoster(a.id, a.url);
     }
   }, [result]);
 
@@ -1082,61 +1086,8 @@ export default function Home() {
 
       <PixelDissolve active={expiring} onDone={finishExpiry} />
 
-      {/* Renders each model once, offscreen, the moment results land — the
-          poster is captured before anyone reaches the 3D tab, so the tab
-          opens onto pictures instead of loading cubes. */}
-      {result && <ModelWarmer assets={result.assets} />}
-
       <Toast message={toast} onDismiss={hush} />
     </main>
-  );
-}
-
-/**
- * Renders models offscreen so their posters exist before anyone asks.
- *
- * Each renderable model without a cached poster gets one hidden render;
- * the captured frame goes into the poster cache and the hidden viewer
- * unmounts. Capped, because every render is a WebGL context.
- */
-function ModelWarmer({ assets }: { assets: Asset[] }) {
-  const [done, setDone] = useState<Set<string>>(new Set());
-  const targets = assets
-    .filter(
-      (a) =>
-        a.kind === "model" &&
-        modelRenderable(a.url) &&
-        !cachedModelPoster(a.id) &&
-        !done.has(a.id),
-    )
-    .slice(0, 3);
-  if (targets.length === 0) return null;
-
-  const finish = (id: string) =>
-    setDone((prev) => {
-      const next = new Set(prev);
-      next.add(id);
-      return next;
-    });
-
-  return (
-    <div
-      aria-hidden
-      className="pointer-events-none fixed -left-[9999px] top-0 opacity-0"
-    >
-      {targets.map((t) => (
-        <div key={t.id} className="h-[280px] w-[280px]">
-          <ModelPreview
-            url={t.url}
-            onPoster={(d) => {
-              saveModelPoster(t.id, d);
-              finish(t.id);
-            }}
-            onFail={() => finish(t.id)}
-          />
-        </div>
-      ))}
-    </div>
   );
 }
 
