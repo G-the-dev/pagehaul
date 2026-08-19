@@ -78,6 +78,20 @@ export function mergeScans(deep: ScanResult, quick: ScanResult): ScanResult {
   return {
     ...deep,
     assets,
+    // Design reads are skippable under time pressure, and a scan that
+    // skipped one must not erase what an earlier scan captured. Fuller wins.
+    palette:
+      (deep.palette?.length ?? 0) >= (quick.palette?.length ?? 0)
+        ? deep.palette
+        : quick.palette,
+    typography:
+      (deep.typography?.length ?? 0) >= (quick.typography?.length ?? 0)
+        ? deep.typography
+        : quick.typography,
+    tokens:
+      (deep.tokens?.length ?? 0) >= (quick.tokens?.length ?? 0)
+        ? deep.tokens
+        : quick.tokens,
     notes: [...new Set([...deep.notes, ...quickNotes])],
   };
 }

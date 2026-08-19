@@ -1123,8 +1123,15 @@ export async function deepScan(
     // pegged page it is also the least likely to finish — the DOM there is
     // usually a shell around a canvas, with little palette worth walking
     // four thousand elements for. Lean runs keep the cheap token read only.
-    mark(pegged ? "lean" : "design-begin");
-    let earlyDesign = pegged ? EMPTY_PAGE_DATA : await readDesign();
+    // A scan already running late skips it too: a contended page-open can
+    // eat fifteen seconds before the first read, and a fourteen-second
+    // style walk on top of that is what left screenshots a dead window.
+    // The late read near the end of the pass still fills design in when
+    // time allows.
+    const lateStart = deadline - Date.now() < 56_000;
+    mark(pegged ? "lean" : lateStart ? "design skipped: late start" : "design-begin");
+    let earlyDesign =
+      pegged || lateStart ? EMPTY_PAGE_DATA : await readDesign();
     let earlyTokens = await readTokensNow();
     console.log(
       `[deepscan] early design: palette=${earlyDesign.palette.length} type=${earlyDesign.typography.length} tokens=${earlyDesign.tokens.length} liteTokens=${earlyTokens.length}`,
@@ -1443,7 +1450,7 @@ export async function deepScan(
           // a few seconds of overrun. The ceiling still yields to the
           // deadline so a scan with time in hand is not slowed at all.
           Math.max(
-            process.env.VERCEL ? 8_000 : 3_000,
+            process.env.VERCEL ? 14_000 : 3_000,
             Math.min(
               process.env.VERCEL ? 20_000 : 6_000,
               deadline - Date.now() - 4_000,
