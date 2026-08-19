@@ -849,7 +849,10 @@ export async function deepScan(
       // what we are keeping alive.
       await safeEval(
         () =>
-          page.setViewport({ width: 1280, height: 800, deviceScaleFactor: 1 }),
+          withTimeout(
+            page.setViewport({ width: 1280, height: 800, deviceScaleFactor: 1 }),
+            5_000,
+          ),
         null,
       );
     }
@@ -1242,7 +1245,10 @@ export async function deepScan(
     // seconds on a laptop can need ten there — so the window and the patience
     // per shot both grow where the browser is serverless. The route's wall
     // still holds either way.
-    const SHOT_SLICE_MS = process.env.VERCEL ? 28_000 : 15_000;
+    // A pegged page gets a token window only: software-rastering a WebGL
+    // monster for screenshots spent twenty seconds returning nothing, and
+    // those seconds are the difference between answering and the wall.
+    const SHOT_SLICE_MS = pegged ? 8_000 : process.env.VERCEL ? 28_000 : 15_000;
     const SHOT_EACH_MS = process.env.VERCEL ? 12_000 : 9_000;
     const shotWindow = Math.min(deadline - 8_000, Date.now() + SHOT_SLICE_MS);
     const shotTime = () => shotWindow - Date.now();
@@ -1660,7 +1666,13 @@ export async function deepScan(
       partial: partial || undefined,
     };
   } finally {
-    await scanPage?.close().catch(() => {});
+    // Never wait on the close. A browser drowning under a heavy scene can
+    // take most of a minute to shut a tab, and a finally block that waits
+    // for it holds the finished result hostage past the wall.
+    await Promise.race([
+      scanPage?.close().catch(() => {}),
+      new Promise((r) => setTimeout(r, 2_000)),
+    ]);
     releaseSlot();
   }
 }
