@@ -1218,7 +1218,6 @@ export default function Home() {
         </section>
       )}
 
-      <HatchBand />
       <Features />
       <HatchBand />
       <Audience />

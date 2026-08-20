@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import { ArrowRight, Loader2 } from "lucide-react";
 import { EASE } from "./ui/motion-primitives";
 import { TryExamples } from "./TryExamples";
@@ -44,7 +44,7 @@ function HeroDither() {
       shape="warp"
       type="4x4"
       size={2}
-      speed={still ? 0 : 0.18}
+      speed={still ? 0 : 0.8}
       style={{ width: "100%", height: "100%" }}
     />
   );
@@ -116,19 +116,59 @@ export function Hero({
   // someone halfway through typing "stripe.c".
   const inputError = touched && url.trim() && !check.ok ? check.message : null;
 
-  const [index, setIndex] = useState(0);
   const words = useMemo(
     () => ["image", "icon", "video", "audio", "font", "3D asset"],
     [],
   );
-
+  // The word edits itself the way a person would: erase back to whatever
+  // the next word shares, then type the rest. The left of the sentence
+  // never moves, the selection frame never blinks out; it just follows
+  // the text as it shortens and grows.
+  const [word, setWord] = useState(words[0]);
+  const [editing, setEditing] = useState(false);
+  const reduceWord = useReducedMotion();
   useEffect(() => {
-    const t = setTimeout(
-      () => setIndex((n) => (n === words.length - 1 ? 0 : n + 1)),
-      2400,
-    );
-    return () => clearTimeout(t);
-  }, [index, words]);
+    if (reduceWord) return;
+    let cancelled = false;
+    let wi = 0;
+    const later = (fn: () => void, ms: number) =>
+      window.setTimeout(() => {
+        if (!cancelled) fn();
+      }, ms);
+    const change = () => {
+      const cur = words[wi];
+      wi = (wi + 1) % words.length;
+      const next = words[wi];
+      let keep = 0;
+      while (keep < cur.length && keep < next.length && cur[keep] === next[keep]) keep++;
+      let pos = cur.length;
+      setEditing(true);
+      const erase = () => {
+        if (pos > keep) {
+          pos -= 1;
+          setWord(cur.slice(0, pos));
+          later(erase, 45);
+        } else {
+          type();
+        }
+      };
+      const type = () => {
+        if (pos < next.length) {
+          pos += 1;
+          setWord(next.slice(0, pos));
+          later(type, 62);
+        } else {
+          setEditing(false);
+          later(change, 2500);
+        }
+      };
+      erase();
+    };
+    later(change, 2500);
+    return () => {
+      cancelled = true;
+    };
+  }, [reduceWord, words]);
 
   return (
     <section className="relative isolate flex min-h-[100svh] flex-col justify-center overflow-hidden">
@@ -142,17 +182,17 @@ export function Hero({
             "radial-gradient(ellipse 60% 55% at 50% -8%, rgb(var(--glow) / 0.055), transparent 72%)",
         }}
       />
-      {/* The brand as weather: an ordered-dither field drifting behind the
-          headline, the tile logo dissolved into pixels, masked out before
-          the copy has to fight it. */}
+      {/* The brand as weather: an ordered-dither field in slow motion over
+          the whole hero, the tile logo dissolved into pixels, fading out at
+          the bottom so the next section starts on clean ground. */}
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-x-0 top-0 h-[560px]"
+        className="pointer-events-none absolute inset-0"
         style={{
           maskImage:
-            "radial-gradient(ellipse 62% 64% at 50% 0%, #000 14%, transparent 74%)",
+            "linear-gradient(#000 0%, #000 72%, transparent 100%)",
           WebkitMaskImage:
-            "radial-gradient(ellipse 62% 64% at 50% 0%, #000 14%, transparent 74%)",
+            "linear-gradient(#000 0%, #000 72%, transparent 100%)",
         }}
       >
         <HeroDither />
@@ -188,29 +228,27 @@ export function Hero({
                 </span>
               ))}
               <span className="col-start-1 row-start-1 grid justify-items-start">
-                <AnimatePresence mode="wait" initial={false}>
-                  <motion.span
-                    key={index}
-                    initial={{ opacity: 0, filter: "blur(7px)" }}
-                    animate={{ opacity: 1, filter: "blur(0px)" }}
-                    exit={{ opacity: 0, filter: "blur(7px)" }}
-                    transition={{ duration: 0.32, ease: EASE }}
-                    className="relative inline-block whitespace-nowrap px-[0.14em] font-semibold"
-                  >
-                    {words[index]}
-                    {/* The selection frame: kept shallow, capline to baseline,
-                        with the four grab handles. */}
+                <span className="relative inline-block whitespace-nowrap px-[0.14em] font-semibold">
+                  <span className="invisible absolute">M</span>
+                  {word}
+                  {editing && (
                     <span
                       aria-hidden
-                      className="pointer-events-none absolute inset-x-0 top-[0.08em] bottom-0 rounded-[0.1em] border border-accent-line bg-accent-soft/40"
-                    >
-                      <span className="absolute -left-[3.5px] -top-[3.5px] h-[7px] w-[7px] rounded-[1.5px] border border-accent-line bg-background" />
-                      <span className="absolute -right-[3.5px] -top-[3.5px] h-[7px] w-[7px] rounded-[1.5px] border border-accent-line bg-background" />
-                      <span className="absolute -bottom-[3.5px] -left-[3.5px] h-[7px] w-[7px] rounded-[1.5px] border border-accent-line bg-background" />
-                      <span className="absolute -bottom-[3.5px] -right-[3.5px] h-[7px] w-[7px] rounded-[1.5px] border border-accent-line bg-background" />
-                    </span>
-                  </motion.span>
-                </AnimatePresence>
+                      className="absolute top-[0.16em] bottom-[0.08em] ml-[0.02em] inline-block w-[2px] animate-pulse bg-foreground/80"
+                    />
+                  )}
+                  {/* The selection frame never unmounts. It rides the text,
+                      shrinking and growing with each keystroke of the edit. */}
+                  <span
+                    aria-hidden
+                    className="pointer-events-none absolute inset-x-0 top-[0.08em] bottom-0 rounded-[0.1em] border border-accent-line bg-accent-soft/40"
+                  >
+                    <span className="absolute -left-[3.5px] -top-[3.5px] h-[7px] w-[7px] rounded-[1.5px] border border-accent-line bg-background" />
+                    <span className="absolute -right-[3.5px] -top-[3.5px] h-[7px] w-[7px] rounded-[1.5px] border border-accent-line bg-background" />
+                    <span className="absolute -bottom-[3.5px] -left-[3.5px] h-[7px] w-[7px] rounded-[1.5px] border border-accent-line bg-background" />
+                    <span className="absolute -bottom-[3.5px] -right-[3.5px] h-[7px] w-[7px] rounded-[1.5px] border border-accent-line bg-background" />
+                  </span>
+                </span>
               </span>
             </span>
           </span>

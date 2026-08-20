@@ -31,195 +31,210 @@ function useLoop(durationMs: number): number {
   return p;
 }
 
+/** The mono eyebrow + status pill header every fragment card opens with. */
+function FragmentHead({ label, pill }: { label: string; pill: string }) {
+  return (
+    <div className="flex items-center justify-between border-b border-border px-3 py-2">
+      <span className="font-mono text-[9.5px] uppercase tracking-[0.12em] text-muted-foreground">
+        {label}
+      </span>
+      <span className="flex items-center gap-1.5 rounded-full border border-border bg-surface-2/60 px-2 py-0.5">
+        <motion.span
+          animate={{ opacity: [1, 0.35, 1] }}
+          transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+          className="h-1.5 w-1.5 rounded-full bg-foreground"
+        />
+        <span className="font-mono text-[8.5px] uppercase tracking-wide text-fg-2">{pill}</span>
+      </span>
+    </div>
+  );
+}
+
 /**
- * The product, miniature: a page being read while its files land in a tray
- * beside it. Each chip appears as the beam passes the part of the page it
- * came from. The claim, demonstrated.
+ * The scan, as its own log: timestamped lines landing one after another,
+ * the way the product actually reports a deep scan. The claim is the card.
  */
 function CoverageVisual({ active: _active }: { active: boolean }) {
-  const p = useLoop(5600);
-  const beamTop = 12 + p * 74;
-  const chips = [
-    { tag: "IMG", name: "hero@2x.webp", at: 0.1 },
-    { tag: "SVG", name: "logo.svg", at: 0.26 },
-    { tag: "WOFF2", name: "inter.woff2", at: 0.42 },
-    { tag: "MP4", name: "reel.mp4", at: 0.58 },
-    { tag: "JSON", name: "/api/products", at: 0.74 },
+  const p = useLoop(7000);
+  const rows = [
+    { t: "0.8s", m: "+", body: "206 images", tail: "webp · avif", at: 0.06 },
+    { t: "1.4s", m: "+", body: "41 icons", tail: "inline svg", at: 0.2 },
+    { t: "2.2s", m: "+", body: "9 fonts", tail: "woff2", at: 0.34 },
+    { t: "3.6s", m: "~", body: "6 sections", tail: "screenshots", at: 0.48 },
+    { t: "5.1s", m: "\u2713", body: "Scan complete", tail: "466 files", at: 0.64, done: true },
   ];
   return (
-    <div className="flex h-full gap-3">
-      <div className="relative flex-1 overflow-hidden rounded-lg border border-border bg-background">
-        <div className="flex items-center gap-1.5 border-b border-border px-2.5 py-2">
-          {[0, 1, 2].map((i) => (
-            <span key={i} className="h-1.5 w-1.5 rounded-full bg-surface-3" />
-          ))}
-          <span className="ml-1 rounded bg-surface-2 px-1.5 py-0.5 font-mono text-[9px] text-muted-foreground">
-            stripe.com
-          </span>
+    <div className="flex h-full items-center">
+      <div className="w-full overflow-hidden rounded-lg border border-border bg-background shadow-soft">
+        <FragmentHead label="Deep scan · stripe.com" pill="Live" />
+        <div className="space-y-[3px] px-3 py-2.5 font-mono text-[10.5px]">
+          {rows.map((r) => {
+            const on = p >= r.at;
+            return (
+              <div
+                key={r.t}
+                className="flex items-center gap-2 transition-all duration-300"
+                style={{
+                  opacity: on ? 1 : 0.12,
+                  transform: on ? "translateY(0)" : "translateY(4px)",
+                }}
+              >
+                <span className="text-muted-foreground/70">{r.t}</span>
+                <span className={r.done ? "text-foreground" : "text-muted-foreground"}>
+                  {r.m}
+                </span>
+                <span className={r.done ? "font-semibold text-foreground" : "text-fg-2"}>
+                  {r.body}
+                </span>
+                <span className="ml-auto text-muted-foreground/70">{r.tail}</span>
+              </div>
+            );
+          })}
         </div>
-        <div className="space-y-1.5 p-2.5">
-          <div className="h-8 rounded bg-surface-2" />
-          <div className="h-1.5 w-4/5 rounded bg-surface-2" />
-          <div className="h-1.5 w-3/5 rounded bg-surface-2" />
-          <div className="flex gap-1.5 pt-0.5">
-            <div className="h-7 flex-1 rounded bg-surface-3/70" />
-            <div className="h-7 flex-1 rounded bg-surface-2" />
-            <div className="h-7 flex-1 rounded bg-surface-2" />
-          </div>
-        </div>
-        <div
-          className="absolute inset-x-0 h-px bg-foreground/60"
-          style={{ top: beamTop + "%" }}
-        />
-        <div
-          className="absolute inset-x-0 h-6 bg-gradient-to-b from-foreground/10 to-transparent"
-          style={{ top: beamTop + "%" }}
-        />
-      </div>
-      <div className="flex w-[46%] flex-col justify-center gap-1.5">
-        {chips.map((c) => {
-          const on = p >= c.at;
-          return (
-            <div
-              key={c.tag}
-              className="flex items-center gap-1.5 rounded-md border border-border bg-background px-2 py-1 transition-all duration-300"
-              style={{
-                opacity: on ? 1 : 0.18,
-                transform: on ? "translateX(0)" : "translateX(6px)",
-              }}
-            >
-              <span className="rounded bg-surface-2 px-1 py-0.5 font-mono text-[8.5px] tracking-wide text-muted-foreground">
-                {c.tag}
-              </span>
-              <span className="truncate font-mono text-[9.5px] text-fg-2">{c.name}</span>
-            </div>
-          );
-        })}
       </div>
     </div>
   );
 }
 
 /**
- * One file chosen and taken: the cursor drifts to a tile, the tile answers,
- * the receipt slides up. Watching it is the pitch.
+ * One file chosen and taken: the cursor drifts to a thumbnail, the tile
+ * answers, and the receipt arrives as a toast. Watching it is the pitch.
  */
 function PrecisionVisual({ active: _active }: { active: boolean }) {
-  const p = useLoop(6000);
+  const p = useLoop(6400);
   const seg = (from: number, to: number, a: number, b: number) =>
     p <= from ? a : p >= to ? b : a + ((p - from) / (to - from)) * (b - a);
-  const cx = seg(0.05, 0.35, 88, 50);
-  const cy = seg(0.05, 0.35, 92, 46);
-  const picked = p >= 0.38 && p < 0.94;
-  const toast = p >= 0.46 && p < 0.9;
+  const cx = seg(0.05, 0.32, 86, 48);
+  const cy = seg(0.05, 0.32, 88, 42);
+  const picked = p >= 0.36 && p < 0.94;
+  const toast = p >= 0.44 && p < 0.9;
+  const THUMBS = [
+    "linear-gradient(135deg,#3a3a3d,#232326)",
+    "linear-gradient(160deg,#2c2c2f,#1a1a1c)",
+    "linear-gradient(120deg,#48484c,#2a2a2d)",
+    "linear-gradient(150deg,#242427,#161618)",
+    "linear-gradient(135deg,#565659,#39393c)",
+    "linear-gradient(140deg,#2e2e31,#1d1d1f)",
+    "linear-gradient(125deg,#3f3f42,#252528)",
+    "linear-gradient(155deg,#27272a,#19191b)",
+    "linear-gradient(130deg,#333336,#202023)",
+  ];
   return (
-    <div className="relative h-full">
-      <div className="grid h-full grid-cols-3 content-center gap-2">
-        {Array.from({ length: 9 }).map((_, i) => {
-          const pick = i === 4;
-          return (
-            <div
-              key={i}
-              className={"h-12 " + TILE + " transition-all duration-300 " + (
-                pick
-                  ? picked
-                    ? "bg-foreground ring-2 ring-accent-line ring-offset-2 ring-offset-surface"
-                    : "bg-foreground/80"
-                  : picked
-                    ? "bg-surface-2 opacity-35"
-                    : "bg-surface-2"
-              )}
-            />
-          );
-        })}
-      </div>
-      <svg
-        viewBox="0 0 24 24"
-        className="absolute z-10 h-4 w-4 text-foreground drop-shadow"
-        style={{ left: cx + "%", top: cy + "%" }}
-        fill="currentColor"
-      >
-        <path d="M5 3l14 8-6.5 1.5L9 19z" />
-      </svg>
-      <div
-        className="absolute inset-x-4 bottom-1 flex items-center gap-2 rounded-md border border-border bg-background px-2.5 py-1.5 shadow-soft transition-all duration-300"
-        style={{
-          opacity: toast ? 1 : 0,
-          transform: toast ? "translateY(0)" : "translateY(8px)",
-        }}
-      >
-        <span className="grid h-3.5 w-3.5 place-items-center rounded-full bg-foreground text-background">
-          <svg viewBox="0 0 24 24" className="h-2 w-2" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+    <div className="flex h-full items-center">
+      <div className="relative w-full overflow-hidden rounded-lg border border-border bg-background shadow-soft">
+        <FragmentHead label="Results · images" pill="12 found" />
+        <div className="grid grid-cols-3 gap-1.5 p-2.5">
+          {THUMBS.map((bg, i) => {
+            const pick = i === 4;
+            return (
+              <div
+                key={i}
+                className={"h-9 rounded-[5px] transition-all duration-300 " + (
+                  pick && picked
+                    ? "ring-2 ring-accent-line ring-offset-2 ring-offset-background"
+                    : !pick && picked
+                      ? "opacity-30"
+                      : ""
+                )}
+                style={{ background: bg }}
+              />
+            );
+          })}
+        </div>
+        <svg
+          viewBox="0 0 24 24"
+          className="absolute z-10 h-4 w-4 text-foreground drop-shadow"
+          style={{ left: cx + "%", top: cy + "%" }}
+          fill="currentColor"
+        >
+          <path d="M5 3l14 8-6.5 1.5L9 19z" />
+        </svg>
+        {/* The receipt, floating dark, the way a toast should. */}
+        <div
+          className="absolute inset-x-6 bottom-2 z-10 flex items-center justify-center gap-2 rounded-full bg-foreground px-3 py-1.5 text-background shadow-soft transition-all duration-300"
+          style={{
+            opacity: toast ? 1 : 0,
+            transform: toast ? "translateY(0)" : "translateY(10px)",
+          }}
+        >
+          <svg viewBox="0 0 24 24" className="h-2.5 w-2.5" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
             <path d="M20 6 9 17l-5-5" />
           </svg>
-        </span>
-        <span className="truncate font-mono text-[10px] text-fg-2">hero@2x.webp</span>
-        <span className="ml-auto font-mono text-[9.5px] text-muted-foreground">214 KB</span>
+          <span className="font-mono text-[9.5px]">hero@2x.webp · 214 KB</span>
+        </div>
       </div>
     </div>
   );
 }
 
 /**
- * The design tab assembling itself: swatches first, the type they set, then
- * the tokens typed out beneath, character by character.
+ * The design tab assembling itself: swatches with their share of the page,
+ * the type, the tokens typed live, and where you can take them.
  */
 function DesignVisual({ active: _active }: { active: boolean }) {
-  const p = useLoop(6400);
+  const p = useLoop(7200);
   const swatches = [
     { c: "#fafafa", n: "62%" },
     { c: "#a1a1a1", n: "21%" },
     { c: "#525252", n: "11%" },
     { c: "#262626", n: "6%" },
   ];
-  const tokens = ["--radius: 12px", "--font-sans: Inter"];
-  const typedAt = (line: number) => {
-    const begin = 0.42 + line * 0.22;
-    const t = Math.max(0, Math.min(1, (p - begin) / 0.16));
-    return tokens[line].slice(0, Math.round(t * tokens[line].length));
-  };
+  const token = "--font-sans: Inter";
+  const typedT = Math.max(0, Math.min(1, (p - 0.42) / 0.18));
+  const typed = token.slice(0, Math.round(typedT * token.length));
+  const chips = ["CSS variables", "Figma tokens", "Tailwind"];
   return (
-    <div className="flex h-full flex-col justify-center gap-3.5">
-      <div className="flex gap-2">
-        {swatches.map((sw, i) => {
-          const on = p >= 0.06 + i * 0.07;
-          return (
-            <div
-              key={sw.c}
-              className={"flex-1 overflow-hidden " + TILE + " border border-border transition-all duration-300"}
-              style={{
-                opacity: on ? 1 : 0.15,
-                transform: on ? "translateY(0)" : "translateY(6px)",
-              }}
-            >
-              <div className="h-8 w-full" style={{ background: sw.c }} />
-              <div className="bg-surface-2 py-0.5 text-center font-mono text-[9px] text-muted-foreground">
-                {sw.n}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-      <div
-        className="flex items-baseline gap-2.5 transition-opacity duration-300"
-        style={{ opacity: p >= 0.34 ? 1 : 0.15 }}
-      >
-        <span className="text-[24px] font-bold leading-none text-fg-2">Ag</span>
-        <span className="text-[16px] font-medium leading-none text-fg-2">Ag</span>
-        <span className="font-mono text-[10px] text-muted-foreground">Inter · 3 weights</span>
-      </div>
-      <div className="space-y-1">
-        {tokens.map((tk, i) => (
+    <div className="flex h-full items-center">
+      <div className="w-full overflow-hidden rounded-lg border border-border bg-background shadow-soft">
+        <FragmentHead label="Design system" pill="Read" />
+        <div className="space-y-2.5 p-3">
+          <div className="flex gap-1.5">
+            {swatches.map((sw, i) => {
+              const on = p >= 0.06 + i * 0.07;
+              return (
+                <div
+                  key={sw.c}
+                  className="flex-1 overflow-hidden rounded-[5px] border border-border transition-all duration-300"
+                  style={{
+                    opacity: on ? 1 : 0.12,
+                    transform: on ? "translateY(0)" : "translateY(5px)",
+                  }}
+                >
+                  <div className="h-6 w-full" style={{ background: sw.c }} />
+                  <div className="bg-surface-2 py-px text-center font-mono text-[8px] text-muted-foreground">
+                    {sw.n}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
           <div
-            key={tk}
-            className="flex h-[18px] items-center rounded bg-surface-2/70 px-2 font-mono text-[10px] text-muted-foreground"
+            className="flex h-[20px] items-center rounded-[5px] bg-surface-2/70 px-2 font-mono text-[10px] text-fg-2 transition-opacity duration-300"
+            style={{ opacity: p >= 0.4 ? 1 : 0.12 }}
           >
-            {typedAt(i)}
-            {p >= 0.42 + i * 0.22 && typedAt(i).length < tk.length && (
+            {typed}
+            {typedT > 0 && typedT < 1 && (
               <span className="ml-px h-3 w-px bg-foreground" />
             )}
           </div>
-        ))}
+          <div className="flex gap-1.5">
+            {chips.map((c, i) => {
+              const on = p >= 0.68 + i * 0.08;
+              return (
+                <span
+                  key={c}
+                  className="rounded-md border border-border bg-surface-2/50 px-2 py-1 font-mono text-[8.5px] text-muted-foreground transition-all duration-300"
+                  style={{
+                    opacity: on ? 1 : 0.12,
+                    transform: on ? "translateY(0)" : "translateY(4px)",
+                  }}
+                >
+                  {c}
+                </span>
+              );
+            })}
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -272,8 +287,11 @@ export function Features() {
             >
               <Card className="flex h-full flex-col">
                 <div className="p-6 pb-0">
-                  <div className="h-[190px]">
-                    <f.Visual active={hovered === i} />
+                  <div className="relative h-[190px]">
+                    <div aria-hidden className="hatch absolute -inset-x-6 -top-6 bottom-0 opacity-70" />
+                    <div className="relative h-full">
+                      <f.Visual active={hovered === i} />
+                    </div>
                   </div>
                 </div>
                 <div className="flex flex-1 flex-col p-6 pt-7">
