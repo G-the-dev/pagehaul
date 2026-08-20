@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { motion, useReducedMotion } from "framer-motion";
+import { motion } from "framer-motion";
 import { ArrowRight, Loader2 } from "lucide-react";
 import { EASE } from "./ui/motion-primitives";
 import { TryExamples } from "./TryExamples";
@@ -30,21 +30,52 @@ interface Props {
   freeDeepLeft?: number | null;
 }
 
-/** The dither field, recoloured live with the theme and stilled on request. */
+/**
+ * The dither field: dim, alive, and leaning toward the cursor. The pointer
+ * position eases into the shader's offset, so the whole field drifts a few
+ * percent after the mouse the way heavy liquid would.
+ */
 function HeroDither() {
   const light = useIsLight();
   const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+  const [off, setOff] = useState({ x: 0, y: 0 });
+  const target = useRef({ x: 0, y: 0 });
+  useEffect(() => {
+    setMounted(true);
+    const onMove = (e: MouseEvent) => {
+      target.current = {
+        x: (e.clientX / window.innerWidth - 0.5) * 0.22,
+        y: (e.clientY / window.innerHeight - 0.5) * 0.22,
+      };
+    };
+    window.addEventListener("mousemove", onMove);
+    let raf = 0;
+    const tick = () => {
+      raf = requestAnimationFrame(tick);
+      setOff((o) => {
+        const nx = o.x + (target.current.x - o.x) * 0.045;
+        const ny = o.y + (target.current.y - o.y) * 0.045;
+        if (Math.abs(nx - o.x) < 0.0004 && Math.abs(ny - o.y) < 0.0004) return o;
+        return { x: nx, y: ny };
+      });
+    };
+    raf = requestAnimationFrame(tick);
+    return () => {
+      window.removeEventListener("mousemove", onMove);
+      cancelAnimationFrame(raf);
+    };
+  }, []);
   if (!mounted) return null;
-  const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   return (
     <Dithering
       colorBack={light ? "#fafafa" : "#0a0a0a"}
-      colorFront={light ? "#c9c9c6" : "#2b2b2e"}
+      colorFront={light ? "#e3e3e0" : "#1d1d20"}
       shape="warp"
       type="4x4"
       size={2}
-      speed={still ? 0 : 0.8}
+      speed={1}
+      offsetX={off.x}
+      offsetY={off.y}
       style={{ width: "100%", height: "100%" }}
     />
   );
@@ -126,9 +157,7 @@ export function Hero({
   // the text as it shortens and grows.
   const [word, setWord] = useState(words[0]);
   const [editing, setEditing] = useState(false);
-  const reduceWord = useReducedMotion();
   useEffect(() => {
-    if (reduceWord) return;
     let cancelled = false;
     let wi = 0;
     const later = (fn: () => void, ms: number) =>
@@ -168,7 +197,7 @@ export function Hero({
     return () => {
       cancelled = true;
     };
-  }, [reduceWord, words]);
+  }, [words]);
 
   return (
     <section className="relative isolate flex min-h-[100svh] flex-col justify-center overflow-hidden">

@@ -1,6 +1,6 @@
 "use client";
 
-import { motion, useReducedMotion } from "framer-motion";
+import { motion } from "framer-motion";
 import { useEffect, useMemo, useState } from "react";
 import { EASE, Reveal, Section, SectionHead, Card } from "./ui/motion-primitives";
 
@@ -15,10 +15,8 @@ const TILE = "rounded-md";
  * frozen at a finished frame for anyone who asked their OS for less motion.
  */
 function useLoop(durationMs: number): number {
-  const reduce = useReducedMotion();
-  const [p, setP] = useState(reduce ? 0.99 : 0);
+  const [p, setP] = useState(0);
   useEffect(() => {
-    if (reduce) return;
     const t0 = performance.now();
     let raf = 0;
     const tick = (t: number) => {
@@ -27,7 +25,7 @@ function useLoop(durationMs: number): number {
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [durationMs, reduce]);
+  }, [durationMs]);
   return p;
 }
 
@@ -288,7 +286,7 @@ export function Features() {
               <Card className="flex h-full flex-col">
                 <div className="p-6 pb-0">
                   <div className="relative h-[190px]">
-                    <div aria-hidden className="hatch absolute -inset-x-6 -top-6 bottom-0 opacity-70" />
+                    <div aria-hidden className="hatch absolute -inset-x-6 -top-6 bottom-0 opacity-70" style={{ maskImage: "linear-gradient(#000 55%, transparent 100%)", WebkitMaskImage: "linear-gradient(#000 55%, transparent 100%)" }} />
                     <div className="relative h-full">
                       <f.Visual active={hovered === i} />
                     </div>
@@ -338,16 +336,13 @@ const STEPS = [
  * Step one: an address being typed, over and over.
  *
  * These loop rather than playing once on scroll, because the section is about
- * a process and a still frame does not read as one. All three are guarded by
- * reduced motion, where they settle on a finished state instead.
+ * a process and a still frame does not read as one.
  */
 function PasteVisual() {
-  const reduce = useReducedMotion();
   const full = "stripe.com";
-  const [typed, setTyped] = useState(reduce ? full : "");
+  const [typed, setTyped] = useState("");
 
   useEffect(() => {
-    if (reduce) return;
     let i = 0;
     let hold = 0;
     const t = setInterval(() => {
@@ -365,20 +360,18 @@ function PasteVisual() {
       }
     }, 130);
     return () => clearInterval(t);
-  }, [reduce]);
+  }, []);
 
   return (
     <div className="flex h-full items-center">
       <div className="flex w-full items-center gap-2 rounded-lg border border-border bg-background px-3 py-2.5">
         <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-surface-3" />
         <span className="font-mono text-[12.5px] text-fg-2">{typed}</span>
-        {!reduce && (
-          <motion.span
-            animate={{ opacity: [1, 0, 1] }}
-            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-            className="h-3.5 w-px bg-foreground"
-          />
-        )}
+        <motion.span
+          animate={{ opacity: [1, 0, 1] }}
+          transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+          className="h-3.5 w-px bg-foreground"
+        />
         <span className="ml-auto shrink-0 rounded-md bg-foreground px-2 py-1 text-[11px] font-semibold text-background">
           Scan
         </span>
@@ -389,7 +382,6 @@ function PasteVisual() {
 
 /** Step two: counts climbing as files are found. */
 function FoundVisual() {
-  const reduce = useReducedMotion();
   const rows = useMemo(
     () => [
       { k: "Images", n: 206 },
@@ -398,12 +390,9 @@ function FoundVisual() {
     ],
     [],
   );
-  const [counts, setCounts] = useState<number[]>(
-    reduce ? rows.map((r) => r.n) : [0, 0, 0],
-  );
+  const [counts, setCounts] = useState<number[]>([0, 0, 0]);
 
   useEffect(() => {
-    if (reduce) return;
     let frame = 0;
     const total = 70;
     const t = setInterval(() => {
@@ -419,7 +408,7 @@ function FoundVisual() {
       setCounts(rows.map((r) => Math.round(r.n * eased)));
     }, 40);
     return () => clearInterval(t);
-  }, [reduce, rows]);
+  }, [rows]);
 
   return (
     <div className="flex h-full flex-col justify-center gap-1.5">
@@ -441,8 +430,7 @@ function FoundVisual() {
 
 /** Step three: one file lifting clear, then settling back. */
 function TakeVisual() {
-  const reduce = useReducedMotion();
-  return (
+    return (
     <div className="flex h-full items-center justify-center gap-2">
       {[0, 1, 2, 3].map((i) => {
         const pick = i === 1;
@@ -450,16 +438,12 @@ function TakeVisual() {
           <motion.div
             key={i}
             animate={
-              reduce
-                ? {}
-                : pick
+              pick
                   ? { y: [0, -10, -10, 0] }
                   : { opacity: [1, 0.4, 0.4, 1] }
             }
             transition={
-              reduce
-                ? {}
-                : {
+              {
                     duration: 2.8,
                     times: [0, 0.25, 0.7, 1],
                     repeat: Infinity,
@@ -545,13 +529,12 @@ export function Steps() {
  * reason to exist.
  */
 function DesignerMark() {
-  const reduce = useReducedMotion();
-  return (
+    return (
     <div className="flex gap-1.5">
       {["#fafafa", "#a1a1a1", "#525252", "#2e2e2e"].map((c, i) => (
         <motion.span
           key={c}
-          animate={reduce ? {} : { y: [0, -3, 0] }}
+          animate={{ y: [0, -3, 0] }}
           transition={{ duration: 2.6, repeat: Infinity, delay: i * 0.28, ease: "easeInOut" }}
           className="h-6 w-6 rounded-md border border-border"
           style={{ background: c }}
@@ -562,8 +545,7 @@ function DesignerMark() {
 }
 
 function DeveloperMark() {
-  const reduce = useReducedMotion();
-  return (
+    return (
     <div className="flex w-full max-w-[130px] flex-col gap-1.5">
       {[
         [100, 74],
@@ -572,7 +554,7 @@ function DeveloperMark() {
       ].map(([a, b], i) => (
         <motion.span
           key={i}
-          animate={reduce ? {} : { width: [a + "%", b + "%", a + "%"] }}
+          animate={{ width: [a + "%", b + "%", a + "%"] }}
           transition={{ duration: 3.4, repeat: Infinity, delay: i * 0.4, ease: "easeInOut" }}
           style={{ width: a + "%" }}
           className={"h-1.5 rounded-full " + (i === 1 ? "bg-foreground/55" : "bg-surface-3")}
@@ -583,21 +565,20 @@ function DeveloperMark() {
 }
 
 function MotionMark() {
-  const reduce = useReducedMotion();
-  return (
+    return (
     <div className="flex items-center gap-1.5">
       {[0, 1, 2].map((i) => (
         <motion.span
           key={i}
           animate={
-            reduce || i !== 1 ? {} : { scaleX: [1, 1.28, 1], opacity: [0.7, 1, 0.7] }
+            i !== 1 ? {} : { scaleX: [1, 1.28, 1], opacity: [0.7, 1, 0.7] }
           }
           transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
           className={"h-6 origin-left rounded-md " + (i === 1 ? "w-9 bg-foreground/70" : "w-6 bg-surface-3")}
         />
       ))}
       <motion.span
-        animate={reduce ? {} : { opacity: [0.4, 1, 0.4] }}
+        animate={{ opacity: [0.4, 1, 0.4] }}
         transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
         className="ml-0.5 border-y-[5px] border-l-[8px] border-y-transparent border-l-foreground/60"
       />
@@ -633,8 +614,6 @@ function MigrateMark() {
 
 /** The one tile forever in transit, left grid to right box. */
 function MigratingDot() {
-  const reduce = useReducedMotion();
-  if (reduce) return null;
   return (
     <motion.span
       animate={{ x: [-46, 0], opacity: [0, 1, 1, 0] }}

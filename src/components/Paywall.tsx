@@ -115,10 +115,10 @@ function PlanCard({
     <div
       onClick={onActivate}
       onFocusCapture={onActivate}
-      className={"relative overflow-hidden rounded-2xl border transition-all duration-300 " + (
+      className={"relative overflow-hidden rounded-2xl border transition-all duration-300 hover:-translate-y-0.5 hover:shadow-soft " + (
         active
           ? "border-border-strong shadow-soft"
-          : "border-border"
+          : "border-border hover:border-border-strong"
       )}
     >
       {mounted && (
@@ -158,7 +158,7 @@ function PlanCard({
             )}
           </div>
         </div>
-        <p className="mt-2 text-[14px] leading-relaxed text-muted-foreground">{desc}</p>
+        <p className="mt-2 min-h-[46px] text-[14px] leading-relaxed text-muted-foreground">{desc}</p>
         <div className="my-5 h-px bg-border" />
         <ul className="space-y-3 text-[14px] leading-relaxed text-fg-2">{ticks}</ul>
         <div className="mt-auto pt-6">{footer}</div>
@@ -329,14 +329,14 @@ export function PlansGrid({
               <button
                 type="button"
                 onClick={onFreeCta}
-                className="block w-full rounded-full border border-border bg-background/60 px-6 py-3 text-center text-[14px] font-semibold transition-colors hover:border-border-strong"
+                className="block w-full rounded-full bg-accent px-6 py-3 text-center text-[14px] font-semibold text-accent-fg transition-opacity hover:opacity-90 disabled:opacity-50"
               >
                 Keep scanning free
               </button>
             ) : (
               <a
                 href="#top"
-                className="block w-full rounded-full border border-border bg-background/60 px-6 py-3 text-center text-[14px] font-semibold transition-colors hover:border-border-strong"
+                className="block w-full rounded-full bg-accent px-6 py-3 text-center text-[14px] font-semibold text-accent-fg transition-opacity hover:opacity-90 disabled:opacity-50"
               >
                 Start scanning
               </a>
@@ -370,7 +370,7 @@ export function PlansGrid({
                 type="button"
                 onClick={() => buy("pro")}
                 disabled={busyPlan !== null}
-                className="w-full rounded-full bg-accent px-6 py-3 text-[14px] font-semibold text-accent-fg transition-opacity hover:opacity-90 disabled:opacity-50"
+                className="w-full rounded-full bg-accent px-6 py-3 text-center text-[14px] font-semibold text-accent-fg transition-opacity hover:opacity-90 disabled:opacity-50"
               >
                 {busyPlan === "pro" ? "Opening checkout…" : `Get Pro for ₹${PRO_PRICE_INR}/mo`}
               </button>
@@ -401,7 +401,7 @@ export function PlansGrid({
                 type="button"
                 onClick={() => buy("pack")}
                 disabled={busyPlan !== null}
-                className="w-full rounded-full border border-border-strong bg-background/60 px-6 py-3 text-[14px] font-semibold transition-colors hover:border-foreground disabled:opacity-50"
+                className="w-full rounded-full bg-accent px-6 py-3 text-center text-[14px] font-semibold text-accent-fg transition-opacity hover:opacity-90 disabled:opacity-50"
               >
                 {busyPlan === "pack"
                   ? "Opening checkout…"

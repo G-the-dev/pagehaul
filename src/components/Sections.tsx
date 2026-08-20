@@ -122,9 +122,7 @@ export function Faq() {
               <br />
               answered plainly.
             </h2>
-            <p className="mt-5 max-w-xs text-[15.5px] leading-relaxed text-muted-foreground">
-              Including the ones where the honest answer is no.
-            </p>
+
           </div>
         </Reveal>
 
@@ -192,11 +190,6 @@ export function Footer() {
             <div>
               <div className="label-mono mb-4">Product</div>
               <ul className="space-y-2.5 text-[14.5px] text-muted-foreground">
-                <li>
-                  <a href="#top" className="transition-colors hover:text-foreground">
-                    Scan a page
-                  </a>
-                </li>
                 <li>
                   <a href="/#pricing" className="transition-colors hover:text-foreground">
                     Pricing
