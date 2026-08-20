@@ -21,6 +21,8 @@ export interface LicensePayload {
   exp: number;
   /** Razorpay payment id, for support lookups. */
   ref?: string;
+  /** The buyer's email, so a lost license can be matched to its payment. */
+  email?: string;
 }
 
 function secret(): string | null {

@@ -89,9 +89,20 @@ export function PlansGrid({
 }) {
   const [note, setNote] = useState<string | null>(null);
   const [busyPlan, setBusyPlan] = useState<string | null>(null);
+  // The buyer's email: required before checkout opens. It is where the
+  // receipt goes and the one handle support has to restore a license for a
+  // browser that lost its storage.
+  const [email, setEmail] = useState("");
+  const [emailNeeded, setEmailNeeded] = useState(false);
+  const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email.trim());
 
   const buy = async (plan: "pro" | "pack") => {
     if (busyPlan) return;
+    if (!emailOk) {
+      setEmailNeeded(true);
+      setNote("Enter your email first. The receipt and your license recovery both depend on it.");
+      return;
+    }
     setBusyPlan(plan);
     setNote(null);
     track("checkout_clicked", { plan, origin });
@@ -99,7 +110,7 @@ export function PlansGrid({
       const res = await fetch("/api/checkout", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ plan }),
+        body: JSON.stringify({ plan, email: email.trim() }),
       });
       const data = (await res.json()) as {
         error?: string;
@@ -133,6 +144,7 @@ export function PlansGrid({
         currency: data.currency,
         name: "pagehaul",
         description: data.label,
+        prefill: { email: email.trim() },
         theme: { color: "#111111" },
         handler: async (rsp: {
           razorpay_order_id: string;
@@ -142,7 +154,7 @@ export function PlansGrid({
           const verify = await fetch("/api/checkout", {
             method: "POST",
             headers: { "content-type": "application/json" },
-            body: JSON.stringify({ plan, ...rsp }),
+            body: JSON.stringify({ plan, email: email.trim(), ...rsp }),
           });
           const out = (await verify.json()) as { token?: string; error?: string };
           if (out.token) {
@@ -216,11 +228,27 @@ export function PlansGrid({
             <p className="mt-2 text-[13px] leading-relaxed opacity-70">
               For people who take things from the web daily.
             </p>
+            <input
+              type="email"
+              inputMode="email"
+              autoComplete="email"
+              required
+              value={email}
+              onChange={(e) => {
+                setEmail(e.target.value);
+                if (emailNeeded) setEmailNeeded(false);
+              }}
+              placeholder="you@studio.com"
+              aria-label="Email for your receipt and license"
+              className={`mx-auto mt-5 block w-full max-w-[260px] rounded-full border bg-transparent px-5 py-2.5 text-center text-[13px] text-background placeholder:text-background/40 focus:outline-none ${
+                emailNeeded ? "border-red-400" : "border-background/30 focus:border-background/70"
+              }`}
+            />
             <button
               type="button"
               onClick={() => buy("pro")}
               disabled={busyPlan !== null}
-              className="mt-5 rounded-full bg-background px-6 py-2.5 text-[13px] font-semibold text-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
+              className="mt-3 rounded-full bg-background px-6 py-2.5 text-[13px] font-semibold text-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
             >
               {busyPlan === "pro" ? "Opening checkout…" : "Get Pro"}
             </button>

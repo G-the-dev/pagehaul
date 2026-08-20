@@ -1,17 +1,26 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import localFont from "next/font/local";
+import { Spline_Sans_Mono } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 
-const geistSans = Geist({
-  subsets: ["latin"],
-  variable: "--font-geist-sans",
+/**
+ * Switzer, self-hosted. The look asked for is Saans, which is a paid
+ * commercial face; Switzer is its closest free relative (same neo-grotesk
+ * family, Fontshare's free-for-commercial license, kept next to the file)
+ * and one 43KB variable file carries every weight. If a Saans license is
+ * ever bought, its woff2 drops in here and nothing else changes.
+ */
+const appSans = localFont({
+  src: "./fonts/Switzer-Variable.woff2",
+  weight: "100 900",
+  variable: "--font-app-sans",
   display: "swap",
 });
 
-const geistMono = Geist_Mono({
+const appMono = Spline_Sans_Mono({
   subsets: ["latin"],
-  variable: "--font-geist-mono",
+  variable: "--font-app-mono",
   display: "swap",
 });
 
@@ -56,7 +65,7 @@ export default function RootLayout({
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT }} />
       </head>
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+      <body className={`${appSans.variable} ${appMono.variable} antialiased`}>
         {children}
         {/* Vercel Web Analytics — anonymous page views and visitor counts, no
             cookies. It quietly does nothing when the site is not on Vercel, so
