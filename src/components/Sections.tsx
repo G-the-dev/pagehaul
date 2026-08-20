@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { Plus } from "lucide-react";
 import Link from "next/link";
 import { EASE, Reveal, Section, Chip } from "./ui/motion-primitives";
@@ -86,21 +86,25 @@ function FaqRow({
             <Plus className="h-3 w-3" />
           </motion.span>
         </button>
-        <AnimatePresence initial={false}>
-          {open && (
-            <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: "auto", opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0.32, ease: EASE }}
-              className="overflow-hidden"
+        {/* Height animates via grid-template-rows rather than a measured
+            height tween: the browser owns the interpolation, nothing is
+            measured mid-flight, and the container bottom stops stuttering
+            when rows open and close in quick succession. */}
+        <div
+          className={`grid transition-[grid-template-rows] duration-300 ease-out ${
+            open ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
+          }`}
+        >
+          <div className="overflow-hidden">
+            <p
+              className={`max-w-xl pb-5 pr-10 text-[15px] leading-relaxed text-muted-foreground transition-opacity duration-300 ${
+                open ? "opacity-100" : "opacity-0"
+              }`}
             >
-              <p className="max-w-xl pb-5 pr-10 text-[15px] leading-relaxed text-muted-foreground">
-                {a}
-              </p>
-            </motion.div>
-          )}
-        </AnimatePresence>
+              {a}
+            </p>
+          </div>
+        </div>
       </div>
     </Reveal>
   );

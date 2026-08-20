@@ -228,6 +228,13 @@
     background-position: 0 0, 0 6px, 6px -6px, -6px 0;
   }
 
+  /* Anchor jumps glide. Deliberately not gated on prefers-reduced-motion:
+     an instant teleport to the top of the page is more disorienting than a
+     short glide, whatever the OS flag says. */
+  html {
+    scroll-behavior: smooth;
+  }
+
   /* Hairline diagonal stripes, the drafting-paper filler for decorative
      bands and gutters. Uses the border token so it recolours with the theme. */
   .hatch {
