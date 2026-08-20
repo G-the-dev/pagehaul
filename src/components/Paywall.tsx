@@ -329,14 +329,14 @@ export function PlansGrid({
               <button
                 type="button"
                 onClick={onFreeCta}
-                className="block w-full rounded-full bg-accent px-6 py-3 text-center text-[14px] font-semibold text-accent-fg transition-opacity hover:opacity-90 disabled:opacity-50"
+                className="block w-full rounded-full border border-border bg-surface-2 px-6 py-3 text-center text-[14px] font-semibold text-fg-2 transition-colors hover:border-border-strong hover:text-foreground disabled:opacity-50"
               >
                 Keep scanning free
               </button>
             ) : (
               <a
                 href="#top"
-                className="block w-full rounded-full bg-accent px-6 py-3 text-center text-[14px] font-semibold text-accent-fg transition-opacity hover:opacity-90 disabled:opacity-50"
+                className="block w-full rounded-full border border-border bg-surface-2 px-6 py-3 text-center text-[14px] font-semibold text-fg-2 transition-colors hover:border-border-strong hover:text-foreground disabled:opacity-50"
               >
                 Start scanning
               </a>
@@ -401,7 +401,7 @@ export function PlansGrid({
                 type="button"
                 onClick={() => buy("pack")}
                 disabled={busyPlan !== null}
-                className="w-full rounded-full bg-accent px-6 py-3 text-center text-[14px] font-semibold text-accent-fg transition-opacity hover:opacity-90 disabled:opacity-50"
+                className="w-full rounded-full border border-border bg-surface-2 px-6 py-3 text-center text-[14px] font-semibold text-fg-2 transition-colors hover:border-border-strong hover:text-foreground disabled:opacity-50"
               >
                 {busyPlan === "pack"
                   ? "Opening checkout…"
