@@ -11,9 +11,9 @@
  */
 
 export const FREE_DEEP_SCANS = 2;
-export const PRO_PRICE_INR = 199;
+export const PRO_PRICE_INR = 249;
 export const PACK_PRICE_INR = 99;
-export const PACK_SCANS = 15;
+export const PACK_SCANS = 5;
 
 /** Kinds a free account can see but not open or download. */
 export const LOCKED_KINDS = ["model", "audio", "screenshot"] as const;

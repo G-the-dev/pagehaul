@@ -31,51 +31,22 @@ interface Props {
 }
 
 /**
- * The dither field: dim, alive, and leaning toward the cursor. The pointer
- * position eases into the shader's offset, so the whole field drifts a few
- * percent after the mouse the way heavy liquid would.
+ * The dither field: a murmur, not a subject. Dim enough that the headline
+ * owns the room, moving on its own, indifferent to the cursor.
  */
 function HeroDither() {
   const light = useIsLight();
   const [mounted, setMounted] = useState(false);
-  const [off, setOff] = useState({ x: 0, y: 0 });
-  const target = useRef({ x: 0, y: 0 });
-  useEffect(() => {
-    setMounted(true);
-    const onMove = (e: MouseEvent) => {
-      target.current = {
-        x: (e.clientX / window.innerWidth - 0.5) * 0.22,
-        y: (e.clientY / window.innerHeight - 0.5) * 0.22,
-      };
-    };
-    window.addEventListener("mousemove", onMove);
-    let raf = 0;
-    const tick = () => {
-      raf = requestAnimationFrame(tick);
-      setOff((o) => {
-        const nx = o.x + (target.current.x - o.x) * 0.045;
-        const ny = o.y + (target.current.y - o.y) * 0.045;
-        if (Math.abs(nx - o.x) < 0.0004 && Math.abs(ny - o.y) < 0.0004) return o;
-        return { x: nx, y: ny };
-      });
-    };
-    raf = requestAnimationFrame(tick);
-    return () => {
-      window.removeEventListener("mousemove", onMove);
-      cancelAnimationFrame(raf);
-    };
-  }, []);
+  useEffect(() => setMounted(true), []);
   if (!mounted) return null;
   return (
     <Dithering
       colorBack={light ? "#fafafa" : "#0a0a0a"}
-      colorFront={light ? "#e3e3e0" : "#1d1d20"}
+      colorFront={light ? "#f0f0ee" : "#151517"}
       shape="warp"
       type="4x4"
       size={2}
       speed={1}
-      offsetX={off.x}
-      offsetY={off.y}
       style={{ width: "100%", height: "100%" }}
     />
   );

@@ -16,7 +16,7 @@ import { FooterWordmark } from "./FooterWordmark";
 const FAQ = [
   {
     q: "Is it free?",
-    a: "Quick scans are free and unlimited, and you get 2 free deep scans. Past that it is ₹199 a month, or a ₹99 pack of 15 deep scans.",
+    a: "Quick scans are free and unlimited, and you get 2 free deep scans. Past that it is \u20b9249 a month, or a \u20b999 pack of 5 deep scans.",
   },
   {
     q: "Do you keep my files or scans?",

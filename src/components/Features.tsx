@@ -29,6 +29,16 @@ function useLoop(durationMs: number): number {
   return p;
 }
 
+/** Ease-out for anything that travels; thresholds pop without it. */
+const easeOut = (t: number) => 1 - Math.pow(1 - Math.max(0, Math.min(1, t)), 3);
+
+/** 1 through the cycle, easing to 0 at the wrap so loops close, not cut. */
+function wrapFade(p: number): number {
+  if (p < 0.05) return easeOut(p / 0.05);
+  if (p > 0.9) return 1 - easeOut((p - 0.9) / 0.1);
+  return 1;
+}
+
 /** The mono eyebrow + status pill header every fragment card opens with. */
 function FragmentHead({ label, pill }: { label: string; pill: string }) {
   return (
@@ -54,6 +64,7 @@ function FragmentHead({ label, pill }: { label: string; pill: string }) {
  */
 function CoverageVisual({ active: _active }: { active: boolean }) {
   const p = useLoop(7000);
+  const fade = wrapFade(p);
   const rows = [
     { t: "0.8s", m: "+", body: "206 images", tail: "webp · avif", at: 0.06 },
     { t: "1.4s", m: "+", body: "41 icons", tail: "inline svg", at: 0.2 },
@@ -71,10 +82,10 @@ function CoverageVisual({ active: _active }: { active: boolean }) {
             return (
               <div
                 key={r.t}
-                className="flex items-center gap-2 transition-all duration-300"
+                className="flex items-center gap-2 transition-all duration-500 ease-out"
                 style={{
-                  opacity: on ? 1 : 0.12,
-                  transform: on ? "translateY(0)" : "translateY(4px)",
+                  opacity: on ? fade : 0.12,
+                  transform: on ? "translateY(0)" : "translateY(5px)",
                 }}
               >
                 <span className="text-muted-foreground/70">{r.t}</span>
@@ -101,11 +112,13 @@ function CoverageVisual({ active: _active }: { active: boolean }) {
 function PrecisionVisual({ active: _active }: { active: boolean }) {
   const p = useLoop(6400);
   const seg = (from: number, to: number, a: number, b: number) =>
-    p <= from ? a : p >= to ? b : a + ((p - from) / (to - from)) * (b - a);
-  const cx = seg(0.05, 0.32, 86, 48);
-  const cy = seg(0.05, 0.32, 88, 42);
-  const picked = p >= 0.36 && p < 0.94;
-  const toast = p >= 0.44 && p < 0.9;
+    p <= from ? a : p >= to ? b : a + easeOut((p - from) / (to - from)) * (b - a);
+  // Out, dwell, and home again: the cursor never teleports, so the loop
+  // reads as one continuous gesture rather than a cut.
+  const cx = p < 0.6 ? seg(0.05, 0.3, 86, 48) : seg(0.9, 1, 48, 86);
+  const cy = p < 0.6 ? seg(0.05, 0.3, 88, 42) : seg(0.9, 1, 42, 88);
+  const picked = p >= 0.34 && p < 0.88;
+  const toast = p >= 0.42 && p < 0.84;
   const THUMBS = [
     "linear-gradient(135deg,#3a3a3d,#232326)",
     "linear-gradient(160deg,#2c2c2f,#1a1a1c)",
@@ -127,7 +140,7 @@ function PrecisionVisual({ active: _active }: { active: boolean }) {
             return (
               <div
                 key={i}
-                className={"h-9 rounded-[5px] transition-all duration-300 " + (
+                className={"h-9 rounded-[5px] transition-all duration-500 ease-out " + (
                   pick && picked
                     ? "ring-2 ring-accent-line ring-offset-2 ring-offset-background"
                     : !pick && picked
@@ -149,7 +162,7 @@ function PrecisionVisual({ active: _active }: { active: boolean }) {
         </svg>
         {/* The receipt, floating dark, the way a toast should. */}
         <div
-          className="absolute inset-x-6 bottom-2 z-10 flex items-center justify-center gap-2 rounded-full bg-foreground px-3 py-1.5 text-background shadow-soft transition-all duration-300"
+          className="absolute inset-x-6 bottom-2 z-10 flex items-center justify-center gap-2 rounded-full bg-foreground px-3 py-1.5 text-background shadow-soft transition-all duration-500 ease-out"
           style={{
             opacity: toast ? 1 : 0,
             transform: toast ? "translateY(0)" : "translateY(10px)",
@@ -171,6 +184,7 @@ function PrecisionVisual({ active: _active }: { active: boolean }) {
  */
 function DesignVisual({ active: _active }: { active: boolean }) {
   const p = useLoop(7200);
+  const fade = wrapFade(p);
   const swatches = [
     { c: "#fafafa", n: "62%" },
     { c: "#a1a1a1", n: "21%" },
@@ -192,9 +206,9 @@ function DesignVisual({ active: _active }: { active: boolean }) {
               return (
                 <div
                   key={sw.c}
-                  className="flex-1 overflow-hidden rounded-[5px] border border-border transition-all duration-300"
+                  className="flex-1 overflow-hidden rounded-[5px] border border-border transition-all duration-500 ease-out"
                   style={{
-                    opacity: on ? 1 : 0.12,
+                    opacity: on ? fade : 0.12,
                     transform: on ? "translateY(0)" : "translateY(5px)",
                   }}
                 >
@@ -207,8 +221,8 @@ function DesignVisual({ active: _active }: { active: boolean }) {
             })}
           </div>
           <div
-            className="flex h-[20px] items-center rounded-[5px] bg-surface-2/70 px-2 font-mono text-[10px] text-fg-2 transition-opacity duration-300"
-            style={{ opacity: p >= 0.4 ? 1 : 0.12 }}
+            className="flex h-[20px] items-center rounded-[5px] bg-surface-2/70 px-2 font-mono text-[10px] text-fg-2 transition-opacity duration-500 ease-out"
+            style={{ opacity: p >= 0.4 ? fade : 0.12 }}
           >
             {typed}
             {typedT > 0 && typedT < 1 && (
@@ -221,9 +235,9 @@ function DesignVisual({ active: _active }: { active: boolean }) {
               return (
                 <span
                   key={c}
-                  className="rounded-md border border-border bg-surface-2/50 px-2 py-1 font-mono text-[8.5px] text-muted-foreground transition-all duration-300"
+                  className="rounded-md border border-border bg-surface-2/50 px-2 py-1 font-mono text-[8.5px] text-muted-foreground transition-all duration-500 ease-out"
                   style={{
-                    opacity: on ? 1 : 0.12,
+                    opacity: on ? fade : 0.12,
                     transform: on ? "translateY(0)" : "translateY(4px)",
                   }}
                 >
@@ -345,18 +359,27 @@ function PasteVisual() {
   useEffect(() => {
     let i = 0;
     let hold = 0;
+    let erasing = false;
     const t = setInterval(() => {
       if (hold > 0) {
         hold -= 1;
         return;
       }
-      if (i <= full.length) {
-        setTyped(full.slice(0, i));
-        i += 1;
-        if (i > full.length) hold = 18; // pause on the finished address
-      } else {
-        i = 0;
-        setTyped("");
+      if (erasing) {
+        i -= 1;
+        setTyped(full.slice(0, Math.max(0, i)));
+        if (i <= 0) {
+          erasing = false;
+          hold = 4;
+        }
+        return;
+      }
+      setTyped(full.slice(0, i));
+      i += 1;
+      if (i > full.length) {
+        i = full.length;
+        hold = 18; // linger on the finished address
+        erasing = true;
       }
     }, 130);
     return () => clearInterval(t);
@@ -395,11 +418,19 @@ function FoundVisual() {
   useEffect(() => {
     let frame = 0;
     const total = 70;
+    const hold = 26;
+    const down = 14;
     const t = setInterval(() => {
       frame += 1;
-      if (frame > total + 26) {
+      if (frame > total + hold + down) {
         frame = 0;
-        setCounts([0, 0, 0]);
+        return;
+      }
+      if (frame > total + hold) {
+        // Roll back down rather than snapping to zero: the loop closes.
+        const d = (frame - total - hold) / down;
+        const eased = 1 - Math.pow(d, 2);
+        setCounts(rows.map((r) => Math.round(r.n * eased)));
         return;
       }
       const p = Math.min(1, frame / total);
