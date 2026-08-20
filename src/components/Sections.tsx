@@ -16,7 +16,7 @@ import { FooterWordmark } from "./FooterWordmark";
 const FAQ = [
   {
     q: "Is it free?",
-    a: "Yes. No account, no email, nothing metered.",
+    a: "Quick scans are free and unlimited, and you get 2 free deep scans. Past that it is ₹199 a month, or a ₹99 pack of 15 deep scans.",
   },
   {
     q: "Do you keep my files or scans?",
@@ -189,9 +189,9 @@ export function Footer() {
                   </a>
                 </li>
                 <li>
-                  <Link href="/pricing" className="transition-colors hover:text-foreground">
+                  <a href="/#pricing" className="transition-colors hover:text-foreground">
                     Pricing
-                  </Link>
+                  </a>
                 </li>
                 <li>
                   <Link href="/about" className="transition-colors hover:text-foreground">

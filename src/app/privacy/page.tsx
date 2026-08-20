@@ -25,7 +25,7 @@ export default function PrivacyPage() {
         <p>
           We use PostHog for product analytics: pages visited, buttons pressed,
           and session replays showing how the interface behaved. A replay
-          captures the {SITE.name} interface as you saw it — including the
+          captures the {SITE.name} interface as you saw it, including the
           results of a scan on your screen. We use this to find what is broken
           and what is confusing, and for nothing else.
         </p>

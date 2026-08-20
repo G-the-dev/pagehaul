@@ -23,8 +23,8 @@ export const dynamic = "force-dynamic";
 
 const PLANS = {
   // Amounts in paise, as Razorpay wants them.
-  pro: { amount: 99_00, label: "pagehaul Pro — one month" },
-  pack: { amount: 99_00, label: "pagehaul — 25 deep scans" },
+  pro: { amount: 199_00, label: "pagehaul Pro, one month" },
+  pack: { amount: 99_00, label: "pagehaul, 15 deep scans" },
 } as const;
 
 /** Pro runs a month plus grace; a pack has a year to be spent. */

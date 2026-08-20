@@ -1,63 +1,52 @@
 /**
  * Who is allowed how much, remembered in the browser.
  *
- * There are no accounts, so the browser's storage is the ledger: which sites
- * this person has deep-scanned free, and the license token a purchase minted.
- * It is honest bookkeeping rather than a lock — someone clearing storage gets
- * a fresh allowance, and the server keeps its own rough count by address to
- * keep that from being a habit. The expensive thing being protected is
- * browser time on our compute; the design tab and 3D files are the value
- * that makes upgrading worth it.
+ * There are no accounts, so the browser's storage is the ledger: how many
+ * deep scans this person has run free, and the license token a purchase
+ * minted. It is honest bookkeeping rather than a lock. Someone clearing
+ * storage gets a fresh allowance, and the server keeps its own rough count
+ * by address to keep that from being a habit. The expensive thing being
+ * protected is browser time on our compute; the design system, audio,
+ * screenshots and 3D files are the value that makes upgrading worth it.
  */
 
-export const FREE_DEEP_SITES = 2;
-export const PRO_PRICE_INR = 99;
+export const FREE_DEEP_SCANS = 2;
+export const PRO_PRICE_INR = 199;
 export const PACK_PRICE_INR = 99;
-export const PACK_SCANS = 25;
+export const PACK_SCANS = 15;
 
-const HOSTS_KEY = "ph-deep-hosts";
+/** Kinds a free account can see but not open or download. */
+export const LOCKED_KINDS = ["model", "audio", "screenshot"] as const;
+
+const USED_KEY = "ph-deep-used";
 const LICENSE_KEY = "ph-license";
 
-function read<T>(key: string, fallback: T): T {
-  if (typeof window === "undefined") return fallback;
+export function usedDeepScans(): number {
+  if (typeof window === "undefined") return 0;
   try {
-    const raw = window.localStorage.getItem(key);
-    return raw ? (JSON.parse(raw) as T) : fallback;
+    const n = Number(window.localStorage.getItem(USED_KEY) ?? "0");
+    return Number.isFinite(n) && n > 0 ? Math.floor(n) : 0;
   } catch {
-    return fallback;
+    return 0;
   }
 }
 
-/** Hosts this browser has deep-scanned on the free plan. */
-export function usedDeepHosts(): string[] {
-  const v = read<unknown>(HOSTS_KEY, []);
-  return Array.isArray(v) ? v.filter((h): h is string => typeof h === "string") : [];
-}
-
-/**
- * Counts a site against the free allowance. A rescan of a site already on
- * the list is free — heavy pages ask to be scanned again, and charging the
- * retry would punish exactly the person the retry exists for.
- */
-export function recordDeepHost(host: string): void {
+/** Counts one deep scan. Every deep scan counts, rescans included. */
+export function recordDeepScan(): void {
   if (typeof window === "undefined") return;
-  const hosts = usedDeepHosts();
-  if (hosts.includes(host)) return;
   try {
-    window.localStorage.setItem(HOSTS_KEY, JSON.stringify([...hosts, host].slice(-24)));
+    window.localStorage.setItem(USED_KEY, String(usedDeepScans() + 1));
   } catch {
-    /* storage full or blocked — the server's count still stands */
+    /* storage full or blocked; the server's count still stands */
   }
 }
 
 export function deepScansLeft(): number {
-  return Math.max(0, FREE_DEEP_SITES - usedDeepHosts().length);
+  return Math.max(0, FREE_DEEP_SCANS - usedDeepScans());
 }
 
-/** Whether this host can be deep-scanned free: new within allowance, or a retry. */
-export function deepAllowed(host: string): boolean {
-  const hosts = usedDeepHosts();
-  return hosts.includes(host) || hosts.length < FREE_DEEP_SITES;
+export function deepAllowed(): boolean {
+  return deepScansLeft() > 0;
 }
 
 /** The license token a purchase minted, if any. The server verifies it. */
@@ -74,13 +63,13 @@ export function storeLicense(token: string): void {
   try {
     window.localStorage.setItem(LICENSE_KEY, token);
   } catch {
-    /* nothing to do — the purchase response also shows the token to copy */
+    /* nothing to do; the purchase response also shows the token to copy */
   }
 }
 
 /**
  * Paid, as far as this browser knows. The client uses this only to decide
- * what to draw — locks, counters, buttons. The server re-verifies the token
+ * what to draw: locks, counters, buttons. The server re-verifies the token
  * on every deep scan, so a hand-written "true" here unlocks nothing real.
  */
 export function isPaid(): boolean {

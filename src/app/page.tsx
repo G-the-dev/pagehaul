@@ -7,6 +7,7 @@ import { TileGrid } from "@/components/TileGrid";
 import { Hero } from "@/components/Hero";
 import { ScanProgress } from "@/components/ScanProgress";
 import { Faq, Footer } from "@/components/Sections";
+import { PricingSection } from "@/components/Paywall";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Toast, type ToastMessage, type ToastTone } from "@/components/Toast";
 import { Countdown } from "@/components/Countdown";
@@ -28,7 +29,8 @@ import {
   deepScansLeft,
   isPaid,
   licenseToken,
-  recordDeepHost,
+  recordDeepScan,
+  LOCKED_KINDS,
 } from "@/lib/plan";
 
 /** The host alone — what was scanned, never the whole address. */
@@ -131,7 +133,7 @@ export default function Home() {
    */
   const [paid, setPaid] = useState(false);
   const [freeLeft, setFreeLeft] = useState<number | null>(null);
-  const [paywall, setPaywall] = useState<null | "limit" | "design" | "model">(null);
+  const [paywall, setPaywall] = useState<null | "limit" | "design" | "locked">(null);
   const refreshPlan = useCallback(() => {
     setPaid(isPaid());
     setFreeLeft(deepScansLeft());
@@ -316,7 +318,11 @@ export default function Home() {
         // tile, and the preview walk should not be a side door through it.
         do {
           i += delta;
-        } while (visible[i] && visible[i].kind === "model" && !isPaid());
+        } while (
+          visible[i] &&
+          (LOCKED_KINDS as readonly string[]).includes(visible[i].kind) &&
+          !isPaid()
+        );
         return visible[i] ?? current;
       });
     },
@@ -325,8 +331,8 @@ export default function Home() {
 
   /** Opens a preview — except locked 3D, which opens the pricing dialog. */
   const openAsset = useCallback((a: Asset) => {
-    if (a.kind === "model" && !isPaid()) {
-      setPaywall("model");
+    if ((LOCKED_KINDS as readonly string[]).includes(a.kind) && !isPaid()) {
+      setPaywall("locked");
       return;
     }
     setExpanded(a);
@@ -359,12 +365,9 @@ export default function Home() {
   const runScan = useCallback(async (target: string, useDeep: boolean) => {
     // The allowance is checked before anything is torn down, so hitting the
     // limit leaves whatever results are on screen exactly as they were.
-    if (useDeep && !isPaid()) {
-      const h = hostOf(target) ?? target;
-      if (!deepAllowed(h)) {
-        setPaywall("limit");
-        return;
-      }
+    if (useDeep && !isPaid() && !deepAllowed()) {
+      setPaywall("limit");
+      return;
     }
     // A second scan supersedes the first rather than racing it.
     abortRef.current?.abort();
@@ -417,7 +420,7 @@ export default function Home() {
           /timeout|timed out|took too long/i.test(body);
         throw new Error(
           tooLong
-            ? "That page took too long to scan. Deep scans of very large sites can run past our limit — try again, or use quick."
+            ? "That page took too long to scan. Deep scans of very large sites can run past our limit. Try again, or use quick."
             : "That scan did not complete. Try again in a moment.",
         );
       }
@@ -457,10 +460,11 @@ export default function Home() {
         partial: !!fresh.partial,
         notes: fresh.notes.length ? fresh.notes : undefined,
       });
-      // Successful deep scans count against the free allowance, by site —
-      // recording only on success means a scan that failed cost nothing.
+      // Successful deep scans count against the free allowance, and every
+      // deep scan counts. Recording only on success means a scan that
+      // failed cost nothing.
       if (useDeep && !isPaid()) {
-        recordDeepHost(hostKey);
+        recordDeepScan();
         setFreeLeft(deepScansLeft());
       }
       setResult(data);
@@ -684,14 +688,17 @@ export default function Home() {
   const hush = useCallback(() => setToast(null), []);
 
   async function runDownload(list: Asset[], asZip: boolean) {
-    // 3D files belong to Pro. All-models asks the question directly; a mixed
-    // haul goes ahead without them and says so, because refusing a hundred
-    // images over two locked models would punish the wrong files.
+    // Audio, screenshots and 3D belong to Pro. An all-locked haul asks the
+    // question directly; a mixed one goes ahead without them and says so,
+    // because refusing a hundred images over two locked files would punish
+    // the wrong files.
     let heldBack = 0;
     if (!isPaid()) {
-      const kept = list.filter((a) => a.kind !== "model");
+      const kept = list.filter(
+        (a) => !(LOCKED_KINDS as readonly string[]).includes(a.kind),
+      );
       if (kept.length === 0 && list.length > 0) {
-        setPaywall("model");
+        setPaywall("locked");
         return;
       }
       heldBack = list.length - kept.length;
@@ -701,7 +708,7 @@ export default function Home() {
     setBusy(true);
     setToast(null);
     if (heldBack > 0) {
-      say("3D files are part of Pro, so they stayed behind.", "partial");
+      say("Audio, screenshots and 3D are part of Pro, so they stayed behind.", "partial");
     }
 
     if (list.length === 1) {
@@ -796,7 +803,7 @@ export default function Home() {
         }`}
       >
         <p className="bg-accent px-4 py-2.5 text-center text-[12.5px] font-semibold leading-snug text-accent-fg">
-          You&apos;re on the pocket version — open pagehaul on a desktop for
+          You&apos;re on the pocket version. Open pagehaul on a desktop for
           full previews and every asset.
         </p>
       </div>
@@ -836,7 +843,7 @@ export default function Home() {
           <span className="ml-auto flex items-center gap-2.5 sm:ml-1.5">
             <ThemeToggle />
             {/* The nav's one loud button goes to the feedback form while the
-                platform is finding its feet — a tester's report is worth more
+                platform is finding its feet, and a tester's report is worth more
                 than a star. The repo keeps its link in the footer. */}
             <a
               href="/contact"
@@ -1011,7 +1018,7 @@ export default function Home() {
                           onClick={() => setPaywall("design")}
                           className="mt-4 rounded-md bg-accent px-4 py-2 text-[13px] font-semibold text-accent-fg transition-opacity hover:opacity-90"
                         >
-                          Unlock for ₹99/month
+                          Unlock with Pro
                         </button>
                       </div>
                     </div>
@@ -1027,7 +1034,7 @@ export default function Home() {
                   </p>
                   <p className="mx-auto mt-1.5 max-w-sm text-[13px] leading-relaxed text-muted-foreground">
                     Colours, fonts and design tokens are read from the page as a
-                    browser paints it — a quick scan only sees the markup.
+                    browser paints it; a quick scan only sees the markup.
                   </p>
                   <button
                     type="button"
@@ -1052,17 +1059,17 @@ export default function Home() {
               <NetworkTable assets={visible} onOpen={openAsset} />
             ) : (
               <>
-                {tab === "model" && !paid && (
+                {(LOCKED_KINDS as readonly string[]).includes(tab) && !paid && (
                   <div className="mb-6 flex flex-wrap items-center gap-3 rounded-lg border border-accent-line bg-accent-soft px-4 py-3">
                     <p className="text-[13.5px]">
-                      3D previews and downloads are part of Pro.
+                      Previews and downloads here are part of Pro.
                     </p>
                     <button
                       type="button"
-                      onClick={() => setPaywall("model")}
+                      onClick={() => setPaywall("locked")}
                       className="ml-auto rounded-md bg-accent px-3 py-1.5 text-[12.5px] font-semibold text-accent-fg"
                     >
-                      Unlock for ₹99/month
+                      Unlock with Pro
                     </button>
                   </div>
                 )}
@@ -1214,6 +1221,7 @@ export default function Home() {
       <Features />
       <Audience />
       <Steps />
+      <PricingSection />
       <Faq />
       <Footer />
 

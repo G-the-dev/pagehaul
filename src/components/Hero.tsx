@@ -295,19 +295,18 @@ export function Hero({
             <p className="text-[12.5px] text-muted-foreground">
               {MODES[deep ? 1 : 0].hint}
             </p>
-            {/* The allowance, said plainly where the choice is made — not in
-                a settings page discovered after the wall. Rescans of counted
-                sites stay free, so "sites" is the honest unit. */}
+            {/* The allowance, said plainly where the choice is made, not in
+                a settings page discovered after the wall. */}
             {deep && freeDeepLeft != null && (
               <p className="text-[11.5px] text-muted-foreground/80">
                 {freeDeepLeft > 0 ? (
                   <>
-                    {freeDeepLeft} free deep-scan site{freeDeepLeft === 1 ? "" : "s"} left
+                    {freeDeepLeft} free deep scan{freeDeepLeft === 1 ? "" : "s"} left
                   </>
                 ) : (
                   <>
-                    Free deep scans used — rescans of your sites stay free ·{" "}
-                    <a href="/pricing" className="underline underline-offset-2 hover:text-foreground">
+                    Free deep scans used ·{" "}
+                    <a href="/#pricing" className="underline underline-offset-2 hover:text-foreground">
                       pricing
                     </a>
                   </>

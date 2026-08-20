@@ -29,7 +29,7 @@ const STAGES = [
  * everything found is yours, sit tight.
  */
 const PATIENCE: [number, string][] = [
-  [16, "This page has a lot on it — still reading"],
+  [16, "This page has a lot on it, still reading"],
   [28, "It's a big one. More files usually means a little more wait"],
   [42, "Still going. Everything it finds is yours in a moment"],
   [58, "Taking a second pass so nothing gets missed"],

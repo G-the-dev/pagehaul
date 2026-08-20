@@ -94,18 +94,17 @@ function normalise(input: string): string {
 }
 
 /**
- * The free deep-scan allowance, counted by address on the server.
+ * The free deep-scan allowance, counted on the server.
  *
  * The browser keeps the honest ledger; this is the backstop for someone who
- * clears it. Counted per site rather than per scan — a retry of a heavy page
- * is the product working as designed and is never charged — and held per
- * instance, which is deliberately forgiving: the point is to make the free
- * tier mean something, not to build a wall.
+ * clears it. Every deep scan counts, rescans included, and the count is held
+ * per instance, which is deliberately forgiving: the point is to make the
+ * free tier mean something, not to build a wall.
  */
-const FREE_DEEP_SITES = 2;
+const FREE_DEEP_SCANS = 2;
 const LIMIT_TTL_MS = 7 * 24 * 60 * 60_000;
 const LIMIT_MAX_CLIENTS = 2_000;
-const deepUsed = new Map<string, { at: number; hosts: string[] }>();
+const deepUsed = new Map<string, { at: number; used: number }>();
 
 function clientKey(req: NextRequest): string {
   const ip =
@@ -118,22 +117,15 @@ function clientKey(req: NextRequest): string {
     .slice(0, 24);
 }
 
-/** True when this client may deep-scan this host free of charge. */
-function allowFreeDeep(req: NextRequest, target: string): boolean {
-  let host: string;
-  try {
-    host = new URL(target).hostname.replace(/^www\./, "");
-  } catch {
-    return true; // normalise() rejects it properly later
-  }
+/** True when this client still has free deep scans, spending one if so. */
+function allowFreeDeep(req: NextRequest): boolean {
   const key = clientKey(req);
   const now = Date.now();
   const rec = deepUsed.get(key);
   if (rec && now - rec.at > LIMIT_TTL_MS) deepUsed.delete(key);
-  const hosts = deepUsed.get(key)?.hosts ?? [];
-  if (hosts.includes(host)) return true;
-  if (hosts.length >= FREE_DEEP_SITES) return false;
-  deepUsed.set(key, { at: now, hosts: [...hosts, host] });
+  const used = deepUsed.get(key)?.used ?? 0;
+  if (used >= FREE_DEEP_SCANS) return false;
+  deepUsed.set(key, { at: now, used: used + 1 });
   while (deepUsed.size > LIMIT_MAX_CLIENTS) {
     const oldest = deepUsed.keys().next().value;
     if (oldest === undefined) break;
@@ -159,22 +151,14 @@ export async function POST(req: NextRequest) {
   // Quick scans stay free and unlimited.
   if (body.deep) {
     const licensed = !!verifyLicense(req.headers.get("x-ph-license"));
-    if (!licensed) {
-      let target: string;
-      try {
-        target = normalise(body.url);
-      } catch {
-        target = "";
-      }
-      if (target && !allowFreeDeep(req, target)) {
-        return NextResponse.json(
-          {
-            error: "The free plan covers two deep-scanned sites.",
-            code: "scan_limit",
-          },
-          { status: 402 },
-        );
-      }
+    if (!licensed && !allowFreeDeep(req)) {
+      return NextResponse.json(
+        {
+          error: "The free plan covers 2 deep scans.",
+          code: "scan_limit",
+        },
+        { status: 402 },
+      );
     }
   }
 

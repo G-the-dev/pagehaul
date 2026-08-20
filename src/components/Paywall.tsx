@@ -1,44 +1,45 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Check, Lock, X } from "lucide-react";
+import { Check, X } from "lucide-react";
 import { track } from "@/lib/analytics";
 import {
-  FREE_DEEP_SITES,
+  FREE_DEEP_SCANS,
   PACK_PRICE_INR,
   PACK_SCANS,
   PRO_PRICE_INR,
   storeLicense,
 } from "@/lib/plan";
+import { Section, Reveal, Chip } from "./ui/motion-primitives";
 
 /**
  * The plans, and the moment of asking for money.
  *
- * One grid serves the pricing page and the paywall dialog, so the numbers
- * can never drift apart. Checkout goes through Razorpay's widget; until the
- * keys exist in the environment the buttons answer honestly that payments
- * are opening shortly, and every view and click is tracked so the pricing
- * has evidence behind it before a rupee moves.
+ * One pair of cards serves the landing page and the paywall dialog, so the
+ * numbers can never drift apart. Checkout goes through Razorpay's widget;
+ * until the keys exist in the environment the buttons answer honestly that
+ * payments are opening shortly, and every view and click is tracked so the
+ * pricing has evidence behind it before a rupee moves.
  */
 
-type PaywallReason = "limit" | "design" | "model" | "pricing";
+type PaywallReason = "limit" | "design" | "locked" | "pricing";
 
 const HEADLINES: Record<PaywallReason, { title: string; body: string }> = {
   limit: {
     title: "You have used your free deep scans",
-    body: `The free plan covers ${FREE_DEEP_SITES} deep-scanned sites — rescanning those stays free. For everything else, there is Pro.`,
+    body: `The free plan covers ${FREE_DEEP_SCANS} deep scans. Everything past that is Pro.`,
   },
   design: {
     title: "The design system is part of Pro",
-    body: "Palette, typography and design tokens, read from the page as a browser paints it.",
+    body: "Colours, fonts and design tokens, read from the page as a browser paints it.",
   },
-  model: {
-    title: "3D files are part of Pro",
-    body: "Preview and download every model a page loads — GLB, glTF and the rest.",
+  locked: {
+    title: "Audio, screenshots and 3D are part of Pro",
+    body: "Preview and download everything a deep scan finds, with nothing held back.",
   },
   pricing: {
     title: "Simple pricing, in rupees",
-    body: "Quick scans are free forever. Deep scans and the good stuff cost less than a coffee.",
+    body: "Quick scans are free forever. The full toolkit costs less than a pizza.",
   },
 };
 
@@ -59,14 +60,32 @@ function loadRazorpay(): Promise<boolean> {
   });
 }
 
+function Tick({
+  children,
+  dim,
+}: {
+  children: React.ReactNode;
+  dim?: boolean;
+}) {
+  return (
+    <li className={`flex items-start gap-2.5 ${dim ? "opacity-55" : ""}`}>
+      <Check className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+      <span>{children}</span>
+    </li>
+  );
+}
+
 export function PlansGrid({
   onUnlocked,
   origin,
+  onFreeCta,
 }: {
   /** Called with nothing when a purchase completes and the license is stored. */
   onUnlocked?: () => void;
   /** Where the grid is shown, for analytics. */
   origin: string;
+  /** Inside the dialog the free button closes it; on the page it jumps to the scanner. */
+  onFreeCta?: () => void;
 }) {
   const [note, setNote] = useState<string | null>(null);
   const [busyPlan, setBusyPlan] = useState<string | null>(null);
@@ -94,7 +113,7 @@ export function PlansGrid({
       if (res.status === 503 && data.code === "not_live") {
         track("checkout_not_live", { plan, origin });
         setNote(
-          "Payments are opening in a few days — UPI, cards and netbanking. Want it today? Say so through the Feedback button and you will be first in line.",
+          "Payments are opening in a few days, with UPI, cards and netbanking. Want it today? Say so through the Feedback button and you will be first in line.",
         );
         return;
       }
@@ -131,7 +150,10 @@ export function PlansGrid({
             track("purchase", { plan, origin });
             onUnlocked?.();
           } else {
-            setNote(out.error ?? "The payment went through but could not be verified — contact us and we will fix it.");
+            setNote(
+              out.error ??
+                "The payment went through but could not be verified. Contact us and we will fix it.",
+            );
           }
         },
       }).open();
@@ -142,71 +164,88 @@ export function PlansGrid({
     }
   };
 
-  const tick = (children: React.ReactNode) => (
-    <li className="flex items-start gap-2">
-      <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-accent" aria-hidden />
-      <span>{children}</span>
-    </li>
-  );
-
   return (
     <div>
-      <div className="grid gap-4 sm:grid-cols-3">
-        <div className="rounded-xl border border-border bg-surface p-5">
-          <div className="text-[13px] font-semibold">Free</div>
-          <div className="mt-1 text-2xl font-semibold tracking-tight">₹0</div>
-          <ul className="mt-4 space-y-2 text-[12.5px] leading-relaxed text-muted-foreground">
-            {tick("Unlimited quick scans")}
-            {tick(`${FREE_DEEP_SITES} deep-scanned sites, rescans free`)}
-            {tick("Images, icons, video, audio, fonts, screenshots")}
-            <li className="flex items-start gap-2 opacity-60">
-              <Lock className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
-              <span>Design system and 3D files stay locked</span>
-            </li>
-          </ul>
+      <div className="grid gap-5 sm:grid-cols-2">
+        {/* Free: the quiet card. */}
+        <div className="relative rounded-2xl border border-border bg-surface px-7 pb-7 pt-9">
+          <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-md border border-border bg-background px-3 py-1 font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+            Free
+          </span>
+          <div className="text-center">
+            <div className="text-3xl font-semibold tracking-tight">₹0</div>
+            <p className="mt-2 text-[13px] leading-relaxed text-muted-foreground">
+              For a first look at what a page is made of.
+            </p>
+            {onFreeCta ? (
+              <button
+                type="button"
+                onClick={onFreeCta}
+                className="mt-5 rounded-full border border-border px-6 py-2.5 text-[13px] font-semibold transition-colors hover:border-border-strong"
+              >
+                Keep scanning free
+              </button>
+            ) : (
+              <a
+                href="#top"
+                className="mt-5 inline-block rounded-full border border-border px-6 py-2.5 text-[13px] font-semibold transition-colors hover:border-border-strong"
+              >
+                Start scanning
+              </a>
+            )}
+          </div>
+          <div className="mt-7 border-t border-border pt-6">
+            <ul className="space-y-2.5 text-[13px] leading-relaxed text-fg-2">
+              <Tick>Unlimited quick scans</Tick>
+              <Tick>{FREE_DEEP_SCANS} deep scans</Tick>
+              <Tick>Images, icons, video, fonts and docs</Tick>
+            </ul>
+          </div>
         </div>
 
-        <div className="relative rounded-xl border border-accent/40 bg-surface p-5 shadow-soft">
-          <div className="text-[13px] font-semibold">Pro</div>
-          <div className="mt-1 text-2xl font-semibold tracking-tight">
-            ₹{PRO_PRICE_INR}
-            <span className="ml-1 text-[12.5px] font-normal text-muted-foreground">/ month</span>
+        {/* Pro: the loud card. Inverted, the way the brand does emphasis. */}
+        <div className="relative rounded-2xl bg-foreground px-7 pb-7 pt-9 text-background">
+          <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-md bg-foreground px-3 py-1 font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-background ring-1 ring-border">
+            Pro
+          </span>
+          <div className="text-center">
+            <div className="text-3xl font-semibold tracking-tight">
+              ₹{PRO_PRICE_INR}
+              <span className="ml-1.5 text-[13px] font-normal opacity-70">/ month</span>
+            </div>
+            <p className="mt-2 text-[13px] leading-relaxed opacity-70">
+              For people who take things from the web daily.
+            </p>
+            <button
+              type="button"
+              onClick={() => buy("pro")}
+              disabled={busyPlan !== null}
+              className="mt-5 rounded-full bg-background px-6 py-2.5 text-[13px] font-semibold text-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
+            >
+              {busyPlan === "pro" ? "Opening checkout…" : "Get Pro"}
+            </button>
           </div>
-          <ul className="mt-4 space-y-2 text-[12.5px] leading-relaxed text-muted-foreground">
-            {tick("Unlimited deep scans")}
-            {tick("Design system: palette, type, tokens")}
-            {tick("3D previews and downloads")}
-            {tick("Everything in Free")}
-          </ul>
-          <button
-            type="button"
-            onClick={() => buy("pro")}
-            disabled={busyPlan !== null}
-            className="mt-5 w-full rounded-md bg-accent px-4 py-2 text-[13px] font-semibold text-accent-fg transition-opacity hover:opacity-90 disabled:opacity-50"
-          >
-            {busyPlan === "pro" ? "Opening checkout…" : "Get Pro"}
-          </button>
-        </div>
-
-        <div className="rounded-xl border border-border bg-surface p-5">
-          <div className="text-[13px] font-semibold">Scan pack</div>
-          <div className="mt-1 text-2xl font-semibold tracking-tight">
-            ₹{PACK_PRICE_INR}
-            <span className="ml-1 text-[12.5px] font-normal text-muted-foreground">once</span>
+          <div className="mt-7 border-t border-background/20 pt-6">
+            <ul className="space-y-2.5 text-[13px] leading-relaxed opacity-90">
+              <Tick>Unlimited deep scans</Tick>
+              <Tick>Audio, screenshots and 3D files</Tick>
+              <Tick>The design system: colours, fonts, tokens</Tick>
+              <Tick>Everything in Free</Tick>
+            </ul>
+            <div className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-background/10 px-4 py-3">
+              <p className="text-[12.5px] opacity-90">
+                One-time instead: ₹{PACK_PRICE_INR} for {PACK_SCANS} deep scans.
+              </p>
+              <button
+                type="button"
+                onClick={() => buy("pack")}
+                disabled={busyPlan !== null}
+                className="rounded-full border border-background/40 px-4 py-1.5 text-[12px] font-semibold transition-colors hover:border-background disabled:opacity-50"
+              >
+                {busyPlan === "pack" ? "Opening…" : "Buy a pack"}
+              </button>
+            </div>
           </div>
-          <ul className="mt-4 space-y-2 text-[12.5px] leading-relaxed text-muted-foreground">
-            {tick(`${PACK_SCANS} deep scans, everything unlocked`)}
-            {tick("No subscription — spend them in a year")}
-            {tick("UPI, cards, netbanking")}
-          </ul>
-          <button
-            type="button"
-            onClick={() => buy("pack")}
-            disabled={busyPlan !== null}
-            className="mt-5 w-full rounded-md border border-border px-4 py-2 text-[13px] font-semibold transition-colors hover:border-border-strong disabled:opacity-50"
-          >
-            {busyPlan === "pack" ? "Opening checkout…" : "Buy a pack"}
-          </button>
         </div>
       </div>
 
@@ -216,6 +255,29 @@ export function PlansGrid({
         </p>
       )}
     </div>
+  );
+}
+
+/** The pricing block on the landing page itself. */
+export function PricingSection() {
+  return (
+    <Section id="pricing">
+      <div className="mx-auto max-w-3xl">
+        <Reveal>
+          <div className="mb-12 text-center">
+            <Chip>Pricing</Chip>
+            <h2 className="mt-6 text-[2rem] font-medium leading-[1.12] tracking-tight sm:text-[2.5rem]">
+              Free to try.
+              <br />
+              Cheap to keep.
+            </h2>
+          </div>
+        </Reveal>
+        <Reveal delay={0.06}>
+          <PlansGrid origin="landing" />
+        </Reveal>
+      </div>
+    </Section>
   );
 }
 
@@ -249,7 +311,7 @@ export function Paywall({
       aria-label="Pricing"
     >
       <div className="w-full max-w-2xl rounded-2xl border border-border bg-background p-6 sm:p-8">
-        <div className="flex items-start justify-between gap-6">
+        <div className="mb-7 flex items-start justify-between gap-6">
           <div>
             <h2 className="text-lg font-semibold tracking-tight">{head.title}</h2>
             <p className="mt-1.5 max-w-md text-[13px] leading-relaxed text-muted-foreground">
@@ -265,9 +327,11 @@ export function Paywall({
             <X className="h-4.5 w-4.5" aria-hidden />
           </button>
         </div>
-        <div className="mt-6">
-          <PlansGrid origin={`paywall:${reason}`} onUnlocked={onUnlocked} />
-        </div>
+        <PlansGrid
+          origin={`paywall:${reason}`}
+          onUnlocked={onUnlocked}
+          onFreeCta={onClose}
+        />
       </div>
     </div>
   );
