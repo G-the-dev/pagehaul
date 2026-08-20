@@ -51,8 +51,8 @@ export function DotMatrix({ className }: { className?: string }) {
           const fine = hash(ix, iy);
           const coarse = hash(ix >> 2, iy >> 2);
           const v = fine * 0.55 + coarse * 0.45;
-          if (v < 0.6) continue;
-          let a = ((v - 0.6) / 0.4) * 0.5;
+          if (v < 0.57) continue;
+          let a = ((v - 0.57) / 0.43) * 0.62;
           if (!still) {
             const phase = hash(iy, ix) * Math.PI * 2;
             a *= 0.65 + 0.35 * Math.sin(t / 1400 + phase * 3);

@@ -144,57 +144,53 @@ export function Hero({
           className="text-balance text-[2.6rem] font-medium leading-[1.06] tracking-[-0.035em] sm:text-[3.9rem]"
         >
           {/*
-            The rotating word sits at the END of the heading, so however its
-            width breathes, nothing before it ever reflows — the rest of the
-            sentence holds still and only the line's tail moves. It wears a
-            text-selection box, border, corner handles and all, which is both
-            the joke (these are the words you select and take) and the frame
-            that makes the change read as deliberate.
+            The rotating word sits at the END of the heading and inside a slot
+            sized by the widest word in the set, stacked invisibly beneath it.
+            The line's length is therefore constant: nothing re-centres,
+            nothing reflows, whichever word is up. Words hand over with a
+            short blur-fade rather than a slide, and the selection frame hugs
+            each word and fades with it, so the change reads as the selection
+            moving on, not the sentence moving around.
           */}
           <span className="block">Any page, one click,</span>
           <span className="block whitespace-nowrap">
             every{" "}
-            <motion.span
-              layout
-              transition={{ duration: 0.45, ease: EASE }}
-              className="relative inline-grid align-baseline"
-            >
-              {/* The clip window sits a descender's depth below the baseline,
-                  or a word ending in g/p/y loses its tail to overflow-hidden.
-                  The padding opens that room; the matching negative margin
-                  keeps the line box the same height. */}
-              <span className="col-start-1 row-start-1 inline-grid overflow-hidden pb-[0.14em] -mb-[0.14em]">
+            <span className="relative inline-grid align-baseline">
+              {words.map((w) => (
                 <span
+                  key={w}
                   aria-hidden
-                  className="invisible col-start-1 row-start-1 whitespace-nowrap font-semibold"
+                  className="invisible col-start-1 row-start-1 whitespace-nowrap px-[0.14em] font-semibold"
                 >
-                  {words[index]}
+                  {w}
                 </span>
-                <AnimatePresence mode="popLayout" initial={false}>
+              ))}
+              <span className="col-start-1 row-start-1 grid place-items-center">
+                <AnimatePresence mode="wait" initial={false}>
                   <motion.span
                     key={index}
-                    initial={{ y: "110%", opacity: 0 }}
-                    animate={{ y: "0%", opacity: 1 }}
-                    exit={{ y: "-110%", opacity: 0 }}
-                    transition={{ type: "spring", stiffness: 90, damping: 17 }}
-                    className="col-start-1 row-start-1 whitespace-nowrap font-semibold"
+                    initial={{ opacity: 0, filter: "blur(7px)" }}
+                    animate={{ opacity: 1, filter: "blur(0px)" }}
+                    exit={{ opacity: 0, filter: "blur(7px)" }}
+                    transition={{ duration: 0.32, ease: EASE }}
+                    className="relative inline-block whitespace-nowrap px-[0.14em] font-semibold"
                   >
                     {words[index]}
+                    {/* The selection frame: kept shallow, capline to baseline,
+                        with the four grab handles. */}
+                    <span
+                      aria-hidden
+                      className="pointer-events-none absolute inset-x-0 top-[0.1em] bottom-[0.06em] rounded-[0.1em] border border-accent-line bg-accent-soft/40"
+                    >
+                      <span className="absolute -left-[3.5px] -top-[3.5px] h-[7px] w-[7px] rounded-[1.5px] border border-accent-line bg-background" />
+                      <span className="absolute -right-[3.5px] -top-[3.5px] h-[7px] w-[7px] rounded-[1.5px] border border-accent-line bg-background" />
+                      <span className="absolute -bottom-[3.5px] -left-[3.5px] h-[7px] w-[7px] rounded-[1.5px] border border-accent-line bg-background" />
+                      <span className="absolute -bottom-[3.5px] -right-[3.5px] h-[7px] w-[7px] rounded-[1.5px] border border-accent-line bg-background" />
+                    </span>
                   </motion.span>
                 </AnimatePresence>
               </span>
-              {/* The selection box, drawn over the word: hairline frame, a
-                  breath of tint, and the four grab handles. */}
-              <span
-                aria-hidden
-                className="pointer-events-none absolute -inset-x-[0.14em] -top-[0.02em] -bottom-[0.08em] rounded-[0.14em] border border-accent-line bg-accent-soft/40"
-              >
-                <span className="absolute -left-[4.5px] -top-[4.5px] h-[9px] w-[9px] rounded-[2px] border border-accent-line bg-background" />
-                <span className="absolute -right-[4.5px] -top-[4.5px] h-[9px] w-[9px] rounded-[2px] border border-accent-line bg-background" />
-                <span className="absolute -bottom-[4.5px] -left-[4.5px] h-[9px] w-[9px] rounded-[2px] border border-accent-line bg-background" />
-                <span className="absolute -bottom-[4.5px] -right-[4.5px] h-[9px] w-[9px] rounded-[2px] border border-accent-line bg-background" />
-              </span>
-            </motion.span>
+            </span>
           </span>
         </motion.h1>
 
@@ -204,8 +200,8 @@ export function Hero({
           transition={{ duration: 0.8, delay: 0.16, ease: EASE }}
           className="mx-auto mt-6 max-w-md text-[16.5px] leading-relaxed text-muted-foreground"
         >
-          Paste a link and see what a page is actually built from. Take one file,
-          or take everything.
+          Paste a link. Every file the page is built from shows up named and
+          previewed. Take one, or take all of it.
         </motion.p>
 
         <motion.form

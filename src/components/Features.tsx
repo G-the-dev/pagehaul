@@ -161,19 +161,19 @@ const FEATURES = [
   {
     tag: "Coverage",
     title: "Nothing stays hidden",
-    body: "CSS backgrounds, every srcset size, fonts, video, API responses.",
+    body: "CSS backgrounds, every srcset size, fonts, video, API responses. If the page loads it, it shows up.",
     Visual: CoverageVisual,
   },
   {
     tag: "Precision",
     title: "One file, not the archive",
-    body: "Click an asset, it downloads. Named properly, on its own.",
+    body: "Click a file and it downloads, alone, named like a person would name it.",
     Visual: PrecisionVisual,
   },
   {
     tag: "Design",
     title: "Read the design itself",
-    body: "The palette a page paints with, its type, and its tokens.",
+    body: "The palette it paints with, the type it sets, the tokens underneath. Read from the live page.",
     Visual: DesignVisual,
   },
 ];
@@ -234,17 +234,17 @@ const STEPS = [
   {
     n: "01",
     h: "Paste a link",
-    p: "Any public page. Choose quick, or deep for sites built with JavaScript.",
+    p: "Any public page. Quick reads the markup; deep runs the page in a real browser.",
   },
   {
     n: "02",
     h: "See what it is made of",
-    p: "Images, icons, video, fonts, documents and network calls, each named so you can read it.",
+    p: "Images, icons, video, fonts, documents and network calls, named so you can tell them apart.",
   },
   {
     n: "03",
     h: "Take what you need",
-    p: "One file downloads on its own. Or pick a set and get an archive with a manifest.",
+    p: "One file downloads on its own. A selection arrives as a zip with a manifest.",
   },
 ];
 

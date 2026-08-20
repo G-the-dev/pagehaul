@@ -1218,13 +1218,17 @@ export default function Home() {
         </section>
       )}
 
+      <HatchBand />
       <Features />
+      <HatchBand />
       <Audience />
+      <HatchBand />
       <Steps />
       <HatchBand />
       <PricingSection />
       <HatchBand />
       <Faq />
+      <HatchBand />
       <Footer />
 
       {pickerOpen && (
