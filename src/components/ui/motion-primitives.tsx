@@ -180,7 +180,7 @@ export function Chip({
 }) {
   return (
     <span
-      className={`inline-flex rounded-full border border-border bg-surface px-3 py-1 font-mono text-[10.5px] uppercase tracking-[0.14em] text-muted-foreground ${className}`}
+      className={`inline-flex rounded-full border border-border bg-surface px-3 py-1 font-mono text-[11.5px] uppercase tracking-[0.14em] text-muted-foreground ${className}`}
     >
       {children}
     </span>
@@ -202,11 +202,11 @@ export function SectionHead({
   return (
     <Reveal className={align === "center" ? "mx-auto max-w-2xl text-center" : "max-w-2xl"}>
       <Chip className="mb-6">{eyebrow}</Chip>
-      <h2 className="text-[2rem] font-medium leading-[1.12] tracking-tight sm:text-[2.75rem]">
+      <h2 className="text-[2.15rem] font-medium leading-[1.12] tracking-tight sm:text-[3rem]">
         {title}
       </h2>
       {lede && (
-        <p className="mt-5 text-[15.5px] leading-relaxed text-muted-foreground">
+        <p className="mt-5 text-[16.5px] leading-relaxed text-muted-foreground">
           {lede}
         </p>
       )}

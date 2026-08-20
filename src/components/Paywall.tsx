@@ -181,33 +181,33 @@ export function PlansGrid({
       <div className="grid gap-5 sm:grid-cols-2">
         {/* Free: the quiet card. */}
         <div className="relative rounded-2xl border border-border bg-surface px-7 pb-7 pt-9">
-          <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-md border border-border bg-background px-3 py-1 font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+          <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-md border border-border bg-background px-3 py-1 font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
             Free
           </span>
           <div className="text-center">
             <div className="text-3xl font-semibold tracking-tight">₹0</div>
-            <p className="mt-2 text-[13px] leading-relaxed text-muted-foreground">
+            <p className="mt-2 text-[14px] leading-relaxed text-muted-foreground">
               For a first look at what a page is made of.
             </p>
             {onFreeCta ? (
               <button
                 type="button"
                 onClick={onFreeCta}
-                className="mt-5 rounded-full border border-border px-6 py-2.5 text-[13px] font-semibold transition-colors hover:border-border-strong"
+                className="mt-5 rounded-full border border-border px-6 py-2.5 text-[14px] font-semibold transition-colors hover:border-border-strong"
               >
                 Keep scanning free
               </button>
             ) : (
               <a
                 href="#top"
-                className="mt-5 inline-block rounded-full border border-border px-6 py-2.5 text-[13px] font-semibold transition-colors hover:border-border-strong"
+                className="mt-5 inline-block rounded-full border border-border px-6 py-2.5 text-[14px] font-semibold transition-colors hover:border-border-strong"
               >
                 Start scanning
               </a>
             )}
           </div>
           <div className="mt-7 border-t border-border pt-6">
-            <ul className="space-y-2.5 text-[13px] leading-relaxed text-fg-2">
+            <ul className="space-y-2.5 text-[14px] leading-relaxed text-fg-2">
               <Tick>Unlimited quick scans</Tick>
               <Tick>{FREE_DEEP_SCANS} deep scans</Tick>
               <Tick>Images, icons, video, fonts and docs</Tick>
@@ -217,15 +217,15 @@ export function PlansGrid({
 
         {/* Pro: the loud card. Inverted, the way the brand does emphasis. */}
         <div className="relative rounded-2xl bg-foreground px-7 pb-7 pt-9 text-background">
-          <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-md bg-foreground px-3 py-1 font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-background ring-1 ring-border">
+          <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-md bg-foreground px-3 py-1 font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-background ring-1 ring-border">
             Pro
           </span>
           <div className="text-center">
             <div className="text-3xl font-semibold tracking-tight">
               ₹{PRO_PRICE_INR}
-              <span className="ml-1.5 text-[13px] font-normal opacity-70">/ month</span>
+              <span className="ml-1.5 text-[14px] font-normal opacity-70">/ month</span>
             </div>
-            <p className="mt-2 text-[13px] leading-relaxed opacity-70">
+            <p className="mt-2 text-[14px] leading-relaxed opacity-70">
               For people who take things from the web daily.
             </p>
             <input
@@ -240,7 +240,7 @@ export function PlansGrid({
               }}
               placeholder="you@studio.com"
               aria-label="Email for your receipt and license"
-              className={`mx-auto mt-5 block w-full max-w-[260px] rounded-full border bg-transparent px-5 py-2.5 text-center text-[13px] text-background placeholder:text-background/40 focus:outline-none ${
+              className={`mx-auto mt-5 block w-full max-w-[260px] rounded-full border bg-transparent px-5 py-2.5 text-center text-[14px] text-background placeholder:text-background/40 focus:outline-none ${
                 emailNeeded ? "border-red-400" : "border-background/30 focus:border-background/70"
               }`}
             />
@@ -248,27 +248,27 @@ export function PlansGrid({
               type="button"
               onClick={() => buy("pro")}
               disabled={busyPlan !== null}
-              className="mt-3 rounded-full bg-background px-6 py-2.5 text-[13px] font-semibold text-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
+              className="mt-3 rounded-full bg-background px-6 py-2.5 text-[14px] font-semibold text-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
             >
               {busyPlan === "pro" ? "Opening checkout…" : "Get Pro"}
             </button>
           </div>
           <div className="mt-7 border-t border-background/20 pt-6">
-            <ul className="space-y-2.5 text-[13px] leading-relaxed opacity-90">
+            <ul className="space-y-2.5 text-[14px] leading-relaxed opacity-90">
               <Tick>Unlimited deep scans</Tick>
               <Tick>Audio, screenshots and 3D files</Tick>
               <Tick>The design system: colours, fonts, tokens</Tick>
               <Tick>Everything in Free</Tick>
             </ul>
             <div className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-background/10 px-4 py-3">
-              <p className="text-[12.5px] opacity-90">
+              <p className="text-[13.5px] opacity-90">
                 One-time instead: ₹{PACK_PRICE_INR} for {PACK_SCANS} deep scans.
               </p>
               <button
                 type="button"
                 onClick={() => buy("pack")}
                 disabled={busyPlan !== null}
-                className="rounded-full border border-background/40 px-4 py-1.5 text-[12px] font-semibold transition-colors hover:border-background disabled:opacity-50"
+                className="rounded-full border border-background/40 px-4 py-1.5 text-[13px] font-semibold transition-colors hover:border-background disabled:opacity-50"
               >
                 {busyPlan === "pack" ? "Opening…" : "Buy a pack"}
               </button>
@@ -278,7 +278,7 @@ export function PlansGrid({
       </div>
 
       {note && (
-        <p className="mt-4 rounded-lg border border-border bg-surface-2/40 px-4 py-3 text-[12.5px] leading-relaxed text-muted-foreground">
+        <p className="mt-4 rounded-lg border border-border bg-surface-2/40 px-4 py-3 text-[13.5px] leading-relaxed text-muted-foreground">
           {note}
         </p>
       )}
@@ -294,7 +294,7 @@ export function PricingSection() {
         <Reveal>
           <div className="mb-12 text-center">
             <Chip>Pricing</Chip>
-            <h2 className="mt-6 text-[2rem] font-medium leading-[1.12] tracking-tight sm:text-[2.5rem]">
+            <h2 className="mt-6 text-[2.15rem] font-medium leading-[1.12] tracking-tight sm:text-[2.7rem]">
               Free to try.
               <br />
               Cheap to keep.
@@ -341,8 +341,8 @@ export function Paywall({
       <div className="w-full max-w-2xl rounded-2xl border border-border bg-background p-6 sm:p-8">
         <div className="mb-7 flex items-start justify-between gap-6">
           <div>
-            <h2 className="text-lg font-semibold tracking-tight">{head.title}</h2>
-            <p className="mt-1.5 max-w-md text-[13px] leading-relaxed text-muted-foreground">
+            <h2 className="text-[19px] font-semibold tracking-tight">{head.title}</h2>
+            <p className="mt-1.5 max-w-md text-[14px] leading-relaxed text-muted-foreground">
               {head.body}
             </p>
           </div>

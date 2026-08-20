@@ -16,15 +16,15 @@ export default function NotFound() {
   return (
     <main className="grid min-h-screen place-items-center px-6">
       <div className="w-full max-w-md text-center">
-        <div className="mx-auto mb-8 grid h-12 w-12 place-items-center rounded-xl border border-border bg-surface font-mono text-[13px] font-semibold text-muted-foreground">
+        <div className="mx-auto mb-8 grid h-12 w-12 place-items-center rounded-xl border border-border bg-surface font-mono text-[14px] font-semibold text-muted-foreground">
           404
         </div>
 
-        <h1 className="text-[1.9rem] font-medium leading-tight tracking-tight">
+        <h1 className="text-[2.05rem] font-medium leading-tight tracking-tight">
           That page does not exist.
         </h1>
 
-        <p className="mx-auto mt-4 max-w-sm text-[15px] leading-relaxed text-muted-foreground">
+        <p className="mx-auto mt-4 max-w-sm text-[16px] leading-relaxed text-muted-foreground">
           The link may be wrong, or the page may have been removed. Nothing here
           expires except capture links, and those only last{" "}
           {SITE.retentionMinutes} minutes.
@@ -32,7 +32,7 @@ export default function NotFound() {
 
         <Link
           href="/"
-          className="mt-8 inline-flex h-11 items-center justify-center rounded-lg bg-foreground px-6 text-[14px] font-semibold text-background transition-opacity hover:opacity-90"
+          className="mt-8 inline-flex h-11 items-center justify-center rounded-lg bg-foreground px-6 text-[15px] font-semibold text-background transition-opacity hover:opacity-90"
         >
           Scan a page
         </Link>
@@ -42,7 +42,7 @@ export default function NotFound() {
             <Link
               key={l.href}
               href={l.href}
-              className="text-[13px] text-muted-foreground transition-colors hover:text-foreground"
+              className="text-[14px] text-muted-foreground transition-colors hover:text-foreground"
             >
               {l.label}
             </Link>

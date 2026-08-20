@@ -87,14 +87,14 @@ export function ScanProgress({
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: -18, opacity: 0 }}
               transition={{ duration: 0.42, ease: EASE }}
-              className="absolute inset-0 truncate text-left text-[13.5px] text-fg-2"
+              className="absolute inset-0 truncate text-left text-[14.5px] text-fg-2"
             >
               {label}
             </motion.p>
           </AnimatePresence>
         </div>
 
-        <span className="shrink-0 font-mono text-[11px] tabular-nums text-muted-foreground">
+        <span className="shrink-0 font-mono text-[12px] tabular-nums text-muted-foreground">
           {elapsed}s
         </span>
 
@@ -104,7 +104,7 @@ export function ScanProgress({
             <button
               type="button"
               onClick={onCancel}
-              className="shrink-0 rounded-md px-2 py-1 text-[12.5px] font-medium text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground"
+              className="shrink-0 rounded-md px-2 py-1 text-[13.5px] font-medium text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground"
             >
               Cancel
             </button>
@@ -125,7 +125,7 @@ export function ScanProgress({
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 1.2, duration: 0.6 }}
-        className="group mx-auto mt-4 flex items-center gap-1.5 text-[12.5px] text-muted-foreground transition-colors hover:text-foreground"
+        className="group mx-auto mt-4 flex items-center gap-1.5 text-[13.5px] text-muted-foreground transition-colors hover:text-foreground"
       >
         While this runs, see what it finds
         <motion.span

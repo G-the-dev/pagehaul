@@ -37,7 +37,7 @@ function CoverageVisual({ active }: { active: boolean }) {
           className={`flex h-11 items-center justify-center ${TILE} ${it.tone}`}
         >
           <span
-            className={`font-mono text-[9px] tracking-wider ${
+            className={`font-mono text-[10px] tracking-wider ${
               it.tone.includes("foreground/80")
                 ? "text-background"
                 : "text-muted-foreground"
@@ -123,7 +123,7 @@ function DesignVisual({ active }: { active: boolean }) {
             className={`flex-1 overflow-hidden ${TILE} border border-border`}
           >
             <div className="h-9 w-full" style={{ background: s.c }} />
-            <div className="bg-surface-2 py-1 text-center font-mono text-[8.5px] text-muted-foreground">
+            <div className="bg-surface-2 py-1 text-center font-mono text-[9.5px] text-muted-foreground">
               {s.n}
             </div>
           </motion.div>
@@ -148,7 +148,7 @@ function DesignVisual({ active }: { active: boolean }) {
           whileInView={{ opacity: 1 }}
           viewport={{ once: true }}
           transition={{ duration: 0.5, delay: 0.5 }}
-          className="ml-auto font-mono text-[9.5px] text-muted-foreground"
+          className="ml-auto font-mono text-[10.5px] text-muted-foreground"
         >
           3 families
         </motion.span>
@@ -210,10 +210,10 @@ export function Features() {
                 </div>
                 <div className="flex flex-1 flex-col p-6 pt-7">
                   <div className="label-mono mb-3">{f.tag}</div>
-                  <h3 className="mb-2 text-[16.5px] font-semibold tracking-tight">
+                  <h3 className="mb-2 text-[17.5px] font-semibold tracking-tight">
                     {f.title}
                   </h3>
-                  <p className="text-[13.5px] leading-relaxed text-muted-foreground">
+                  <p className="text-[14.5px] leading-relaxed text-muted-foreground">
                     {f.body}
                   </p>
                 </div>
@@ -285,7 +285,7 @@ function PasteVisual() {
     <div className="flex h-full items-center">
       <div className="flex w-full items-center gap-2 rounded-lg border border-border bg-background px-3 py-2.5">
         <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-surface-3" />
-        <span className="font-mono text-[11.5px] text-fg-2">{typed}</span>
+        <span className="font-mono text-[12.5px] text-fg-2">{typed}</span>
         {!reduce && (
           <motion.span
             animate={{ opacity: [1, 0, 1] }}
@@ -293,7 +293,7 @@ function PasteVisual() {
             className="h-3.5 w-px bg-foreground"
           />
         )}
-        <span className="ml-auto shrink-0 rounded-md bg-foreground px-2 py-1 text-[10px] font-semibold text-background">
+        <span className="ml-auto shrink-0 rounded-md bg-foreground px-2 py-1 text-[11px] font-semibold text-background">
           Scan
         </span>
       </div>
@@ -343,8 +343,8 @@ function FoundVisual() {
           className="flex items-center gap-2.5 rounded-md border border-border bg-background px-2.5 py-2"
         >
           <span className="h-5 w-5 shrink-0 rounded bg-surface-3" />
-          <span className="text-[11.5px] text-fg-2">{r.k}</span>
-          <span className="ml-auto font-mono text-[10.5px] tabular-nums text-muted-foreground">
+          <span className="text-[12.5px] text-fg-2">{r.k}</span>
+          <span className="ml-auto font-mono text-[11.5px] tabular-nums text-muted-foreground">
             {counts[i]}
           </span>
         </div>
@@ -430,13 +430,13 @@ export function Steps() {
                     number sat against a cut-off edge. This gap is the
                     separation. */}
                 <div className="flex flex-1 flex-col p-5 pt-7">
-                  <div className="mb-2.5 font-mono text-[11px] font-semibold text-muted-foreground">
+                  <div className="mb-2.5 font-mono text-[12px] font-semibold text-muted-foreground">
                     {s.n}
                   </div>
-                  <h3 className="mb-2 text-[16px] font-semibold tracking-tight">
+                  <h3 className="mb-2 text-[17px] font-semibold tracking-tight">
                     {s.h}
                   </h3>
-                  <p className="text-[13.5px] leading-relaxed text-muted-foreground">
+                  <p className="text-[14.5px] leading-relaxed text-muted-foreground">
                     {s.p}
                   </p>
                 </div>
@@ -563,8 +563,8 @@ export function Audience() {
                 <div className="mb-6 flex h-8 items-center">
                   <a.Mark />
                 </div>
-                <div className="mb-1.5 text-[15px] font-semibold">{a.who}</div>
-                <p className="text-[13.5px] leading-relaxed text-muted-foreground">
+                <div className="mb-1.5 text-[16px] font-semibold">{a.who}</div>
+                <p className="text-[14.5px] leading-relaxed text-muted-foreground">
                   {a.what}
                 </p>
               </Card>

@@ -95,11 +95,11 @@ export function MobileHaul({
                 {on && <Check className="h-3.5 w-3.5" strokeWidth={3} />}
               </span>
               <span
-                className={`flex-1 text-[14.5px] font-medium ${on ? "" : "text-muted-foreground"}`}
+                className={`flex-1 text-[15.5px] font-medium ${on ? "" : "text-muted-foreground"}`}
               >
                 {KIND_LABEL[g.kind]}
               </span>
-              <span className="font-mono text-[11px] tabular-nums text-muted-foreground">
+              <span className="font-mono text-[12px] tabular-nums text-muted-foreground">
                 {g.list.length} file{g.list.length === 1 ? "" : "s"}
                 {g.bytes > 0 && ` · ${formatBytes(g.bytes)}`}
               </span>
@@ -116,7 +116,7 @@ export function MobileHaul({
               style={{ width: `${(progress.done / progress.total) * 100}%` }}
             />
           </div>
-          <span className="font-mono text-[11px] tabular-nums text-muted-foreground">
+          <span className="font-mono text-[12px] tabular-nums text-muted-foreground">
             {progress.done}/{progress.total}
           </span>
         </div>
@@ -128,14 +128,14 @@ export function MobileHaul({
         onClick={() =>
           onDownload(chosen.flatMap((g) => g.list))
         }
-        className="mt-4 inline-flex h-12 w-full items-center justify-center rounded-xl bg-accent text-[15px] font-semibold text-accent-fg transition-all hover:brightness-110 disabled:opacity-40"
+        className="mt-4 inline-flex h-12 w-full items-center justify-center rounded-xl bg-accent text-[16px] font-semibold text-accent-fg transition-all hover:brightness-110 disabled:opacity-40"
       >
         {busy
           ? "Working…"
           : `Download ${files} file${files === 1 ? "" : "s"} as zip${bytes > 0 ? ` · ${formatBytes(bytes)}` : ""}`}
       </button>
 
-      <p className="mt-3 text-center text-[12px] leading-relaxed text-muted-foreground">
+      <p className="mt-3 text-center text-[13px] leading-relaxed text-muted-foreground">
         Files arrive as one zip, sorted into folders by kind. Browsing and
         previewing each file lives in the desktop version.
       </p>

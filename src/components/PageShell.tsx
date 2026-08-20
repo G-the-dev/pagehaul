@@ -31,7 +31,7 @@ export function PageShell({
         <div className="mx-auto flex max-w-3xl items-center justify-between px-6 py-5">
           <Link
             href="/"
-            className="flex items-center gap-2 text-[15px] font-semibold tracking-tight"
+            className="flex items-center gap-2 text-[16px] font-semibold tracking-tight"
           >
             <Mark size={16} />
             {SITE.name}
@@ -40,7 +40,7 @@ export function PageShell({
               label, and nobody presses a label. */}
           <Link
             href="/"
-            className="inline-flex items-center gap-2 rounded-full border border-border px-4 py-2 font-mono text-[11px] uppercase tracking-[0.12em] text-muted-foreground transition-colors hover:border-border-strong hover:text-foreground"
+            className="inline-flex items-center gap-2 rounded-full border border-border px-4 py-2 font-mono text-[12px] uppercase tracking-[0.12em] text-muted-foreground transition-colors hover:border-border-strong hover:text-foreground"
           >
             <ArrowLeft className="h-3.5 w-3.5" />
             Back to the tool
@@ -49,20 +49,20 @@ export function PageShell({
       </header>
 
       <article className="mx-auto max-w-3xl px-6 py-20">
-        <span className="inline-flex rounded-full border border-border bg-surface px-3 py-1 font-mono text-[10.5px] uppercase tracking-[0.14em] text-muted-foreground">
+        <span className="inline-flex rounded-full border border-border bg-surface px-3 py-1 font-mono text-[11.5px] uppercase tracking-[0.14em] text-muted-foreground">
           {eyebrow}
         </span>
 
-        <h1 className="mt-6 text-[2.1rem] font-medium leading-[1.14] tracking-tight sm:text-[2.6rem]">
+        <h1 className="mt-6 text-[2.25rem] font-medium leading-[1.14] tracking-tight sm:text-[2.8rem]">
           {title}
         </h1>
 
         {lede && (
-          <p className="mt-5 max-w-xl text-[16px] leading-relaxed text-fg-2">{lede}</p>
+          <p className="mt-5 max-w-xl text-[17px] leading-relaxed text-fg-2">{lede}</p>
         )}
 
         {updated && (
-          <p className="mt-6 font-mono text-[11.5px] text-muted-foreground">
+          <p className="mt-6 font-mono text-[12.5px] text-muted-foreground">
             Last updated {updated}
           </p>
         )}
@@ -76,12 +76,12 @@ export function PageShell({
             <Link
               key={l.href}
               href={l.href}
-              className="text-[13.5px] text-muted-foreground transition-colors hover:text-foreground"
+              className="text-[14.5px] text-muted-foreground transition-colors hover:text-foreground"
             >
               {l.label}
             </Link>
           ))}
-          <span className="ml-auto font-mono text-[11px] text-muted-foreground">
+          <span className="ml-auto font-mono text-[12px] text-muted-foreground">
             &copy; {new Date().getFullYear()} {SITE.name}
           </span>
         </div>
@@ -102,13 +102,13 @@ export function Clause({
 }) {
   return (
     <section className="mb-12">
-      <h2 className="mb-4 flex items-baseline gap-3 text-[17px] font-semibold tracking-tight">
-        <span className="font-mono text-[12px] font-semibold text-muted-foreground">
+      <h2 className="mb-4 flex items-baseline gap-3 text-[18px] font-semibold tracking-tight">
+        <span className="font-mono text-[13px] font-semibold text-muted-foreground">
           {n}
         </span>
         {title}
       </h2>
-      <div className="space-y-4 text-[15px] leading-[1.7] text-fg-2">{children}</div>
+      <div className="space-y-4 text-[16px] leading-[1.7] text-fg-2">{children}</div>
     </section>
   );
 }

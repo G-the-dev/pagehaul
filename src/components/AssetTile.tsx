@@ -378,13 +378,13 @@ export const AssetTile = memo(function AssetTile({
           )}
 
           {asset.section && (
-            <span className="pointer-events-none absolute left-2 top-2 z-10 rounded-md bg-black/55 px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-widest text-white/90">
+            <span className="pointer-events-none absolute left-2 top-2 z-10 rounded-md bg-black/55 px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-widest text-white/90">
               {asset.section}
             </span>
           )}
 
           {corner && (
-            <span className="pointer-events-none absolute bottom-2 right-2 z-10 rounded-md bg-black/55 px-1.5 py-0.5 font-mono text-[10px] tabular-nums text-white/90">
+            <span className="pointer-events-none absolute bottom-2 right-2 z-10 rounded-md bg-black/55 px-1.5 py-0.5 font-mono text-[11px] tabular-nums text-white/90">
               {corner}
             </span>
           )}
@@ -392,18 +392,18 @@ export const AssetTile = memo(function AssetTile({
       </button>
 
       <div className="flex items-center gap-2 border-t border-border px-2.5 py-2">
-        <span className="shrink-0 rounded border border-border bg-surface-2 px-1.5 py-px font-mono text-[9.5px] font-semibold tracking-wide text-fg-2">
+        <span className="shrink-0 rounded border border-border bg-surface-2 px-1.5 py-px font-mono text-[10.5px] font-semibold tracking-wide text-fg-2">
           {asset.format}
         </span>
         {/* The name only. A CDN address runs to hundreds of characters and
             turns a hint into a wall of text over the thing you are trying to
             look at; the preview shows it properly, and Copy URL hands it over. */}
         <Tooltip label={asset.displayName} className="min-w-0 flex-1">
-          <span className="block w-full truncate text-[12px] text-fg-2">
+          <span className="block w-full truncate text-[13px] text-fg-2">
             {asset.displayName}
           </span>
         </Tooltip>
-        <span className="shrink-0 font-mono text-[10px] tabular-nums text-muted-foreground">
+        <span className="shrink-0 font-mono text-[11px] tabular-nums text-muted-foreground">
           {formatBytes(asset.bytes)}
         </span>
       </div>
@@ -416,10 +416,10 @@ function TypePlaceholder({ asset, failed }: { asset: Asset; failed: boolean }) {
   if (failed) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-2 px-4 text-center">
-        <span className="grid h-7 w-7 place-items-center rounded-full border border-border-strong font-mono text-[12px] text-muted-foreground">
+        <span className="grid h-7 w-7 place-items-center rounded-full border border-border-strong font-mono text-[13px] text-muted-foreground">
           !
         </span>
-        <span className="font-mono text-[9.5px] leading-tight text-muted-foreground">
+        <span className="font-mono text-[10.5px] leading-tight text-muted-foreground">
           Preview blocked
           <br />
           by the source
@@ -432,10 +432,10 @@ function TypePlaceholder({ asset, failed }: { asset: Asset; failed: boolean }) {
     case "font":
       return (
         <div className="flex h-full flex-col items-center justify-center gap-1.5">
-          <span className="text-[2.6rem] font-medium leading-none tracking-tight text-fg-2">
+          <span className="text-[2.8rem] font-medium leading-none tracking-tight text-fg-2">
             Ag
           </span>
-          <span className="label-mono text-[9px]">{asset.format}</span>
+          <span className="label-mono text-[10px]">{asset.format}</span>
         </div>
       );
     case "audio":
@@ -467,7 +467,7 @@ function TypePlaceholder({ asset, failed }: { asset: Asset; failed: boolean }) {
               <path d="M24 6 40 15v18L24 42 8 33V15L24 6Z" />
               <path d="M8 15l16 9 16-9M24 24v18" />
             </svg>
-            <span className="label-mono text-[9px]">{asset.format}</span>
+            <span className="label-mono text-[10px]">{asset.format}</span>
           </div>
         </div>
       );
@@ -502,7 +502,7 @@ function TypePlaceholder({ asset, failed }: { asset: Asset; failed: boolean }) {
     default:
       return (
         <div className="grid h-full place-items-center">
-          <span className="label-mono text-[10px]">{asset.format}</span>
+          <span className="label-mono text-[11px]">{asset.format}</span>
         </div>
       );
   }

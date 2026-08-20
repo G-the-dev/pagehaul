@@ -136,7 +136,7 @@ export function Hero({
           initial={{ opacity: 0, y: 18 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.08, ease: EASE }}
-          className="text-balance text-[2.4rem] font-medium leading-[1.06] tracking-[-0.035em] sm:text-[3.6rem]"
+          className="text-balance text-[2.6rem] font-medium leading-[1.06] tracking-[-0.035em] sm:text-[3.9rem]"
         >
           Every{" "}
           {/*
@@ -187,7 +187,7 @@ export function Hero({
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.16, ease: EASE }}
-          className="mx-auto mt-6 max-w-md text-[15.5px] leading-relaxed text-muted-foreground"
+          className="mx-auto mt-6 max-w-md text-[16.5px] leading-relaxed text-muted-foreground"
         >
           Paste a link and see what a page is actually built from. Take one file,
           or take everything.
@@ -222,16 +222,16 @@ export function Hero({
               // a column, and a flex-basis of 0% on the column's main axis
               // overrides h-12 entirely — the box collapsed to its text
               // height, 23px, while the button beside it stood at 48.
-              // text-base below sm: iOS zooms the whole page into any input
+              // text-[17px] below sm: iOS zooms the whole page into any input
               // whose text is under 16px, which reads as the layout jumping.
-              className={`h-12 rounded-lg border bg-surface/80 px-4 text-base backdrop-blur-md outline-none transition-colors placeholder:text-muted-foreground disabled:opacity-60 sm:flex-1 sm:text-[15px] ${
+              className={`h-12 rounded-lg border bg-surface/80 px-4 text-[17px] backdrop-blur-md outline-none transition-colors placeholder:text-muted-foreground disabled:opacity-60 sm:flex-1 sm:text-[16px] ${
                 inputError ? "border-danger/60" : "border-border focus:border-border-strong"
               }`}
             />
             <button
               type="submit"
               disabled={!url.trim() || scanning}
-              className="inline-flex h-12 shrink-0 items-center justify-center gap-2 rounded-lg bg-foreground px-7 text-[14.5px] font-semibold text-background transition-opacity hover:opacity-90 disabled:opacity-40"
+              className="inline-flex h-12 shrink-0 items-center justify-center gap-2 rounded-lg bg-foreground px-7 text-[15.5px] font-semibold text-background transition-opacity hover:opacity-90 disabled:opacity-40"
             >
               {scanning ? (
                 <>
@@ -253,7 +253,7 @@ export function Hero({
             <p
               id="scan-error"
               role="alert"
-              className="mt-2 text-left text-[13px] text-danger"
+              className="mt-2 text-left text-[14px] text-danger"
             >
               {inputError ?? error}
             </p>
@@ -281,7 +281,7 @@ export function Hero({
                     // scan that is not the one running.
                     disabled={scanning}
                     onClick={() => setDeep(m.id === "deep")}
-                    className={`rounded-md px-5 py-1.5 text-[13px] font-medium transition-colors ${
+                    className={`rounded-md px-5 py-1.5 text-[14px] font-medium transition-colors ${
                       active
                         ? "bg-foreground text-background"
                         : "text-muted-foreground hover:text-foreground"
@@ -292,13 +292,13 @@ export function Hero({
                 );
               })}
             </div>
-            <p className="text-[12.5px] text-muted-foreground">
+            <p className="text-[13.5px] text-muted-foreground">
               {MODES[deep ? 1 : 0].hint}
             </p>
             {/* The allowance, said plainly where the choice is made, not in
                 a settings page discovered after the wall. */}
             {deep && freeDeepLeft != null && (
-              <p className="text-[11.5px] text-muted-foreground/80">
+              <p className="text-[12.5px] text-muted-foreground/80">
                 {freeDeepLeft > 0 ? (
                   <>
                     {freeDeepLeft} free deep scan{freeDeepLeft === 1 ? "" : "s"} left

@@ -15,7 +15,7 @@ export default function AboutPage() {
       title="Why this exists."
       lede="Most tools in this space hand you a folder and wish you luck. This one tries to tell you what it found."
     >
-      <div className="space-y-6 text-[15.5px] leading-[1.75] text-fg-2">
+      <div className="space-y-6 text-[16.5px] leading-[1.75] text-fg-2">
         <p>
           Getting one image off a web page is harder than it should be. Open the
           developer tools, find the network tab, filter by type, scroll through a
@@ -30,7 +30,7 @@ export default function AboutPage() {
           came for.
         </p>
 
-        <h2 className="!mt-12 text-[17px] font-semibold tracking-tight text-foreground">
+        <h2 className="!mt-12 text-[18px] font-semibold tracking-tight text-foreground">
           What it does differently
         </h2>
         <p>
@@ -56,7 +56,7 @@ export default function AboutPage() {
           the designer looking for a logo.
         </p>
 
-        <h2 className="!mt-12 text-[17px] font-semibold tracking-tight text-foreground">
+        <h2 className="!mt-12 text-[18px] font-semibold tracking-tight text-foreground">
           What it will not do
         </h2>
         <p>
@@ -78,7 +78,7 @@ export default function AboutPage() {
           indexed or retained.
         </p>
 
-        <h2 className="!mt-12 text-[17px] font-semibold tracking-tight text-foreground">
+        <h2 className="!mt-12 text-[18px] font-semibold tracking-tight text-foreground">
           An honest word about rights
         </h2>
         <p>
@@ -93,7 +93,7 @@ export default function AboutPage() {
           <a href="/terms">terms</a> say the same thing in more words.
         </p>
 
-        <h2 className="!mt-12 text-[17px] font-semibold tracking-tight text-foreground">
+        <h2 className="!mt-12 text-[18px] font-semibold tracking-tight text-foreground">
           Who made it
         </h2>
         <p>

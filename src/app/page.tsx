@@ -802,7 +802,7 @@ export default function Home() {
           scrolled ? "-translate-y-full" : ""
         }`}
       >
-        <p className="bg-accent px-4 py-2.5 text-center text-[12.5px] font-semibold leading-snug text-accent-fg">
+        <p className="bg-accent px-4 py-2.5 text-center text-[13.5px] font-semibold leading-snug text-accent-fg">
           You&apos;re on the pocket version. Open pagehaul on a desktop for
           full previews and every asset.
         </p>
@@ -818,7 +818,7 @@ export default function Home() {
         <nav className="keep-blur pointer-events-auto flex w-full items-center gap-1.5 rounded-full border border-border bg-surface/70 py-2 pl-4 pr-1.5 backdrop-blur-md sm:w-auto sm:pl-6 sm:pr-2">
           <a
             href="#top"
-            className="flex items-center gap-1.5 pr-4 text-[15px] font-semibold tracking-tight sm:gap-2"
+            className="flex items-center gap-1.5 pr-4 text-[16px] font-semibold tracking-tight sm:gap-2"
           >
             <Mark size={15} />
             pagehaul
@@ -835,7 +835,7 @@ export default function Home() {
             <a
               key={href}
               href={href}
-              className="hidden rounded-full px-3.5 py-2 text-[13px] text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground sm:block"
+              className="hidden rounded-full px-3.5 py-2 text-[14px] text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground sm:block"
             >
               {label}
             </a>
@@ -847,7 +847,7 @@ export default function Home() {
                 than a star. The repo keeps its link in the footer. */}
             <a
               href="/contact"
-              className="rounded-full bg-foreground px-5 py-2.5 text-[13.5px] font-semibold text-background transition-opacity hover:opacity-90"
+              className="rounded-full bg-foreground px-5 py-2.5 text-[14.5px] font-semibold text-background transition-opacity hover:opacity-90"
             >
               Feedback
             </a>
@@ -889,13 +889,13 @@ export default function Home() {
               at every width. */}
           <div className="mx-auto max-w-[1400px] px-6 py-10 xl:px-12 2xl:max-w-[1680px] 2xl:px-16">
             <div className="mb-6 flex flex-wrap items-baseline justify-between gap-3">
-              <h2 className="text-[1.6rem] font-medium tracking-tight">
+              <h2 className="text-[1.75rem] font-medium tracking-tight">
                 {counts.all}{" "}
                 <span className="text-muted-foreground">
                   file{counts.all === 1 ? "" : "s"}
                 </span>
               </h2>
-              <div className="flex items-center gap-3 font-mono text-[11px] text-muted-foreground">
+              <div className="flex items-center gap-3 font-mono text-[12px] text-muted-foreground">
                 <span>{host}</span>
                 <span className="h-3 w-px bg-border" />
                 <span>{(result.ms / 1000).toFixed(1)}s</span>
@@ -911,14 +911,14 @@ export default function Home() {
             </div>
 
             {result.notes.length > 0 && (
-              <div className="mb-6 rounded-lg border border-warn/25 bg-warn-soft px-4 py-3 text-[13.5px] leading-relaxed text-warn">
+              <div className="mb-6 rounded-lg border border-warn/25 bg-warn-soft px-4 py-3 text-[14.5px] leading-relaxed text-warn">
                 {result.notes.join(" ")}
               </div>
             )}
 
             {!ranDeep && counts.all < 10 && (
               <div className="mb-6 flex flex-wrap items-center gap-3 rounded-lg border border-accent-line bg-accent-soft px-4 py-3">
-                <p className="text-[13.5px]">
+                <p className="text-[14.5px]">
                   This page loads most of its content with JavaScript.
                 </p>
                 <button
@@ -927,7 +927,7 @@ export default function Home() {
                     setDeep(true);
                     runScan(result.target, true);
                   }}
-                  className="ml-auto rounded-md bg-accent px-3 py-1.5 text-[12.5px] font-semibold text-accent-fg"
+                  className="ml-auto rounded-md bg-accent px-3 py-1.5 text-[13.5px] font-semibold text-accent-fg"
                 >
                   Run deep scan
                 </button>
@@ -1006,17 +1006,17 @@ export default function Home() {
                     </div>
                     <div className="absolute inset-0 grid place-items-center bg-background/40">
                       <div className="max-w-sm rounded-xl border border-border bg-background p-6 text-center shadow-soft">
-                        <p className="text-sm font-semibold">
+                        <p className="text-[15px] font-semibold">
                           The design system is part of Pro
                         </p>
-                        <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground">
+                        <p className="mt-1.5 text-[14px] leading-relaxed text-muted-foreground">
                           Palette, typography and tokens, read from the page as
                           a browser paints it.
                         </p>
                         <button
                           type="button"
                           onClick={() => setPaywall("design")}
-                          className="mt-4 rounded-md bg-accent px-4 py-2 text-[13px] font-semibold text-accent-fg transition-opacity hover:opacity-90"
+                          className="mt-4 rounded-md bg-accent px-4 py-2 text-[14px] font-semibold text-accent-fg transition-opacity hover:opacity-90"
                         >
                           Unlock with Pro
                         </button>
@@ -1029,10 +1029,10 @@ export default function Home() {
                 // no colours or type to show yet. Rather than a dead end, the
                 // tab explains where the design system comes from and fetches it.
                 <div className="rounded-xl border border-dashed border-border py-16 text-center">
-                  <p className="text-sm text-foreground">
+                  <p className="text-[15px] text-foreground">
                     The design system comes from a deep scan.
                   </p>
-                  <p className="mx-auto mt-1.5 max-w-sm text-[13px] leading-relaxed text-muted-foreground">
+                  <p className="mx-auto mt-1.5 max-w-sm text-[14px] leading-relaxed text-muted-foreground">
                     Colours, fonts and design tokens are read from the page as a
                     browser paints it; a quick scan only sees the markup.
                   </p>
@@ -1043,7 +1043,7 @@ export default function Home() {
                       setTab("all");
                       runScan(result.target, true);
                     }}
-                    className="mt-5 rounded-md bg-accent px-4 py-2 text-[13px] font-semibold text-accent-fg transition-opacity hover:opacity-90"
+                    className="mt-5 rounded-md bg-accent px-4 py-2 text-[14px] font-semibold text-accent-fg transition-opacity hover:opacity-90"
                   >
                     Extract the design system
                   </button>
@@ -1051,7 +1051,7 @@ export default function Home() {
               )
             ) : visible.length === 0 ? (
               <div className="rounded-xl border border-dashed border-border py-16 text-center">
-                <p className="text-sm text-muted-foreground">
+                <p className="text-[15px] text-muted-foreground">
                   No {activeTabLabel.toLowerCase()} on this page.
                 </p>
               </div>
@@ -1061,13 +1061,13 @@ export default function Home() {
               <>
                 {(LOCKED_KINDS as readonly string[]).includes(tab) && !paid && (
                   <div className="mb-6 flex flex-wrap items-center gap-3 rounded-lg border border-accent-line bg-accent-soft px-4 py-3">
-                    <p className="text-[13.5px]">
+                    <p className="text-[14.5px]">
                       Previews and downloads here are part of Pro.
                     </p>
                     <button
                       type="button"
                       onClick={() => setPaywall("locked")}
-                      className="ml-auto rounded-md bg-accent px-3 py-1.5 text-[12.5px] font-semibold text-accent-fg"
+                      className="ml-auto rounded-md bg-accent px-3 py-1.5 text-[13.5px] font-semibold text-accent-fg"
                     >
                       Unlock with Pro
                     </button>
@@ -1087,10 +1087,10 @@ export default function Home() {
                 <button
                   type="button"
                   onClick={() => setShown((n) => n + 96)}
-                  className="rounded-lg border border-border px-5 py-2.5 text-[13.5px] font-medium text-fg-2 transition-colors hover:border-border-strong hover:text-foreground"
+                  className="rounded-lg border border-border px-5 py-2.5 text-[14.5px] font-medium text-fg-2 transition-colors hover:border-border-strong hover:text-foreground"
                 >
                   Show {Math.min(96, visible.length - shown)} more
-                  <span className="ml-2 font-mono text-[11px] text-muted-foreground">
+                  <span className="ml-2 font-mono text-[12px] text-muted-foreground">
                     {shown} of {visible.length}
                   </span>
                 </button>
@@ -1130,7 +1130,7 @@ export default function Home() {
                   barCompact ? "px-4 py-2.5" : "px-5 py-3.5"
                 } ${barResizing ? "" : "backdrop-blur-xl"}`}
               >
-                <span className="text-[13px] text-muted-foreground">
+                <span className="text-[14px] text-muted-foreground">
                   {visible.length} {activeTabLabel.toLowerCase()}
                   {visibleBytes > 0 && ` · ${formatBytes(visibleBytes)}`}
                   {/* Said where the download buttons are, because that is the
@@ -1149,7 +1149,7 @@ export default function Home() {
                         style={{ width: `${(progress.done / progress.total) * 100}%` }}
                       />
                     </div>
-                    <span className="font-mono text-[11px] text-muted-foreground">
+                    <span className="font-mono text-[12px] text-muted-foreground">
                       {progress.done}/{progress.total}
                     </span>
                   </div>
@@ -1159,7 +1159,7 @@ export default function Home() {
                     type="button"
                     disabled={busy}
                     onClick={() => setPickerOpen(true)}
-                    className="h-9 rounded-lg border border-border px-4 text-[13px] font-medium transition-colors hover:border-accent disabled:opacity-40"
+                    className="h-9 rounded-lg border border-border px-4 text-[14px] font-medium transition-colors hover:border-accent disabled:opacity-40"
                   >
                     {barCompact ? "Choose" : "Choose files"}
                   </button>
@@ -1167,7 +1167,7 @@ export default function Home() {
                     type="button"
                     disabled={busy}
                     onClick={() => runDownload(visible, true)}
-                    className="h-9 rounded-lg bg-accent px-4 text-[13px] font-semibold text-accent-fg transition-all hover:brightness-110 disabled:opacity-40"
+                    className="h-9 rounded-lg bg-accent px-4 text-[14px] font-semibold text-accent-fg transition-all hover:brightness-110 disabled:opacity-40"
                   >
                     {busy
                       ? "Working"
@@ -1189,10 +1189,10 @@ export default function Home() {
       {!result && expiredHost && (
         <section ref={expiredRef as React.RefObject<HTMLElement>} className="mx-auto max-w-[1400px] px-6 py-14">
           <div className="rounded-xl border border-dashed border-border px-6 py-14 text-center">
-            <p className="text-[16px] font-semibold">
+            <p className="text-[17px] font-semibold">
               Those results have cleared.
             </p>
-            <p className="mx-auto mt-2.5 max-w-md text-[14px] leading-relaxed text-muted-foreground">
+            <p className="mx-auto mt-2.5 max-w-md text-[15px] leading-relaxed text-muted-foreground">
               A scan is held for {SITE.resultsMinutes} minutes and then dropped.
               Nothing was stored on our side to begin with, so scanning again
               costs you only the wait.
@@ -1210,7 +1210,7 @@ export default function Home() {
                 });
                 runScan(expiredHost, deep);
               }}
-              className="mt-6 inline-flex h-10 items-center rounded-lg bg-accent px-5 text-[13.5px] font-semibold text-accent-fg transition-all hover:brightness-110"
+              className="mt-6 inline-flex h-10 items-center rounded-lg bg-accent px-5 text-[14.5px] font-semibold text-accent-fg transition-all hover:brightness-110"
             >
               Scan {expiredHost} again
             </button>
@@ -1297,7 +1297,7 @@ function TabButton({
       // difference of two values and reads as nothing at all. It now lifts to
       // the next surface up with a lit top edge, so selection is legible
       // without colour, in either theme.
-      className={`flex items-center gap-1.5 whitespace-nowrap rounded-md px-3.5 py-1.5 text-[13px] font-medium transition-all ${
+      className={`flex items-center gap-1.5 whitespace-nowrap rounded-md px-3.5 py-1.5 text-[14px] font-medium transition-all ${
         active
           ? "bg-surface-3 text-foreground shadow-lift ring-1 ring-inset ring-[rgb(var(--raise)/0.14)]"
           : "text-muted-foreground hover:bg-[rgb(var(--raise)/0.05)] hover:text-foreground"
@@ -1306,7 +1306,7 @@ function TabButton({
       {label}
       {count !== undefined && (
         <span
-          className={`font-mono text-[10px] tabular-nums ${
+          className={`font-mono text-[11px] tabular-nums ${
             active ? "text-accent" : "opacity-60"
           }`}
         >
@@ -1338,29 +1338,29 @@ function NetworkTable({
             }`}
           >
             {a.method && (
-              <span className="w-11 shrink-0 font-mono text-[10px] font-semibold text-accent">
+              <span className="w-11 shrink-0 font-mono text-[11px] font-semibold text-accent">
                 {a.method}
               </span>
             )}
-            <span className="shrink-0 rounded border border-border bg-surface-2 px-1.5 py-px font-mono text-[9.5px] font-semibold">
+            <span className="shrink-0 rounded border border-border bg-surface-2 px-1.5 py-px font-mono text-[10.5px] font-semibold">
               {a.format}
             </span>
-            <span className="min-w-0 flex-1 truncate text-[13px]">{a.displayName}</span>
+            <span className="min-w-0 flex-1 truncate text-[14px]">{a.displayName}</span>
             {a.preview && (
-              <span className="hidden min-w-0 max-w-[38%] flex-1 truncate font-mono text-[11px] text-muted-foreground lg:block">
+              <span className="hidden min-w-0 max-w-[38%] flex-1 truncate font-mono text-[12px] text-muted-foreground lg:block">
                 {a.preview}
               </span>
             )}
             {a.status !== undefined && (
               <span
-                className={`shrink-0 font-mono text-[10px] ${
+                className={`shrink-0 font-mono text-[11px] ${
                   a.status >= 400 ? "text-danger" : "text-muted-foreground"
                 }`}
               >
                 {a.status}
               </span>
             )}
-            <span className="w-14 shrink-0 text-right font-mono text-[10px] tabular-nums text-muted-foreground">
+            <span className="w-14 shrink-0 text-right font-mono text-[11px] tabular-nums text-muted-foreground">
               {formatBytes(a.bytes)}
             </span>
           </button>

@@ -38,7 +38,7 @@ export function TryExamples({
       transition={{ duration: 0.8, delay: 0.32, ease: EASE }}
       className="pointer-events-auto mt-8 flex flex-wrap items-center justify-center gap-2"
     >
-      <span className="mr-1 text-[12.5px] text-muted-foreground">
+      <span className="mr-1 text-[13.5px] text-muted-foreground">
         {hasHistory ? "Recent" : "Try"}
       </span>
       <AnimatePresence initial={false} mode="popLayout">
@@ -59,7 +59,7 @@ export function TryExamples({
               disabled={disabled}
               onClick={() => onPick(item.url)}
               title={hasHistory ? item.url : undefined}
-              className="py-1.5 font-mono text-[11.5px] text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
+              className="py-1.5 font-mono text-[12.5px] text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
             >
               {item.label}
             </button>

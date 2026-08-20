@@ -1,25 +1,22 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
-import { Spline_Sans_Mono } from "next/font/google";
+import { Inter } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 
-/**
- * Switzer, self-hosted. The look asked for is Saans, which is a paid
- * commercial face; Switzer is its closest free relative (same neo-grotesk
- * family, Fontshare's free-for-commercial license, kept next to the file)
- * and one 43KB variable file carries every weight. If a Saans license is
- * ever bought, its woff2 drops in here and nothing else changes.
- */
-const appSans = localFont({
-  src: "./fonts/Switzer-Variable.woff2",
-  weight: "100 900",
+const appSans = Inter({
+  subsets: ["latin"],
   variable: "--font-app-sans",
   display: "swap",
 });
 
-const appMono = Spline_Sans_Mono({
-  subsets: ["latin"],
+/**
+ * ABC Diatype Mono, from the owner's own licensed files. One weight is all
+ * the mono seats need; the few tiny labels that ask for bold synthesize it.
+ */
+const appMono = localFont({
+  src: "./fonts/ABCDiatypeMono.woff2",
+  weight: "400",
   variable: "--font-app-mono",
   display: "swap",
 });
