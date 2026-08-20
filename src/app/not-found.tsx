@@ -25,9 +25,9 @@ export default function NotFound() {
         </h1>
 
         <p className="mx-auto mt-4 max-w-sm text-[16px] leading-relaxed text-muted-foreground">
-          The link may be wrong, or the page may have been removed. Nothing here
-          expires except capture links, and those only last{" "}
-          {SITE.retentionMinutes} minutes.
+          The link may be wrong, or the page may have been removed. Nothing
+          here expires except scan results, and those live in your browser for{" "}
+          {SITE.resultsMinutes} minutes.
         </p>
 
         <Link
