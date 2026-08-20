@@ -10,148 +10,216 @@ import { EASE, Reveal, Section, SectionHead, Card } from "./ui/motion-primitives
 
 const TILE = "rounded-md";
 
-/** A page resolving into typed files. */
-function CoverageVisual({ active }: { active: boolean }) {
+/**
+ * A shared clock for looping visuals: progress 0..1 over the duration,
+ * frozen at a finished frame for anyone who asked their OS for less motion.
+ */
+function useLoop(durationMs: number): number {
   const reduce = useReducedMotion();
-  const items = [
-    { l: "WEBP", w: 2, tone: "bg-foreground/80" },
-    { l: "SVG", w: 1, tone: "bg-surface-3" },
-    { l: "MP4", w: 1, tone: "bg-surface-3" },
-    { l: "WOFF2", w: 1, tone: "bg-surface-3" },
-    { l: "JSON", w: 2, tone: "bg-surface-3" },
-    { l: "PNG", w: 1, tone: "bg-foreground/45" },
-    { l: "CSS", w: 1, tone: "bg-surface-3" },
-    { l: "PDF", w: 1, tone: "bg-surface-3" },
+  const [p, setP] = useState(reduce ? 0.99 : 0);
+  useEffect(() => {
+    if (reduce) return;
+    const t0 = performance.now();
+    let raf = 0;
+    const tick = (t: number) => {
+      raf = requestAnimationFrame(tick);
+      setP(((t - t0) % durationMs) / durationMs);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [durationMs, reduce]);
+  return p;
+}
+
+/**
+ * The product, miniature: a page being read while its files land in a tray
+ * beside it. Each chip appears as the beam passes the part of the page it
+ * came from. The claim, demonstrated.
+ */
+function CoverageVisual({ active: _active }: { active: boolean }) {
+  const p = useLoop(5600);
+  const beamTop = 12 + p * 74;
+  const chips = [
+    { tag: "IMG", name: "hero@2x.webp", at: 0.1 },
+    { tag: "SVG", name: "logo.svg", at: 0.26 },
+    { tag: "WOFF2", name: "inter.woff2", at: 0.42 },
+    { tag: "MP4", name: "reel.mp4", at: 0.58 },
+    { tag: "JSON", name: "/api/products", at: 0.74 },
   ];
   return (
-    <div className="grid h-full grid-cols-4 content-center gap-2">
-      {items.map((it, i) => (
-        <motion.div
-          key={it.l}
-          initial={{ opacity: 0, y: 12 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: "-60px" }}
-          animate={reduce || !active ? {} : { y: [0, -3, 0] }}
-          transition={{ duration: 0.5, delay: i * 0.055, ease: EASE }}
-          style={{ gridColumn: `span ${it.w}` }}
-          className={`flex h-11 items-center justify-center ${TILE} ${it.tone}`}
-        >
-          <span
-            className={`font-mono text-[10px] tracking-wider ${
-              it.tone.includes("foreground/80")
-                ? "text-background"
-                : "text-muted-foreground"
-            }`}
-          >
-            {it.l}
+    <div className="flex h-full gap-3">
+      <div className="relative flex-1 overflow-hidden rounded-lg border border-border bg-background">
+        <div className="flex items-center gap-1.5 border-b border-border px-2.5 py-2">
+          {[0, 1, 2].map((i) => (
+            <span key={i} className="h-1.5 w-1.5 rounded-full bg-surface-3" />
+          ))}
+          <span className="ml-1 rounded bg-surface-2 px-1.5 py-0.5 font-mono text-[9px] text-muted-foreground">
+            stripe.com
           </span>
-        </motion.div>
-      ))}
-    </div>
-  );
-}
-
-/** One file leaving the set. */
-function PrecisionVisual({ active }: { active: boolean }) {
-  const reduce = useReducedMotion();
-  return (
-    <div className="grid h-full grid-cols-3 content-center gap-2">
-      {Array.from({ length: 9 }).map((_, i) => {
-        const pick = i === 4;
-        return (
-          <motion.div
-            key={i}
-            initial={{ opacity: 0, scale: 0.86 }}
-            whileInView={{ opacity: 1, scale: 1 }}
-            viewport={{ once: true, margin: "-60px" }}
-            animate={
-              reduce
-                ? {}
-                : pick
-                  ? active
-                    ? { y: -14, scale: 1.12 }
-                    : { y: 0, scale: 1 }
-                  : { opacity: active ? 0.28 : 1 }
-            }
-            transition={{ duration: 0.45, delay: i * 0.03, ease: EASE }}
-            className={`relative h-12 ${TILE} ${
-              pick ? "z-10 bg-foreground" : "bg-surface-2"
-            }`}
-          >
-            {pick && (
-              <span className="absolute inset-0 grid place-items-center">
-                <svg
-                  viewBox="0 0 24 24"
-                  className="h-4 w-4 text-background"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M12 4v11m0 0 4-4m-4 4-4-4M5 19h14" />
-                </svg>
+        </div>
+        <div className="space-y-1.5 p-2.5">
+          <div className="h-8 rounded bg-surface-2" />
+          <div className="h-1.5 w-4/5 rounded bg-surface-2" />
+          <div className="h-1.5 w-3/5 rounded bg-surface-2" />
+          <div className="flex gap-1.5 pt-0.5">
+            <div className="h-7 flex-1 rounded bg-surface-3/70" />
+            <div className="h-7 flex-1 rounded bg-surface-2" />
+            <div className="h-7 flex-1 rounded bg-surface-2" />
+          </div>
+        </div>
+        <div
+          className="absolute inset-x-0 h-px bg-foreground/60"
+          style={{ top: beamTop + "%" }}
+        />
+        <div
+          className="absolute inset-x-0 h-6 bg-gradient-to-b from-foreground/10 to-transparent"
+          style={{ top: beamTop + "%" }}
+        />
+      </div>
+      <div className="flex w-[46%] flex-col justify-center gap-1.5">
+        {chips.map((c) => {
+          const on = p >= c.at;
+          return (
+            <div
+              key={c.tag}
+              className="flex items-center gap-1.5 rounded-md border border-border bg-background px-2 py-1 transition-all duration-300"
+              style={{
+                opacity: on ? 1 : 0.18,
+                transform: on ? "translateX(0)" : "translateX(6px)",
+              }}
+            >
+              <span className="rounded bg-surface-2 px-1 py-0.5 font-mono text-[8.5px] tracking-wide text-muted-foreground">
+                {c.tag}
               </span>
-            )}
-          </motion.div>
-        );
-      })}
+              <span className="truncate font-mono text-[9.5px] text-fg-2">{c.name}</span>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
 
-/** Colour and type, read off the page. */
-function DesignVisual({ active }: { active: boolean }) {
-  const reduce = useReducedMotion();
+/**
+ * One file chosen and taken: the cursor drifts to a tile, the tile answers,
+ * the receipt slides up. Watching it is the pitch.
+ */
+function PrecisionVisual({ active: _active }: { active: boolean }) {
+  const p = useLoop(6000);
+  const seg = (from: number, to: number, a: number, b: number) =>
+    p <= from ? a : p >= to ? b : a + ((p - from) / (to - from)) * (b - a);
+  const cx = seg(0.05, 0.35, 88, 50);
+  const cy = seg(0.05, 0.35, 92, 46);
+  const picked = p >= 0.38 && p < 0.94;
+  const toast = p >= 0.46 && p < 0.9;
+  return (
+    <div className="relative h-full">
+      <div className="grid h-full grid-cols-3 content-center gap-2">
+        {Array.from({ length: 9 }).map((_, i) => {
+          const pick = i === 4;
+          return (
+            <div
+              key={i}
+              className={"h-12 " + TILE + " transition-all duration-300 " + (
+                pick
+                  ? picked
+                    ? "bg-foreground ring-2 ring-accent-line ring-offset-2 ring-offset-surface"
+                    : "bg-foreground/80"
+                  : picked
+                    ? "bg-surface-2 opacity-35"
+                    : "bg-surface-2"
+              )}
+            />
+          );
+        })}
+      </div>
+      <svg
+        viewBox="0 0 24 24"
+        className="absolute z-10 h-4 w-4 text-foreground drop-shadow"
+        style={{ left: cx + "%", top: cy + "%" }}
+        fill="currentColor"
+      >
+        <path d="M5 3l14 8-6.5 1.5L9 19z" />
+      </svg>
+      <div
+        className="absolute inset-x-4 bottom-1 flex items-center gap-2 rounded-md border border-border bg-background px-2.5 py-1.5 shadow-soft transition-all duration-300"
+        style={{
+          opacity: toast ? 1 : 0,
+          transform: toast ? "translateY(0)" : "translateY(8px)",
+        }}
+      >
+        <span className="grid h-3.5 w-3.5 place-items-center rounded-full bg-foreground text-background">
+          <svg viewBox="0 0 24 24" className="h-2 w-2" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M20 6 9 17l-5-5" />
+          </svg>
+        </span>
+        <span className="truncate font-mono text-[10px] text-fg-2">hero@2x.webp</span>
+        <span className="ml-auto font-mono text-[9.5px] text-muted-foreground">214 KB</span>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * The design tab assembling itself: swatches first, the type they set, then
+ * the tokens typed out beneath, character by character.
+ */
+function DesignVisual({ active: _active }: { active: boolean }) {
+  const p = useLoop(6400);
   const swatches = [
     { c: "#fafafa", n: "62%" },
     { c: "#a1a1a1", n: "21%" },
     { c: "#525252", n: "11%" },
     { c: "#262626", n: "6%" },
   ];
+  const tokens = ["--radius: 12px", "--font-sans: Inter"];
+  const typedAt = (line: number) => {
+    const begin = 0.42 + line * 0.22;
+    const t = Math.max(0, Math.min(1, (p - begin) / 0.16));
+    return tokens[line].slice(0, Math.round(t * tokens[line].length));
+  };
   return (
-    <div className="flex h-full flex-col justify-center gap-4">
+    <div className="flex h-full flex-col justify-center gap-3.5">
       <div className="flex gap-2">
-        {swatches.map((s, i) => (
-          <motion.div
-            key={s.c}
-            initial={{ opacity: 0, y: 14 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: "-60px" }}
-            animate={reduce || !active ? {} : { y: [0, -5, 0] }}
-            transition={{ duration: 0.5, delay: i * 0.07, ease: EASE }}
-            className={`flex-1 overflow-hidden ${TILE} border border-border`}
-          >
-            <div className="h-9 w-full" style={{ background: s.c }} />
-            <div className="bg-surface-2 py-1 text-center font-mono text-[9.5px] text-muted-foreground">
-              {s.n}
+        {swatches.map((sw, i) => {
+          const on = p >= 0.06 + i * 0.07;
+          return (
+            <div
+              key={sw.c}
+              className={"flex-1 overflow-hidden " + TILE + " border border-border transition-all duration-300"}
+              style={{
+                opacity: on ? 1 : 0.15,
+                transform: on ? "translateY(0)" : "translateY(6px)",
+              }}
+            >
+              <div className="h-8 w-full" style={{ background: sw.c }} />
+              <div className="bg-surface-2 py-0.5 text-center font-mono text-[9px] text-muted-foreground">
+                {sw.n}
+              </div>
             </div>
-          </motion.div>
-        ))}
+          );
+        })}
       </div>
-      <div className="flex items-baseline gap-3">
-        {["Aa", "Aa", "Aa"].map((t, i) => (
-          <motion.span
-            key={i}
-            initial={{ opacity: 0, y: 10 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: "-60px" }}
-            transition={{ duration: 0.5, delay: 0.25 + i * 0.08, ease: EASE }}
-            style={{ fontSize: `${28 - i * 8}px`, fontWeight: 700 - i * 200 }}
-            className="leading-none text-fg-2"
+      <div
+        className="flex items-baseline gap-2.5 transition-opacity duration-300"
+        style={{ opacity: p >= 0.34 ? 1 : 0.15 }}
+      >
+        <span className="text-[24px] font-bold leading-none text-fg-2">Ag</span>
+        <span className="text-[16px] font-medium leading-none text-fg-2">Ag</span>
+        <span className="font-mono text-[10px] text-muted-foreground">Inter · 3 weights</span>
+      </div>
+      <div className="space-y-1">
+        {tokens.map((tk, i) => (
+          <div
+            key={tk}
+            className="flex h-[18px] items-center rounded bg-surface-2/70 px-2 font-mono text-[10px] text-muted-foreground"
           >
-            {t}
-          </motion.span>
+            {typedAt(i)}
+            {p >= 0.42 + i * 0.22 && typedAt(i).length < tk.length && (
+              <span className="ml-px h-3 w-px bg-foreground" />
+            )}
+          </div>
         ))}
-        <motion.span
-          initial={{ opacity: 0 }}
-          whileInView={{ opacity: 1 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.5, delay: 0.5 }}
-          className="ml-auto font-mono text-[10.5px] text-muted-foreground"
-        >
-          3 families
-        </motion.span>
       </div>
     </div>
   );
@@ -194,7 +262,7 @@ export function Features() {
         }
       />
 
-      <div className="mt-16 grid gap-5 lg:grid-cols-3">
+      <div className="mt-14 grid gap-5 lg:grid-cols-3">
         {FEATURES.map((f, i) => (
           <Reveal key={f.title} delay={i * 0.1}>
             <div
@@ -459,11 +527,14 @@ export function Steps() {
  * reason to exist.
  */
 function DesignerMark() {
+  const reduce = useReducedMotion();
   return (
     <div className="flex gap-1.5">
-      {["#fafafa", "#a1a1a1", "#525252", "#2e2e2e"].map((c) => (
-        <span
+      {["#fafafa", "#a1a1a1", "#525252", "#2e2e2e"].map((c, i) => (
+        <motion.span
           key={c}
+          animate={reduce ? {} : { y: [0, -3, 0] }}
+          transition={{ duration: 2.6, repeat: Infinity, delay: i * 0.28, ease: "easeInOut" }}
           className="h-6 w-6 rounded-md border border-border"
           style={{ background: c }}
         />
@@ -473,13 +544,20 @@ function DesignerMark() {
 }
 
 function DeveloperMark() {
+  const reduce = useReducedMotion();
   return (
     <div className="flex w-full max-w-[130px] flex-col gap-1.5">
-      {[100, 62, 82].map((w, i) => (
-        <span
+      {[
+        [100, 74],
+        [62, 88],
+        [82, 58],
+      ].map(([a, b], i) => (
+        <motion.span
           key={i}
-          style={{ width: `${w}%` }}
-          className={`h-1.5 rounded-full ${i === 1 ? "bg-foreground/55" : "bg-surface-3"}`}
+          animate={reduce ? {} : { width: [a + "%", b + "%", a + "%"] }}
+          transition={{ duration: 3.4, repeat: Infinity, delay: i * 0.4, ease: "easeInOut" }}
+          style={{ width: a + "%" }}
+          className={"h-1.5 rounded-full " + (i === 1 ? "bg-foreground/55" : "bg-surface-3")}
         />
       ))}
     </div>
@@ -487,15 +565,24 @@ function DeveloperMark() {
 }
 
 function MotionMark() {
+  const reduce = useReducedMotion();
   return (
     <div className="flex items-center gap-1.5">
       {[0, 1, 2].map((i) => (
-        <span
+        <motion.span
           key={i}
-          className={`h-6 rounded-md ${i === 1 ? "w-9 bg-foreground/70" : "w-6 bg-surface-3"}`}
+          animate={
+            reduce || i !== 1 ? {} : { scaleX: [1, 1.28, 1], opacity: [0.7, 1, 0.7] }
+          }
+          transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
+          className={"h-6 origin-left rounded-md " + (i === 1 ? "w-9 bg-foreground/70" : "w-6 bg-surface-3")}
         />
       ))}
-      <span className="ml-0.5 border-y-[5px] border-l-[8px] border-y-transparent border-l-foreground/60" />
+      <motion.span
+        animate={reduce ? {} : { opacity: [0.4, 1, 0.4] }}
+        transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
+        className="ml-0.5 border-y-[5px] border-l-[8px] border-y-transparent border-l-foreground/60"
+      />
     </div>
   );
 }
@@ -519,8 +606,23 @@ function MigrateMark() {
       >
         <path d="M5 12h14m0 0-5-5m5 5-5 5" />
       </svg>
-      <span className="h-6 w-6 rounded-md bg-foreground/70" />
+      <span className="relative h-6 w-6 rounded-md bg-foreground/70">
+        <MigratingDot />
+      </span>
     </div>
+  );
+}
+
+/** The one tile forever in transit, left grid to right box. */
+function MigratingDot() {
+  const reduce = useReducedMotion();
+  if (reduce) return null;
+  return (
+    <motion.span
+      animate={{ x: [-46, 0], opacity: [0, 1, 1, 0] }}
+      transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut", times: [0, 0.4, 0.8, 1] }}
+      className="absolute left-1.5 top-1.5 h-3 w-3 rounded-[3px] bg-background/80"
+    />
   );
 }
 
@@ -556,7 +658,7 @@ export function Audience() {
           title="Built for people who know what they are looking for."
         />
 
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-5 sm:grid-cols-2">
           {AUDIENCE.map((a, i) => (
             <Reveal key={a.who} delay={i * 0.08}>
               <Card className="flex h-full flex-col p-6">

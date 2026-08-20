@@ -1228,7 +1228,6 @@ export default function Home() {
       <PricingSection />
       <HatchBand />
       <Faq />
-      <HatchBand />
       <Footer />
 
       {pickerOpen && (

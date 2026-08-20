@@ -12,6 +12,7 @@ import {
   storeLicense,
 } from "@/lib/plan";
 import { Section, Reveal, Chip } from "./ui/motion-primitives";
+import { useIsLight } from "@/lib/use-is-light";
 
 /**
  * The plans, and the moment of asking for money.
@@ -72,23 +73,6 @@ function Tick({ children }: { children: React.ReactNode }) {
   );
 }
 
-/** Which theme the paint is under, watched live so the shaders recolour. */
-function useIsLight(): boolean {
-  const [light, setLight] = useState(false);
-  useEffect(() => {
-    const read = () =>
-      setLight(document.documentElement.classList.contains("light"));
-    read();
-    const mo = new MutationObserver(read);
-    mo.observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: ["class"],
-    });
-    return () => mo.disconnect();
-  }, []);
-  return light;
-}
-
 /**
  * One pricing card: paper-shader ground, icon tile and badge, name against
  * price, a hairline, the list, and whatever the footer needs. The shader is
@@ -106,6 +90,8 @@ function PlanCard({
   ticks,
   footer,
   shades,
+  active,
+  onActivate,
 }: {
   icon: React.ReactNode;
   badge: string;
@@ -117,6 +103,8 @@ function PlanCard({
   ticks: React.ReactNode;
   footer: React.ReactNode;
   shades: { back: string; colors: string[] };
+  active?: boolean;
+  onActivate?: () => void;
 }) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
@@ -124,7 +112,15 @@ function PlanCard({
     typeof window !== "undefined" &&
     window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-border">
+    <div
+      onClick={onActivate}
+      onFocusCapture={onActivate}
+      className={"relative overflow-hidden rounded-2xl border transition-all duration-300 " + (
+        active
+          ? "border-border-strong shadow-soft"
+          : "border-border"
+      )}
+    >
       {mounted && (
         <GrainGradient
           colorBack={shades.back}
@@ -190,6 +186,9 @@ export function PlansGrid({
   // browser that lost its storage.
   const [email, setEmail] = useState("");
   const [emailNeeded, setEmailNeeded] = useState(false);
+  // Which card the person is leaning toward: click or focus marks it, and
+  // the card firms its border so the choice is visible without shouting.
+  const [activeCard, setActiveCard] = useState<"free" | "pro" | "pack" | null>(null);
   const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email.trim());
 
   const buy = async (plan: "pro" | "pack") => {
@@ -311,6 +310,8 @@ export function PlansGrid({
       <div className="grid gap-5 md:grid-cols-3">
         <PlanCard
           icon={<Zap className="h-4 w-4" aria-hidden />}
+          active={activeCard === "free"}
+          onActivate={() => setActiveCard("free")}
           badge="Start here"
           title="Free"
           price="₹0"
@@ -345,6 +346,8 @@ export function PlansGrid({
 
         <PlanCard
           icon={<Layers className="h-4 w-4" aria-hidden />}
+          active={activeCard === "pro"}
+          onActivate={() => setActiveCard("pro")}
           badge="Best value"
           badgeStrong
           title="Pro"
@@ -377,6 +380,8 @@ export function PlansGrid({
 
         <PlanCard
           icon={<Package className="h-4 w-4" aria-hidden />}
+          active={activeCard === "pack"}
+          onActivate={() => setActiveCard("pack")}
           badge="One-time"
           title="Scan pack"
           price={`₹${PACK_PRICE_INR}`}
@@ -421,7 +426,7 @@ export function PricingSection() {
   return (
     <Section id="pricing">
       <Reveal>
-        <div className="mb-12">
+        <div className="mb-14">
           <Chip>Pricing</Chip>
           <h2 className="mt-6 max-w-md text-[2.15rem] font-medium leading-[1.12] tracking-tight sm:text-[2.7rem]">
             Free to try.

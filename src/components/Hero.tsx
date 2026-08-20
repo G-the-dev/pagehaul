@@ -8,7 +8,8 @@ import { TryExamples } from "./TryExamples";
 import type { Recent } from "@/lib/recent";
 import { checkUrlInput } from "@/lib/url-input";
 import { ScanProgress } from "./ScanProgress";
-import { DotMatrix } from "./DotMatrix";
+import { Dithering } from "@paper-design/shaders-react";
+import { useIsLight } from "@/lib/use-is-light";
 
 interface Props {
   url: string;
@@ -29,9 +30,29 @@ interface Props {
   freeDeepLeft?: number | null;
 }
 
+/** The dither field, recoloured live with the theme and stilled on request. */
+function HeroDither() {
+  const light = useIsLight();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  if (!mounted) return null;
+  const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  return (
+    <Dithering
+      colorBack={light ? "#fafafa" : "#0a0a0a"}
+      colorFront={light ? "#c9c9c6" : "#2b2b2e"}
+      shape="warp"
+      type="4x4"
+      size={2}
+      speed={still ? 0 : 0.18}
+      style={{ width: "100%", height: "100%" }}
+    />
+  );
+}
+
 const MODES = [
-  { id: "quick" as const, label: "Quick", hint: "Reads the markup and stylesheets. A few seconds." },
-  { id: "deep" as const, label: "Deep", hint: "Runs the page in a real browser. Finds far more." },
+  { id: "quick" as const, label: "Quick", hint: "Reads the markup. Seconds." },
+  { id: "deep" as const, label: "Deep", hint: "Real browser. Finds far more." },
 ];
 
 export function Hero({
@@ -97,7 +118,7 @@ export function Hero({
 
   const [index, setIndex] = useState(0);
   const words = useMemo(
-    () => ["image", "icon", "video", "audio track", "font", "3D asset"],
+    () => ["image", "icon", "video", "audio", "font", "3D asset"],
     [],
   );
 
@@ -121,8 +142,9 @@ export function Hero({
             "radial-gradient(ellipse 60% 55% at 50% -8%, rgb(var(--glow) / 0.055), transparent 72%)",
         }}
       />
-      {/* The tile logo as weather: a field of clustered dots behind the
-          headline, masked out before the copy has to fight it. */}
+      {/* The brand as weather: an ordered-dither field drifting behind the
+          headline, the tile logo dissolved into pixels, masked out before
+          the copy has to fight it. */}
       <div
         aria-hidden
         className="pointer-events-none absolute inset-x-0 top-0 h-[560px]"
@@ -133,7 +155,7 @@ export function Hero({
             "radial-gradient(ellipse 62% 64% at 50% 0%, #000 14%, transparent 74%)",
         }}
       >
-        <DotMatrix className="h-full w-full opacity-70" />
+        <HeroDither />
       </div>
 
       <div className="relative z-20 mx-auto w-full max-w-3xl px-6 py-24 text-center">
@@ -165,7 +187,7 @@ export function Hero({
                   {w}
                 </span>
               ))}
-              <span className="col-start-1 row-start-1 grid place-items-center">
+              <span className="col-start-1 row-start-1 grid justify-items-start">
                 <AnimatePresence mode="wait" initial={false}>
                   <motion.span
                     key={index}
@@ -180,7 +202,7 @@ export function Hero({
                         with the four grab handles. */}
                     <span
                       aria-hidden
-                      className="pointer-events-none absolute inset-x-0 top-[0.1em] bottom-[0.06em] rounded-[0.1em] border border-accent-line bg-accent-soft/40"
+                      className="pointer-events-none absolute inset-x-0 top-[0.08em] bottom-0 rounded-[0.1em] border border-accent-line bg-accent-soft/40"
                     >
                       <span className="absolute -left-[3.5px] -top-[3.5px] h-[7px] w-[7px] rounded-[1.5px] border border-accent-line bg-background" />
                       <span className="absolute -right-[3.5px] -top-[3.5px] h-[7px] w-[7px] rounded-[1.5px] border border-accent-line bg-background" />
@@ -305,25 +327,22 @@ export function Hero({
             </div>
             <p className="text-[13.5px] text-muted-foreground">
               {MODES[deep ? 1 : 0].hint}
-            </p>
-            {/* The allowance, said plainly where the choice is made, not in
-                a settings page discovered after the wall. */}
-            {deep && freeDeepLeft != null && (
-              <p className="text-[12.5px] text-muted-foreground/80">
-                {freeDeepLeft > 0 ? (
-                  <>
-                    {freeDeepLeft} free deep scan{freeDeepLeft === 1 ? "" : "s"} left
-                  </>
-                ) : (
-                  <>
-                    Free deep scans used ·{" "}
-                    <a href="/#pricing" className="underline underline-offset-2 hover:text-foreground">
-                      pricing
+              {deep && freeDeepLeft != null && (
+                <>
+                  {" · "}
+                  {freeDeepLeft > 0 ? (
+                    `${freeDeepLeft} free left`
+                  ) : (
+                    <a
+                      href="/#pricing"
+                      className="underline underline-offset-2 hover:text-foreground"
+                    >
+                      0 free left · pricing
                     </a>
-                  </>
-                )}
-              </p>
-            )}
+                  )}
+                </>
+              )}
+            </p>
           </div>
 
         </motion.form>
