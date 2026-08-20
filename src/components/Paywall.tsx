@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Check, X } from "lucide-react";
+import { Check, X, Zap, Layers, Package } from "lucide-react";
+import { GrainGradient } from "@paper-design/shaders-react";
 import { track } from "@/lib/analytics";
 import {
   FREE_DEEP_SCANS,
@@ -60,18 +61,113 @@ function loadRazorpay(): Promise<boolean> {
   });
 }
 
-function Tick({
-  children,
-  dim,
-}: {
-  children: React.ReactNode;
-  dim?: boolean;
-}) {
+function Tick({ children }: { children: React.ReactNode }) {
   return (
-    <li className={`flex items-start gap-2.5 ${dim ? "opacity-55" : ""}`}>
-      <Check className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+    <li className="flex items-start gap-3">
+      <span className="mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full border border-border bg-background/50">
+        <Check className="h-3 w-3 text-muted-foreground" aria-hidden />
+      </span>
       <span>{children}</span>
     </li>
+  );
+}
+
+/** Which theme the paint is under, watched live so the shaders recolour. */
+function useIsLight(): boolean {
+  const [light, setLight] = useState(false);
+  useEffect(() => {
+    const read = () =>
+      setLight(document.documentElement.classList.contains("light"));
+    read();
+    const mo = new MutationObserver(read);
+    mo.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["class"],
+    });
+    return () => mo.disconnect();
+  }, []);
+  return light;
+}
+
+/**
+ * One pricing card: paper-shader ground, icon tile and badge, name against
+ * price, a hairline, the list, and whatever the footer needs. The shader is
+ * a slow grain gradient in the theme's own greys — texture, not spectacle —
+ * and it only mounts on the client because it is a canvas.
+ */
+function PlanCard({
+  icon,
+  badge,
+  badgeStrong,
+  title,
+  price,
+  priceSuffix,
+  desc,
+  ticks,
+  footer,
+  shades,
+}: {
+  icon: React.ReactNode;
+  badge: string;
+  badgeStrong?: boolean;
+  title: string;
+  price: string;
+  priceSuffix?: string;
+  desc: string;
+  ticks: React.ReactNode;
+  footer: React.ReactNode;
+  shades: { back: string; colors: string[] };
+}) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  const still =
+    typeof window !== "undefined" &&
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  return (
+    <div className="relative overflow-hidden rounded-2xl border border-border">
+      {mounted && (
+        <GrainGradient
+          colorBack={shades.back}
+          colors={shades.colors}
+          softness={0.9}
+          intensity={0.12}
+          noise={0.35}
+          speed={still ? 0 : 0.4}
+          style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }}
+        />
+      )}
+      <div className="relative flex h-full flex-col p-6">
+        <div className="flex items-center gap-3">
+          <span className="grid h-10 w-10 place-items-center rounded-xl border border-border bg-background/60">
+            {icon}
+          </span>
+          <span
+            className={`rounded-full border px-3 py-1 text-[12px] font-semibold ${
+              badgeStrong
+                ? "border-accent-line bg-accent-soft text-foreground"
+                : "border-border bg-background/60 text-muted-foreground"
+            }`}
+          >
+            {badge}
+          </span>
+        </div>
+        <div className="mt-5 flex items-baseline justify-between gap-3">
+          <h3 className="text-[19px] font-semibold tracking-tight">{title}</h3>
+          <div className="text-[19px] font-semibold tracking-tight">
+            {price}
+            {priceSuffix && (
+              <span className="ml-1 text-[13px] font-normal text-muted-foreground">
+                {priceSuffix}
+              </span>
+            )}
+          </div>
+        </div>
+        <p className="mt-2 text-[14px] leading-relaxed text-muted-foreground">{desc}</p>
+        <div className="my-5 h-px bg-border" />
+        <ul className="space-y-3 text-[14px] leading-relaxed text-fg-2">{ticks}</ul>
+        <div className="mt-auto pt-6">{footer}</div>
+      </div>
+    </div>
   );
 }
 
@@ -176,105 +272,139 @@ export function PlansGrid({
     }
   };
 
+  const light = useIsLight();
+  const SHADES = light
+    ? {
+        free: { back: "#fafafa", colors: ["#f1f1ef", "#e9e9e7", "#f5f5f3"] },
+        pro: { back: "#f2f2f4", colors: ["#e7e7ea", "#dcdce1", "#efeff1"] },
+        pack: { back: "#fafafa", colors: ["#f0f0ee", "#e8e8e6", "#f4f4f2"] },
+      }
+    : {
+        free: { back: "#0b0b0c", colors: ["#141415", "#1a1a1c", "#101011"] },
+        pro: { back: "#121214", colors: ["#1d1d20", "#242428", "#161618"] },
+        pack: { back: "#0b0b0c", colors: ["#121214", "#19191b", "#0e0e0f"] },
+      };
+
+  const emailInput = (
+    <input
+      type="email"
+      inputMode="email"
+      autoComplete="email"
+      required
+      value={email}
+      onChange={(e) => {
+        setEmail(e.target.value);
+        if (emailNeeded) setEmailNeeded(false);
+      }}
+      placeholder="you@studio.com"
+      aria-label="Email for your receipt and license"
+      className={`mb-3 block w-full rounded-full border bg-background/60 px-5 py-2.5 text-[14px] focus:outline-none ${
+        emailNeeded
+          ? "border-red-400"
+          : "border-border focus:border-border-strong"
+      }`}
+    />
+  );
+
   return (
     <div>
-      <div className="grid gap-5 sm:grid-cols-2">
-        {/* Free: the quiet card. */}
-        <div className="relative rounded-2xl border border-border bg-surface px-7 pb-7 pt-9">
-          <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-md border border-border bg-background px-3 py-1 font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-            Free
-          </span>
-          <div className="text-center">
-            <div className="text-3xl font-semibold tracking-tight">₹0</div>
-            <p className="mt-2 text-[14px] leading-relaxed text-muted-foreground">
-              For a first look at what a page is made of.
-            </p>
-            {onFreeCta ? (
+      <div className="grid gap-5 md:grid-cols-3">
+        <PlanCard
+          icon={<Zap className="h-4 w-4" aria-hidden />}
+          badge="Start here"
+          title="Free"
+          price="₹0"
+          desc="For a first look at what a page is made of."
+          shades={SHADES.free}
+          ticks={
+            <>
+              <Tick>Unlimited quick scans</Tick>
+              <Tick>{FREE_DEEP_SCANS} deep scans</Tick>
+              <Tick>Images, icons, video, fonts and docs</Tick>
+            </>
+          }
+          footer={
+            onFreeCta ? (
               <button
                 type="button"
                 onClick={onFreeCta}
-                className="mt-5 rounded-full border border-border px-6 py-2.5 text-[14px] font-semibold transition-colors hover:border-border-strong"
+                className="block w-full rounded-full border border-border bg-background/60 px-6 py-3 text-center text-[14px] font-semibold transition-colors hover:border-border-strong"
               >
                 Keep scanning free
               </button>
             ) : (
               <a
                 href="#top"
-                className="mt-5 inline-block rounded-full border border-border px-6 py-2.5 text-[14px] font-semibold transition-colors hover:border-border-strong"
+                className="block w-full rounded-full border border-border bg-background/60 px-6 py-3 text-center text-[14px] font-semibold transition-colors hover:border-border-strong"
               >
                 Start scanning
               </a>
-            )}
-          </div>
-          <div className="mt-7 border-t border-border pt-6">
-            <ul className="space-y-2.5 text-[14px] leading-relaxed text-fg-2">
-              <Tick>Unlimited quick scans</Tick>
-              <Tick>{FREE_DEEP_SCANS} deep scans</Tick>
-              <Tick>Images, icons, video, fonts and docs</Tick>
-            </ul>
-          </div>
-        </div>
+            )
+          }
+        />
 
-        {/* Pro: the loud card. Inverted, the way the brand does emphasis. */}
-        <div className="relative rounded-2xl bg-foreground px-7 pb-7 pt-9 text-background">
-          <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-md bg-foreground px-3 py-1 font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-background ring-1 ring-border">
-            Pro
-          </span>
-          <div className="text-center">
-            <div className="text-3xl font-semibold tracking-tight">
-              ₹{PRO_PRICE_INR}
-              <span className="ml-1.5 text-[14px] font-normal opacity-70">/ month</span>
-            </div>
-            <p className="mt-2 text-[14px] leading-relaxed opacity-70">
-              For people who take things from the web daily.
-            </p>
-            <input
-              type="email"
-              inputMode="email"
-              autoComplete="email"
-              required
-              value={email}
-              onChange={(e) => {
-                setEmail(e.target.value);
-                if (emailNeeded) setEmailNeeded(false);
-              }}
-              placeholder="you@studio.com"
-              aria-label="Email for your receipt and license"
-              className={`mx-auto mt-5 block w-full max-w-[260px] rounded-full border bg-transparent px-5 py-2.5 text-center text-[14px] text-background placeholder:text-background/40 focus:outline-none ${
-                emailNeeded ? "border-red-400" : "border-background/30 focus:border-background/70"
-              }`}
-            />
-            <button
-              type="button"
-              onClick={() => buy("pro")}
-              disabled={busyPlan !== null}
-              className="mt-3 rounded-full bg-background px-6 py-2.5 text-[14px] font-semibold text-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
-            >
-              {busyPlan === "pro" ? "Opening checkout…" : "Get Pro"}
-            </button>
-          </div>
-          <div className="mt-7 border-t border-background/20 pt-6">
-            <ul className="space-y-2.5 text-[14px] leading-relaxed opacity-90">
+        <PlanCard
+          icon={<Layers className="h-4 w-4" aria-hidden />}
+          badge="Best value"
+          badgeStrong
+          title="Pro"
+          price={`₹${PRO_PRICE_INR}`}
+          priceSuffix="/ month"
+          desc="For people who take things from the web every day."
+          shades={SHADES.pro}
+          ticks={
+            <>
               <Tick>Unlimited deep scans</Tick>
               <Tick>Audio, screenshots and 3D files</Tick>
               <Tick>The design system: colours, fonts, tokens</Tick>
               <Tick>Everything in Free</Tick>
-            </ul>
-            <div className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-background/10 px-4 py-3">
-              <p className="text-[13.5px] opacity-90">
-                One-time instead: ₹{PACK_PRICE_INR} for {PACK_SCANS} deep scans.
-              </p>
+            </>
+          }
+          footer={
+            <>
+              {emailInput}
+              <button
+                type="button"
+                onClick={() => buy("pro")}
+                disabled={busyPlan !== null}
+                className="w-full rounded-full bg-accent px-6 py-3 text-[14px] font-semibold text-accent-fg transition-opacity hover:opacity-90 disabled:opacity-50"
+              >
+                {busyPlan === "pro" ? "Opening checkout…" : `Get Pro for ₹${PRO_PRICE_INR}/mo`}
+              </button>
+            </>
+          }
+        />
+
+        <PlanCard
+          icon={<Package className="h-4 w-4" aria-hidden />}
+          badge="One-time"
+          title="Scan pack"
+          price={`₹${PACK_PRICE_INR}`}
+          desc="A pocketful of deep scans, no subscription."
+          shades={SHADES.pack}
+          ticks={
+            <>
+              <Tick>{PACK_SCANS} deep scans</Tick>
+              <Tick>Everything Pro unlocks, on every scan</Tick>
+              <Tick>A year to spend them</Tick>
+            </>
+          }
+          footer={
+            <>
+              {emailInput}
               <button
                 type="button"
                 onClick={() => buy("pack")}
                 disabled={busyPlan !== null}
-                className="rounded-full border border-background/40 px-4 py-1.5 text-[13px] font-semibold transition-colors hover:border-background disabled:opacity-50"
+                className="w-full rounded-full border border-border-strong bg-background/60 px-6 py-3 text-[14px] font-semibold transition-colors hover:border-foreground disabled:opacity-50"
               >
-                {busyPlan === "pack" ? "Opening…" : "Buy a pack"}
+                {busyPlan === "pack"
+                  ? "Opening checkout…"
+                  : `Buy ${PACK_SCANS} scans for ₹${PACK_PRICE_INR}`}
               </button>
-            </div>
-          </div>
-        </div>
+            </>
+          }
+        />
       </div>
 
       {note && (
@@ -290,21 +420,19 @@ export function PlansGrid({
 export function PricingSection() {
   return (
     <Section id="pricing">
-      <div className="mx-auto max-w-3xl">
-        <Reveal>
-          <div className="mb-12 text-center">
-            <Chip>Pricing</Chip>
-            <h2 className="mt-6 text-[2.15rem] font-medium leading-[1.12] tracking-tight sm:text-[2.7rem]">
-              Free to try.
-              <br />
-              Cheap to keep.
-            </h2>
-          </div>
-        </Reveal>
-        <Reveal delay={0.06}>
-          <PlansGrid origin="landing" />
-        </Reveal>
-      </div>
+      <Reveal>
+        <div className="mb-12">
+          <Chip>Pricing</Chip>
+          <h2 className="mt-6 max-w-md text-[2.15rem] font-medium leading-[1.12] tracking-tight sm:text-[2.7rem]">
+            Free to try.
+            <br />
+            Cheap to keep.
+          </h2>
+        </div>
+      </Reveal>
+      <Reveal delay={0.06}>
+        <PlansGrid origin="landing" />
+      </Reveal>
     </Section>
   );
 }
@@ -338,7 +466,7 @@ export function Paywall({
       aria-modal="true"
       aria-label="Pricing"
     >
-      <div className="w-full max-w-2xl rounded-2xl border border-border bg-background p-6 sm:p-8">
+      <div className="w-full max-w-4xl rounded-2xl border border-border bg-background p-6 sm:p-8">
         <div className="mb-7 flex items-start justify-between gap-6">
           <div>
             <h2 className="text-[19px] font-semibold tracking-tight">{head.title}</h2>

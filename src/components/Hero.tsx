@@ -8,6 +8,7 @@ import { TryExamples } from "./TryExamples";
 import type { Recent } from "@/lib/recent";
 import { checkUrlInput } from "@/lib/url-input";
 import { ScanProgress } from "./ScanProgress";
+import { DotMatrix } from "./DotMatrix";
 
 interface Props {
   url: string;
@@ -96,7 +97,7 @@ export function Hero({
 
   const [index, setIndex] = useState(0);
   const words = useMemo(
-    () => ["image", "icon", "video", "audio", "font", "3D asset"],
+    () => ["image", "icon", "video", "audio track", "font", "3D asset"],
     [],
   );
 
@@ -120,16 +121,20 @@ export function Hero({
             "radial-gradient(ellipse 60% 55% at 50% -8%, rgb(var(--glow) / 0.055), transparent 72%)",
         }}
       />
+      {/* The tile logo as weather: a field of clustered dots behind the
+          headline, masked out before the copy has to fight it. */}
       <div
         aria-hidden
-        className="bg-grid pointer-events-none absolute inset-x-0 top-0 h-[520px] opacity-40"
+        className="pointer-events-none absolute inset-x-0 top-0 h-[560px]"
         style={{
           maskImage:
-            "radial-gradient(ellipse 55% 60% at 50% 0%, #000 10%, transparent 70%)",
+            "radial-gradient(ellipse 62% 64% at 50% 0%, #000 14%, transparent 74%)",
           WebkitMaskImage:
-            "radial-gradient(ellipse 55% 60% at 50% 0%, #000 10%, transparent 70%)",
+            "radial-gradient(ellipse 62% 64% at 50% 0%, #000 14%, transparent 74%)",
         }}
-      />
+      >
+        <DotMatrix className="h-full w-full opacity-70" />
+      </div>
 
       <div className="relative z-20 mx-auto w-full max-w-3xl px-6 py-24 text-center">
         <motion.h1
@@ -138,49 +143,59 @@ export function Hero({
           transition={{ duration: 0.8, delay: 0.08, ease: EASE }}
           className="text-balance text-[2.6rem] font-medium leading-[1.06] tracking-[-0.035em] sm:text-[3.9rem]"
         >
-          Every{" "}
           {/*
-            Only one word is animated at a time, so it always enters from below
-            and leaves upward. Positioning words by their index made the motion
-            reverse on the wrap from the last word back to the first, because
-            the first was sitting above rather than below.
-
-            The slot is sized by an invisible copy of the CURRENT word, not the
-            longest one. Holding the widest word's width was fine while the
-            words were all close in length; "3D asset" joined and every shorter
-            word sat in a slot twice its size, with the gap to show for it.
-            The layout animation glides the width between words instead.
+            The rotating word sits at the END of the heading, so however its
+            width breathes, nothing before it ever reflows — the rest of the
+            sentence holds still and only the line's tail moves. It wears a
+            text-selection box, border, corner handles and all, which is both
+            the joke (these are the words you select and take) and the frame
+            that makes the change read as deliberate.
           */}
-          {/* The clip window has to sit a descender's depth below the
-              baseline, or a rotating word ending in g/p/y loses its tail to
-              overflow-hidden. The padding opens that room; the matching
-              negative margin keeps the line box the same height, so nothing
-              reflows. */}
-          <motion.span
-            layout
-            transition={{ duration: 0.45, ease: EASE }}
-            className="relative inline-grid overflow-hidden align-baseline pb-[0.14em] -mb-[0.14em]"
-          >
-            <span
-              aria-hidden
-              className="invisible col-start-1 row-start-1 whitespace-nowrap font-semibold"
+          <span className="block">Any page, one click,</span>
+          <span className="block whitespace-nowrap">
+            every{" "}
+            <motion.span
+              layout
+              transition={{ duration: 0.45, ease: EASE }}
+              className="relative inline-grid align-baseline"
             >
-              {words[index]}
-            </span>
-            <AnimatePresence mode="popLayout" initial={false}>
-              <motion.span
-                key={index}
-                initial={{ y: "110%", opacity: 0 }}
-                animate={{ y: "0%", opacity: 1 }}
-                exit={{ y: "-110%", opacity: 0 }}
-                transition={{ type: "spring", stiffness: 90, damping: 17 }}
-                className="col-start-1 row-start-1 whitespace-nowrap font-semibold"
+              {/* The clip window sits a descender's depth below the baseline,
+                  or a word ending in g/p/y loses its tail to overflow-hidden.
+                  The padding opens that room; the matching negative margin
+                  keeps the line box the same height. */}
+              <span className="col-start-1 row-start-1 inline-grid overflow-hidden pb-[0.14em] -mb-[0.14em]">
+                <span
+                  aria-hidden
+                  className="invisible col-start-1 row-start-1 whitespace-nowrap font-semibold"
+                >
+                  {words[index]}
+                </span>
+                <AnimatePresence mode="popLayout" initial={false}>
+                  <motion.span
+                    key={index}
+                    initial={{ y: "110%", opacity: 0 }}
+                    animate={{ y: "0%", opacity: 1 }}
+                    exit={{ y: "-110%", opacity: 0 }}
+                    transition={{ type: "spring", stiffness: 90, damping: 17 }}
+                    className="col-start-1 row-start-1 whitespace-nowrap font-semibold"
+                  >
+                    {words[index]}
+                  </motion.span>
+                </AnimatePresence>
+              </span>
+              {/* The selection box, drawn over the word: hairline frame, a
+                  breath of tint, and the four grab handles. */}
+              <span
+                aria-hidden
+                className="pointer-events-none absolute -inset-x-[0.14em] -top-[0.02em] -bottom-[0.08em] rounded-[0.14em] border border-accent-line bg-accent-soft/40"
               >
-                {words[index]}
-              </motion.span>
-            </AnimatePresence>
-          </motion.span>{" "}
-          on any page.
+                <span className="absolute -left-[4.5px] -top-[4.5px] h-[9px] w-[9px] rounded-[2px] border border-accent-line bg-background" />
+                <span className="absolute -right-[4.5px] -top-[4.5px] h-[9px] w-[9px] rounded-[2px] border border-accent-line bg-background" />
+                <span className="absolute -bottom-[4.5px] -left-[4.5px] h-[9px] w-[9px] rounded-[2px] border border-accent-line bg-background" />
+                <span className="absolute -bottom-[4.5px] -right-[4.5px] h-[9px] w-[9px] rounded-[2px] border border-accent-line bg-background" />
+              </span>
+            </motion.span>
+          </span>
         </motion.h1>
 
         <motion.p

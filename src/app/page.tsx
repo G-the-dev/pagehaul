@@ -6,7 +6,7 @@ import type { Asset, AssetKind, ScanResult } from "@/lib/types";
 import { TileGrid } from "@/components/TileGrid";
 import { Hero } from "@/components/Hero";
 import { ScanProgress } from "@/components/ScanProgress";
-import { Faq, Footer } from "@/components/Sections";
+import { Faq, Footer, HatchBand } from "@/components/Sections";
 import { PricingSection } from "@/components/Paywall";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Toast, type ToastMessage, type ToastTone } from "@/components/Toast";
@@ -1221,7 +1221,9 @@ export default function Home() {
       <Features />
       <Audience />
       <Steps />
+      <HatchBand />
       <PricingSection />
+      <HatchBand />
       <Faq />
       <Footer />
 

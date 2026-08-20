@@ -145,6 +145,15 @@ export function Faq() {
   );
 }
 
+/**
+ * A full-bleed band of hairline diagonal stripes, the drafting-paper filler
+ * between sections. Structure without content: the page admits it is built,
+ * the way the tile logo admits it is pixels.
+ */
+export function HatchBand() {
+  return <div aria-hidden className="hatch h-10 w-full border-y border-border/60" />;
+}
+
 export function Footer() {
   return (
     <footer className="relative overflow-hidden">

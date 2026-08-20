@@ -228,6 +228,16 @@
     background-position: 0 0, 0 6px, 6px -6px, -6px 0;
   }
 
+  /* Hairline diagonal stripes, the drafting-paper filler for decorative
+     bands and gutters. Uses the border token so it recolours with the theme. */
+  .hatch {
+    background-image: repeating-linear-gradient(
+      -45deg,
+      var(--border) 0 1px,
+      transparent 1px 7px
+    );
+  }
+
   .bg-grid {
     background-image:
       linear-gradient(to right, var(--border) 1px, transparent 1px),
