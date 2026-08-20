@@ -302,15 +302,16 @@ export function PlansGrid({
         aria-label="Email for your receipt and license"
         className={`block w-full rounded-full border bg-background/60 px-5 py-2.5 text-[14px] focus:outline-none ${
           emailNeededFor === plan
-            ? "mb-1.5 border-red-400/80"
-            : "mb-3 border-border focus:border-border-strong"
+            ? "border-red-400/80"
+            : "border-border focus:border-border-strong"
         }`}
       />
-      {emailNeededFor === plan && (
-        <p className="mb-2.5 px-2 text-[12px] leading-snug text-red-400/90">
-          Enter your email first. The receipt goes there.
-        </p>
-      )}
+      {/* A fixed-height line whether or not it has anything to say, so the
+          hint can appear without the card growing and dragging its
+          neighbours' heights with it. */}
+      <p className="flex h-[24px] items-center px-2 text-[12px] leading-none text-red-400/90">
+        {emailNeededFor === plan ? "Enter your email first. The receipt goes there." : ""}
+      </p>
     </>
   );
 
