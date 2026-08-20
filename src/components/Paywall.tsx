@@ -152,7 +152,7 @@ function PlanCard({
         </div>
         <div className="mt-5 flex items-baseline justify-between gap-3">
           <h3 className="text-[19px] font-semibold tracking-tight">{title}</h3>
-          <div className="text-[19px] font-semibold tracking-tight">
+          <div className="text-[28px] font-semibold leading-none tracking-tight">
             {price}
             {priceSuffix && (
               <span className="ml-1 text-[13px] font-normal text-muted-foreground">
