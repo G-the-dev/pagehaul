@@ -45,9 +45,7 @@ export function UpiDialog({
   const [problem, setProblem] = useState<string | null>(null);
   const pollTimer = useRef<number | null>(null);
 
-  const upiUrl = `upi://pay?pa=${encodeURIComponent(UPI.vpa)}&pn=${encodeURIComponent(
-    UPI.name,
-  )}&am=${amount}&cu=INR&tn=${encodeURIComponent(ref)}`;
+  const upiUrl = `upi://pay?pa=${encodeURIComponent(UPI.vpa)}&am=${amount}&cu=INR&tn=${encodeURIComponent(ref)}`;
 
   useEffect(() => {
     track("upi_dialog", { plan });
@@ -170,10 +168,6 @@ export function UpiDialog({
               )}
             </div>
             <div className="mt-4 space-y-2 text-[13px]">
-              <div className="flex items-center justify-between rounded-lg border border-border px-3 py-2">
-                <span className="text-muted-foreground">To</span>
-                <span className="font-medium">{UPI.name}</span>
-              </div>
               <button
                 type="button"
                 onClick={() => copy(UPI.vpa)}

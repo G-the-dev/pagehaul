@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { PACK_PRICE_INR, PRO_PRICE_INR } from "@/lib/plan";
 import { upiLive } from "@/lib/upi-config";
+import { SITE } from "@/lib/site";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -70,8 +71,8 @@ export async function POST(req: NextRequest) {
 
   const apiKey = process.env.RESEND_API_KEY;
   const adminKey = process.env.PH_ADMIN_KEY;
-  const to = process.env.FEEDBACK_TO;
-  if (!apiKey || !adminKey || !to || !process.env.PH_LICENSE_SECRET) {
+  const to = process.env.FEEDBACK_TO ?? SITE.contactEmail;
+  if (!apiKey || !adminKey || !process.env.PH_LICENSE_SECRET) {
     return NextResponse.json(
       { error: "Payments are opening shortly.", code: "not_live" },
       { status: 503 },

@@ -3,14 +3,13 @@
  *
  * A UPI address is public by design — it appears on the payment screen of
  * every buyer — so it lives in code rather than an environment variable.
- * While `vpa` is empty the buy buttons say payments are opening shortly;
- * filling it in is what turns the UPI checkout on.
+ * No payee name is carried or displayed: the buyer's UPI app shows the
+ * bank-verified name on its own, which is worth more than anything we
+ * could claim.
  */
 export const UPI = {
-  /** The UPI ID payments go to, e.g. "name@okhdfcbank". Empty = not live. */
-  vpa: "",
-  /** The payee name buyers see in their UPI app. */
-  name: "pagehaul",
+  /** The UPI ID payments go to. Empty = checkout not live. */
+  vpa: "pagehaul@naviaxis",
 };
 
 export const upiLive = () => UPI.vpa.length > 0;
