@@ -10,6 +10,7 @@ import { checkUrlInput } from "@/lib/url-input";
 import { ScanProgress } from "./ScanProgress";
 import { Dithering } from "@paper-design/shaders-react";
 import { useIsLight } from "@/lib/use-is-light";
+import { useInView } from "@/lib/use-in-view";
 
 interface Props {
   url: string;
@@ -47,6 +48,8 @@ function HeroDither() {
       type="4x4"
       size={2}
       speed={1}
+      minPixelRatio={1}
+      maxPixelCount={700_000}
       style={{ width: "100%", height: "100%" }}
     />
   );
@@ -56,6 +59,23 @@ const MODES = [
   { id: "quick" as const, label: "Quick", hint: "Reads the markup. Seconds." },
   { id: "deep" as const, label: "Deep", hint: "Real browser. Finds far more." },
 ];
+
+function DitherLayer() {
+  const [ref, inView] = useInView<HTMLDivElement>("0px");
+  return (
+    <div
+      ref={ref}
+      aria-hidden
+      className="pointer-events-none absolute inset-0"
+      style={{
+        maskImage: "linear-gradient(#000 0%, #000 72%, transparent 100%)",
+        WebkitMaskImage: "linear-gradient(#000 0%, #000 72%, transparent 100%)",
+      }}
+    >
+      {inView && <HeroDither />}
+    </div>
+  );
+}
 
 export function Hero({
   url,
@@ -183,20 +203,8 @@ export function Hero({
         }}
       />
       {/* The brand as weather: an ordered-dither field in slow motion over
-          the whole hero, the tile logo dissolved into pixels, fading out at
-          the bottom so the next section starts on clean ground. */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0"
-        style={{
-          maskImage:
-            "linear-gradient(#000 0%, #000 72%, transparent 100%)",
-          WebkitMaskImage:
-            "linear-gradient(#000 0%, #000 72%, transparent 100%)",
-        }}
-      >
-        <HeroDither />
-      </div>
+          the whole hero, running only while the hero is on screen. */}
+      <DitherLayer />
 
       <div className="relative z-20 mx-auto w-full max-w-3xl px-6 py-24 text-center">
         <motion.h1

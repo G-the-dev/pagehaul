@@ -13,6 +13,7 @@ import {
 } from "@/lib/plan";
 import { Section, Reveal, Chip } from "./ui/motion-primitives";
 import { useIsLight } from "@/lib/use-is-light";
+import { useInView } from "@/lib/use-in-view";
 
 /**
  * The plans, and the moment of asking for money.
@@ -108,11 +109,10 @@ function PlanCard({
 }) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
-  const still =
-    typeof window !== "undefined" &&
-    window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const [viewRef, inView] = useInView<HTMLDivElement>();
   return (
     <div
+      ref={viewRef}
       onClick={onActivate}
       onFocusCapture={onActivate}
       className={"relative overflow-hidden rounded-2xl border transition-all duration-300 hover:-translate-y-0.5 hover:shadow-soft " + (
@@ -120,15 +120,18 @@ function PlanCard({
           ? "border-border-strong shadow-soft"
           : "border-border hover:border-border-strong"
       )}
+      style={{ backgroundColor: shades.back }}
     >
-      {mounted && (
+      {mounted && inView && (
         <GrainGradient
           colorBack={shades.back}
           colors={shades.colors}
           softness={0.9}
           intensity={0.12}
           noise={0.35}
-          speed={still ? 0 : 0.4}
+          speed={0.4}
+          minPixelRatio={1}
+          maxPixelCount={280_000}
           style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }}
         />
       )}

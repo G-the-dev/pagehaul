@@ -3,6 +3,7 @@
 import { motion } from "framer-motion";
 import { useEffect, useMemo, useState } from "react";
 import { EASE, Reveal, Section, SectionHead, Card } from "./ui/motion-primitives";
+import { useInView } from "@/lib/use-in-view";
 
 /* ------------------------------------------------------------------ *
  * Visuals. Each demonstrates its claim; none is decoration.
@@ -14,18 +15,23 @@ const TILE = "rounded-md";
  * A shared clock for looping visuals: progress 0..1 over the duration,
  * frozen at a finished frame for anyone who asked their OS for less motion.
  */
-function useLoop(durationMs: number): number {
+function useLoop(durationMs: number, run: boolean = true): number {
   const [p, setP] = useState(0);
   useEffect(() => {
+    if (!run) return;
     const t0 = performance.now();
     let raf = 0;
+    let last = 0;
+    const FRAME = 1000 / 24;
     const tick = (t: number) => {
       raf = requestAnimationFrame(tick);
+      if (t - last < FRAME) return;
+      last = t;
       setP(((t - t0) % durationMs) / durationMs);
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [durationMs]);
+  }, [durationMs, run]);
   return p;
 }
 
@@ -63,7 +69,8 @@ function FragmentHead({ label, pill }: { label: string; pill: string }) {
  * the way the product actually reports a deep scan. The claim is the card.
  */
 function CoverageVisual({ active: _active }: { active: boolean }) {
-  const p = useLoop(7000);
+  const [ref, inView] = useInView<HTMLDivElement>();
+  const p = useLoop(7000, inView);
   const fade = wrapFade(p);
   const rows = [
     { t: "0.8s", m: "+", body: "206 images", tail: "webp · avif", at: 0.06 },
@@ -73,7 +80,7 @@ function CoverageVisual({ active: _active }: { active: boolean }) {
     { t: "5.1s", m: "\u2713", body: "Scan complete", tail: "466 files", at: 0.64, done: true },
   ];
   return (
-    <div className="flex h-full items-center">
+    <div ref={ref} className="flex h-full items-center">
       <div className="w-full overflow-hidden rounded-lg border border-border bg-background shadow-soft">
         <FragmentHead label="Deep scan · stripe.com" pill="Live" />
         <div className="space-y-[3px] px-3 py-2.5 font-mono text-[10.5px]">
@@ -110,7 +117,8 @@ function CoverageVisual({ active: _active }: { active: boolean }) {
  * answers, and the receipt arrives as a toast. Watching it is the pitch.
  */
 function PrecisionVisual({ active: _active }: { active: boolean }) {
-  const p = useLoop(6400);
+  const [ref, inView] = useInView<HTMLDivElement>();
+  const p = useLoop(6400, inView);
   const seg = (from: number, to: number, a: number, b: number) =>
     p <= from ? a : p >= to ? b : a + easeOut((p - from) / (to - from)) * (b - a);
   // Out, dwell, and home again: the cursor never teleports, so the loop
@@ -131,7 +139,7 @@ function PrecisionVisual({ active: _active }: { active: boolean }) {
     "linear-gradient(130deg,#333336,#202023)",
   ];
   return (
-    <div className="flex h-full items-center">
+    <div ref={ref} className="flex h-full items-center">
       <div className="relative w-full overflow-hidden rounded-lg border border-border bg-background shadow-soft">
         <FragmentHead label="Results · images" pill="12 found" />
         <div className="grid grid-cols-3 gap-1.5 p-2.5">
@@ -154,7 +162,7 @@ function PrecisionVisual({ active: _active }: { active: boolean }) {
         </div>
         <svg
           viewBox="0 0 24 24"
-          className="absolute z-10 h-4 w-4 text-foreground drop-shadow"
+          className="absolute z-10 h-4 w-4 text-foreground drop-shadow transition-[left,top] duration-100 ease-linear"
           style={{ left: cx + "%", top: cy + "%" }}
           fill="currentColor"
         >
@@ -183,7 +191,8 @@ function PrecisionVisual({ active: _active }: { active: boolean }) {
  * the type, the tokens typed live, and where you can take them.
  */
 function DesignVisual({ active: _active }: { active: boolean }) {
-  const p = useLoop(7200);
+  const [ref, inView] = useInView<HTMLDivElement>();
+  const p = useLoop(7200, inView);
   const fade = wrapFade(p);
   const swatches = [
     { c: "#fafafa", n: "62%" },
@@ -196,7 +205,7 @@ function DesignVisual({ active: _active }: { active: boolean }) {
   const typed = token.slice(0, Math.round(typedT * token.length));
   const chips = ["CSS variables", "Figma tokens", "Tailwind"];
   return (
-    <div className="flex h-full items-center">
+    <div ref={ref} className="flex h-full items-center">
       <div className="w-full overflow-hidden rounded-lg border border-border bg-background shadow-soft">
         <FragmentHead label="Design system" pill="Read" />
         <div className="space-y-2.5 p-3">
@@ -355,8 +364,10 @@ const STEPS = [
 function PasteVisual() {
   const full = "stripe.com";
   const [typed, setTyped] = useState("");
+  const [ref, inView] = useInView<HTMLDivElement>();
 
   useEffect(() => {
+    if (!inView) return;
     let i = 0;
     let hold = 0;
     let erasing = false;
@@ -383,10 +394,10 @@ function PasteVisual() {
       }
     }, 130);
     return () => clearInterval(t);
-  }, []);
+  }, [inView]);
 
   return (
-    <div className="flex h-full items-center">
+    <div ref={ref} className="flex h-full items-center">
       <div className="flex w-full items-center gap-2 rounded-lg border border-border bg-background px-3 py-2.5">
         <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-surface-3" />
         <span className="font-mono text-[12.5px] text-fg-2">{typed}</span>
@@ -414,8 +425,10 @@ function FoundVisual() {
     [],
   );
   const [counts, setCounts] = useState<number[]>([0, 0, 0]);
+  const [ref, inView] = useInView<HTMLDivElement>();
 
   useEffect(() => {
+    if (!inView) return;
     let frame = 0;
     const total = 70;
     const hold = 26;
@@ -439,10 +452,10 @@ function FoundVisual() {
       setCounts(rows.map((r) => Math.round(r.n * eased)));
     }, 40);
     return () => clearInterval(t);
-  }, [rows]);
+  }, [rows, inView]);
 
   return (
-    <div className="flex h-full flex-col justify-center gap-1.5">
+    <div ref={ref} className="flex h-full flex-col justify-center gap-1.5">
       {rows.map((r, i) => (
         <div
           key={r.k}
