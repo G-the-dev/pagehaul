@@ -211,7 +211,7 @@ export function Hero({
           initial={{ opacity: 0, y: 18 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.08, ease: EASE }}
-          className="text-balance text-[2.6rem] font-medium leading-[1.06] tracking-[-0.035em] sm:text-[3.9rem]"
+          className="text-balance text-[2.6rem] font-medium leading-[1.18] tracking-[-0.035em] sm:text-[3.9rem]"
         >
           {/*
             The rotating word sits at the END of the heading and inside a slot

@@ -573,97 +573,118 @@ export function Steps() {
  * reason to exist.
  */
 function DesignerMark() {
-    return (
-    <div className="flex gap-1.5">
-      {["#fafafa", "#a1a1a1", "#525252", "#2e2e2e"].map((c, i) => (
-        <motion.span
-          key={c}
-          animate={{ y: [0, -3, 0] }}
-          transition={{ duration: 2.6, repeat: Infinity, delay: i * 0.28, ease: "easeInOut" }}
-          className="h-6 w-6 rounded-md border border-border"
-          style={{ background: c }}
+  const [ref, inView] = useInView<HTMLDivElement>();
+  const p = useLoop(5200, inView);
+  const sw = [
+    { c: "#fafafa", n: "#FAFAFA" },
+    { c: "#a1a1a1", n: "#A1A1A1" },
+    { c: "#525252", n: "#525252" },
+    { c: "#2e2e2e", n: "#2E2E2E" },
+  ];
+  const idx = Math.floor(p * 4) % 4;
+  return (
+    <div ref={ref} className="flex w-full items-center gap-1.5">
+      {sw.map((s, i) => (
+        <span
+          key={s.c}
+          className={"h-7 w-7 rounded-md border transition-all duration-300 " + (
+            i === idx ? "scale-110 border-accent-line" : "border-border"
+          )}
+          style={{ background: s.c }}
         />
       ))}
+      <span className="ml-2 font-mono text-[10px] text-muted-foreground">
+        {sw[idx].n}
+      </span>
     </div>
   );
 }
 
 function DeveloperMark() {
-    return (
-    <div className="flex w-full max-w-[130px] flex-col gap-1.5">
-      {[
-        [100, 74],
-        [62, 88],
-        [82, 58],
-      ].map(([a, b], i) => (
-        <motion.span
-          key={i}
-          animate={{ width: [a + "%", b + "%", a + "%"] }}
-          transition={{ duration: 3.4, repeat: Infinity, delay: i * 0.4, ease: "easeInOut" }}
-          style={{ width: a + "%" }}
-          className={"h-1.5 rounded-full " + (i === 1 ? "bg-foreground/55" : "bg-surface-3")}
-        />
-      ))}
+  const [ref, inView] = useInView<HTMLDivElement>();
+  const p = useLoop(5600, inView);
+  const fade = wrapFade(p);
+  const rows = [
+    { m: "GET", u: "/api/products", s: "200", at: 0.05 },
+    { m: "GET", u: "/fonts/inter.woff2", s: "200", at: 0.38 },
+    { m: "POST", u: "/api/track", s: "204", at: 0.68 },
+  ];
+  return (
+    <div ref={ref} className="w-full space-y-1 font-mono text-[10px]">
+      {rows.map((r) => {
+        const on = p >= r.at;
+        return (
+          <div
+            key={r.u}
+            className="flex items-center gap-1.5 transition-all duration-500 ease-out"
+            style={{ opacity: on ? fade : 0.15 }}
+          >
+            <span className="text-muted-foreground">{r.m}</span>
+            <span className="text-fg-2">{r.u}</span>
+            <span className="ml-auto rounded bg-surface-2 px-1 text-muted-foreground">{r.s}</span>
+          </div>
+        );
+      })}
     </div>
   );
 }
 
 function MotionMark() {
-    return (
-    <div className="flex items-center gap-1.5">
-      {[0, 1, 2].map((i) => (
-        <motion.span
-          key={i}
-          animate={
-            i !== 1 ? {} : { scaleX: [1, 1.28, 1], opacity: [0.7, 1, 0.7] }
-          }
-          transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
-          className={"h-6 origin-left rounded-md " + (i === 1 ? "w-9 bg-foreground/70" : "w-6 bg-surface-3")}
-        />
-      ))}
-      <motion.span
-        animate={{ opacity: [0.4, 1, 0.4] }}
-        transition={{ duration: 2.2, repeat: Infinity, ease: "easeInOut" }}
-        className="ml-0.5 border-y-[5px] border-l-[8px] border-y-transparent border-l-foreground/60"
-      />
+  const [ref, inView] = useInView<HTMLDivElement>();
+  const p = useLoop(6000, inView);
+  const fill = Math.min(1, p * 1.3);
+  const secs = Math.floor(fill * 12);
+  return (
+    <div ref={ref} className="flex w-full items-center gap-2.5">
+      <span className="grid h-8 w-8 shrink-0 place-items-center rounded-md bg-surface-2">
+        <span className="border-y-[4.5px] border-l-[8px] border-y-transparent border-l-foreground/70" />
+      </span>
+      <div className="min-w-0 flex-1">
+        <div className="mb-1.5 flex justify-between font-mono text-[9.5px] text-muted-foreground">
+          <span>reel.mp4</span>
+          <span>
+            0:{String(secs).padStart(2, "0")} / 0:12
+          </span>
+        </div>
+        <div className="h-1 overflow-hidden rounded-full bg-surface-2">
+          <div
+            className="h-full rounded-full bg-foreground/70"
+            style={{ width: fill * 100 + "%", transition: "width 120ms linear" }}
+          />
+        </div>
+      </div>
     </div>
   );
 }
 
 function MigrateMark() {
+  const [ref, inView] = useInView<HTMLDivElement>();
+  const p = useLoop(6400, inView);
+  const done = Math.min(1, p * 1.25);
+  const n = Math.round(done * 142);
   return (
-    <div className="flex items-center gap-2">
-      <span className="grid h-6 w-6 grid-cols-2 grid-rows-2 gap-[2px]">
-        {[0, 1, 2, 3].map((i) => (
-          <span key={i} className="rounded-[2px] bg-surface-3" />
+    <div ref={ref} className="w-full">
+      <div className="mb-1.5 flex justify-between font-mono text-[9.5px] text-muted-foreground">
+        <span>site export</span>
+        <span>{n} of 142 files</span>
+      </div>
+      <div className="h-1 overflow-hidden rounded-full bg-surface-2">
+        <div
+          className="h-full rounded-full bg-foreground/70"
+          style={{ width: done * 100 + "%", transition: "width 120ms linear" }}
+        />
+      </div>
+      <div className="mt-2 flex gap-1">
+        {[0, 1, 2, 3, 4, 5].map((i) => (
+          <span
+            key={i}
+            className={"h-2 w-2 rounded-[2px] transition-colors duration-300 " + (
+              done * 6 > i ? "bg-foreground/70" : "bg-surface-2"
+            )}
+          />
         ))}
-      </span>
-      <svg
-        viewBox="0 0 24 24"
-        className="h-3.5 w-3.5 text-muted-foreground"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        <path d="M5 12h14m0 0-5-5m5 5-5 5" />
-      </svg>
-      <span className="relative h-6 w-6 rounded-md bg-foreground/70">
-        <MigratingDot />
-      </span>
+      </div>
     </div>
-  );
-}
-
-/** The one tile forever in transit, left grid to right box. */
-function MigratingDot() {
-  return (
-    <motion.span
-      animate={{ x: [-46, 0], opacity: [0, 1, 1, 0] }}
-      transition={{ duration: 2.4, repeat: Infinity, ease: "easeInOut", times: [0, 0.4, 0.8, 1] }}
-      className="absolute left-1.5 top-1.5 h-3 w-3 rounded-[3px] bg-background/80"
-    />
   );
 }
 
@@ -703,7 +724,7 @@ export function Audience() {
           {AUDIENCE.map((a, i) => (
             <Reveal key={a.who} delay={i * 0.08}>
               <Card className="flex h-full flex-col p-6">
-                <div className="mb-6 flex h-8 items-center">
+                <div className="mb-6 flex h-14 items-center">
                   <a.Mark />
                 </div>
                 <div className="mb-1.5 text-[16px] font-semibold">{a.who}</div>
