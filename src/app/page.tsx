@@ -830,6 +830,7 @@ export default function Home() {
           {[
             ["What you get", "#what"],
             ["How", "#how"],
+            ["Pricing", "#pricing"],
             ["FAQ", "#faq"],
           ].map(([label, href]) => (
             <a
