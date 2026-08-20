@@ -1,10 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createHash } from "crypto";
 import { scan } from "@/lib/scan";
 import { deepScan, getScanTrace } from "@/lib/deepscan";
 import { mergeScans } from "@/lib/merge";
 import { acquireSlot, releaseSlot } from "@/lib/browser";
-import { verifyLicense } from "@/lib/license";
 import type { ScanResult } from "@/lib/types";
 
 export const runtime = "nodejs";
@@ -93,55 +91,6 @@ function normalise(input: string): string {
   return `https://${t}`;
 }
 
-/**
- * The free deep-scan allowance, counted by address on the server.
- *
- * The browser keeps the honest ledger; this is the backstop for someone who
- * clears it. Counted per site rather than per scan — a retry of a heavy page
- * is the product working as designed and is never charged — and held per
- * instance, which is deliberately forgiving: the point is to make the free
- * tier mean something, not to build a wall.
- */
-const FREE_DEEP_SITES = 2;
-const LIMIT_TTL_MS = 7 * 24 * 60 * 60_000;
-const LIMIT_MAX_CLIENTS = 2_000;
-const deepUsed = new Map<string, { at: number; hosts: string[] }>();
-
-function clientKey(req: NextRequest): string {
-  const ip =
-    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-    req.headers.get("x-real-ip") ||
-    "unknown";
-  return createHash("sha256")
-    .update(`${process.env.PH_LIMIT_SALT ?? "pagehaul"}:${ip}`)
-    .digest("hex")
-    .slice(0, 24);
-}
-
-/** True when this client may deep-scan this host free of charge. */
-function allowFreeDeep(req: NextRequest, target: string): boolean {
-  let host: string;
-  try {
-    host = new URL(target).hostname.replace(/^www\./, "");
-  } catch {
-    return true; // normalise() rejects it properly later
-  }
-  const key = clientKey(req);
-  const now = Date.now();
-  const rec = deepUsed.get(key);
-  if (rec && now - rec.at > LIMIT_TTL_MS) deepUsed.delete(key);
-  const hosts = deepUsed.get(key)?.hosts ?? [];
-  if (hosts.includes(host)) return true;
-  if (hosts.length >= FREE_DEEP_SITES) return false;
-  deepUsed.set(key, { at: now, hosts: [...hosts, host] });
-  while (deepUsed.size > LIMIT_MAX_CLIENTS) {
-    const oldest = deepUsed.keys().next().value;
-    if (oldest === undefined) break;
-    deepUsed.delete(oldest);
-  }
-  return true;
-}
-
 export async function POST(req: NextRequest) {
   let body: { url?: string; depth?: number; maxPages?: number; deep?: boolean };
   try {
@@ -152,30 +101,6 @@ export async function POST(req: NextRequest) {
 
   if (!body.url || typeof body.url !== "string") {
     return NextResponse.json({ error: "Enter a web address to scan." }, { status: 400 });
-  }
-
-  // Deep scans are the metered thing — they run a real browser on our
-  // compute. A valid license passes; otherwise the free allowance applies.
-  // Quick scans stay free and unlimited.
-  if (body.deep) {
-    const licensed = !!verifyLicense(req.headers.get("x-ph-license"));
-    if (!licensed) {
-      let target: string;
-      try {
-        target = normalise(body.url);
-      } catch {
-        target = "";
-      }
-      if (target && !allowFreeDeep(req, target)) {
-        return NextResponse.json(
-          {
-            error: "The free plan covers two deep-scanned sites.",
-            code: "scan_limit",
-          },
-          { status: 402 },
-        );
-      }
-    }
   }
 
   try {

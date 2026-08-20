@@ -21,11 +21,6 @@ interface Props {
   onRemoveRecent: (url: string) => void;
   scanning: boolean;
   error: string | null;
-  /**
-   * Free deep-scan sites remaining, or null for someone who has no counter
-   * to think about (paid, or the plan has not loaded yet).
-   */
-  freeDeepLeft?: number | null;
 }
 
 const MODES = [
@@ -45,7 +40,6 @@ export function Hero({
   onRemoveRecent,
   scanning,
   error,
-  freeDeepLeft,
 }: Props) {
   const [touched, setTouched] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -295,25 +289,6 @@ export function Hero({
             <p className="text-[12.5px] text-muted-foreground">
               {MODES[deep ? 1 : 0].hint}
             </p>
-            {/* The allowance, said plainly where the choice is made — not in
-                a settings page discovered after the wall. Rescans of counted
-                sites stay free, so "sites" is the honest unit. */}
-            {deep && freeDeepLeft != null && (
-              <p className="text-[11.5px] text-muted-foreground/80">
-                {freeDeepLeft > 0 ? (
-                  <>
-                    {freeDeepLeft} free deep-scan site{freeDeepLeft === 1 ? "" : "s"} left
-                  </>
-                ) : (
-                  <>
-                    Free deep scans used — rescans of your sites stay free ·{" "}
-                    <a href="/pricing" className="underline underline-offset-2 hover:text-foreground">
-                      pricing
-                    </a>
-                  </>
-                )}
-              </p>
-            )}
           </div>
 
         </motion.form>
