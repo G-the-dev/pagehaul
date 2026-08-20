@@ -86,25 +86,13 @@ function FaqRow({
             <Plus className="h-3 w-3" />
           </motion.span>
         </button>
-        {/* Height animates via grid-template-rows rather than a measured
-            height tween: the browser owns the interpolation, nothing is
-            measured mid-flight, and the container bottom stops stuttering
-            when rows open and close in quick succession. */}
-        <div
-          className={`grid transition-[grid-template-rows] duration-300 ease-out ${
-            open ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
-          }`}
-        >
-          <div className="overflow-hidden">
-            <p
-              className={`max-w-xl pb-5 pr-10 text-[15px] leading-relaxed text-muted-foreground transition-opacity duration-300 ${
-                open ? "opacity-100" : "opacity-0"
-              }`}
-            >
-              {a}
-            </p>
-          </div>
-        </div>
+        {/* No open/close animation at all, by request: the answer is either
+            there or it is not, and a clean cut cannot jitter. */}
+        {open && (
+          <p className="max-w-xl pb-5 pr-10 text-[15px] leading-relaxed text-muted-foreground">
+            {a}
+          </p>
+        )}
       </div>
     </Reveal>
   );
