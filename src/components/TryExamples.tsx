@@ -42,14 +42,18 @@ export function TryExamples({
         {hasHistory ? "Recent" : "Try"}
       </span>
       <AnimatePresence initial={false} mode="popLayout">
-        {items.map((item, i) => (
+        {items.map((item) => (
           <motion.div
             key={item.url}
             layout
-            initial={{ opacity: 0, y: 8, scale: 0.9 }}
+            // No entrance of their own: the row arrives once, with the hero's
+            // cascade, and the late localStorage swap from examples to recents
+            // replaces content silently instead of replaying a stagger after
+            // the page has already settled. Exit stays for deliberate removal.
+            initial={false}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, scale: 0.85 }}
-            transition={{ duration: 0.4, delay: hasHistory ? 0 : 0.38 + i * 0.05, ease: EASE }}
+            transition={{ duration: 0.4, ease: EASE }}
             className={`group/chip relative inline-flex items-center rounded-full border border-border bg-surface/70 backdrop-blur-md transition-colors hover:border-border-strong ${
               hasHistory ? "pl-3 pr-1.5" : "px-3"
             }`}
