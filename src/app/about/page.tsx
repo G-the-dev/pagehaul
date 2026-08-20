@@ -73,9 +73,9 @@ export default function AboutPage() {
           downloaded code, and it cost them everything.
         </p>
         <p>
-          It will not keep your files. Archives are deleted after{" "}
-          {SITE.retentionMinutes} minutes, and nothing you capture is read,
-          indexed or retained.
+          It will not keep your files. Everything you capture goes straight to
+          your browser, archives are built on your own device, and nothing is
+          read, indexed or retained on our side.
         </p>
 
         <h2 className="!mt-12 text-[18px] font-semibold tracking-tight text-foreground">
