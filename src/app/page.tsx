@@ -23,6 +23,13 @@ import { startFaviconSpin, stopFaviconSpin } from "@/lib/scan-favicon";
 import { modelRenderable, preloadModelViewer } from "@/components/ModelPreview";
 import { ensureModelPoster } from "@/lib/model-thumbs";
 import { thumbnailUrl } from "@/lib/variants";
+import {
+  deepAllowed,
+  deepScansLeft,
+  isPaid,
+  licenseToken,
+  recordDeepHost,
+} from "@/lib/plan";
 
 /** The host alone — what was scanned, never the whole address. */
 function hostOf(raw: string): string | undefined {
@@ -52,6 +59,10 @@ const DesignPanel = dynamic(
 );
 const DetailDialog = dynamic(
   () => import("@/components/DetailDialog").then((m) => m.DetailDialog),
+  { ssr: false },
+);
+const Paywall = dynamic(
+  () => import("@/components/Paywall").then((m) => m.Paywall),
   { ssr: false },
 );
 const PixelDissolve = dynamic(
@@ -113,6 +124,21 @@ export default function Home() {
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState<ToastMessage | null>(null);
   const [expanded, setExpanded] = useState<Asset | null>(null);
+  /**
+   * The plan, mirrored into state after mount. Read from localStorage, so it
+   * must not take part in the server render; until the effect runs the page
+   * draws the neutral version (no counters, nothing locked-looking).
+   */
+  const [paid, setPaid] = useState(false);
+  const [freeLeft, setFreeLeft] = useState<number | null>(null);
+  const [paywall, setPaywall] = useState<null | "limit" | "design" | "model">(null);
+  const refreshPlan = useCallback(() => {
+    setPaid(isPaid());
+    setFreeLeft(deepScansLeft());
+  }, []);
+  useEffect(() => {
+    refreshPlan();
+  }, [refreshPlan]);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [shown, setShown] = useState(48);
   /** When this set of results stops being shown. Null before the first scan. */
@@ -284,12 +310,27 @@ export default function Home() {
     (delta: number) => {
       setExpanded((current) => {
         if (!current) return current;
-        const i = visible.findIndex((a) => a.id === current.id);
-        return i < 0 ? current : (visible[i + delta] ?? current);
+        let i = visible.findIndex((a) => a.id === current.id);
+        if (i < 0) return current;
+        // Arrow past locked 3D rather than into it — the lock lives on the
+        // tile, and the preview walk should not be a side door through it.
+        do {
+          i += delta;
+        } while (visible[i] && visible[i].kind === "model" && !isPaid());
+        return visible[i] ?? current;
       });
     },
     [visible],
   );
+
+  /** Opens a preview — except locked 3D, which opens the pricing dialog. */
+  const openAsset = useCallback((a: Asset) => {
+    if (a.kind === "model" && !isPaid()) {
+      setPaywall("model");
+      return;
+    }
+    setExpanded(a);
+  }, []);
 
   // The arrows walk the list, so the files either side of the open one should
   // already be on their way before the key is pressed. Fetch and pre-decode
@@ -316,6 +357,15 @@ export default function Home() {
     (result?.tokens?.length ?? 0) > 0;
 
   const runScan = useCallback(async (target: string, useDeep: boolean) => {
+    // The allowance is checked before anything is torn down, so hitting the
+    // limit leaves whatever results are on screen exactly as they were.
+    if (useDeep && !isPaid()) {
+      const h = hostOf(target) ?? target;
+      if (!deepAllowed(h)) {
+        setPaywall("limit");
+        return;
+      }
+    }
     // A second scan supersedes the first rather than racing it.
     abortRef.current?.abort();
     const controller = new AbortController();
@@ -338,9 +388,13 @@ export default function Home() {
     document.title = `scanning ${hostOf(target) ?? "the page"}… · pagehaul`;
 
     const request = async (deep: boolean): Promise<ScanResult> => {
+      const lic = licenseToken();
       const res = await fetch("/api/scan", {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        headers: {
+          "content-type": "application/json",
+          ...(lic ? { "x-ph-license": lic } : {}),
+        },
         body: JSON.stringify({ url: target, deep }),
         signal: controller.signal,
       });
@@ -367,6 +421,10 @@ export default function Home() {
             : "That scan did not complete. Try again in a moment.",
         );
       }
+      // The server's own count says the free allowance is spent — perhaps in
+      // another browser, perhaps after cleared storage. Not an error to
+      // apologise for; the pricing dialog is the answer.
+      if (res.status === 402) throw new Error("__scan_limit__");
       if (!res.ok) throw new Error(humaniseScanError(data.error ?? "That scan did not work."));
       return data as ScanResult;
     };
@@ -399,6 +457,12 @@ export default function Home() {
         partial: !!fresh.partial,
         notes: fresh.notes.length ? fresh.notes : undefined,
       });
+      // Successful deep scans count against the free allowance, by site —
+      // recording only on success means a scan that failed cost nothing.
+      if (useDeep && !isPaid()) {
+        recordDeepHost(hostKey);
+        setFreeLeft(deepScansLeft());
+      }
       setResult(data);
       setRanDeep(useDeep);
       setShown(48);
@@ -416,6 +480,11 @@ export default function Home() {
       // wrong" to someone who just pressed Cancel is a lie.
       if (e instanceof DOMException && e.name === "AbortError") {
         document.title = BASE_TITLE;
+        return;
+      }
+      if (e instanceof Error && e.message === "__scan_limit__") {
+        document.title = BASE_TITLE;
+        setPaywall("limit");
         return;
       }
       const message =
@@ -615,9 +684,25 @@ export default function Home() {
   const hush = useCallback(() => setToast(null), []);
 
   async function runDownload(list: Asset[], asZip: boolean) {
+    // 3D files belong to Pro. All-models asks the question directly; a mixed
+    // haul goes ahead without them and says so, because refusing a hundred
+    // images over two locked models would punish the wrong files.
+    let heldBack = 0;
+    if (!isPaid()) {
+      const kept = list.filter((a) => a.kind !== "model");
+      if (kept.length === 0 && list.length > 0) {
+        setPaywall("model");
+        return;
+      }
+      heldBack = list.length - kept.length;
+      list = kept;
+    }
     if (!list.length || busy) return;
     setBusy(true);
     setToast(null);
+    if (heldBack > 0) {
+      say("3D files are part of Pro, so they stayed behind.", "partial");
+    }
 
     if (list.length === 1) {
       const out = await downloadOne(list[0]);
@@ -779,6 +864,7 @@ export default function Home() {
           onRemoveRecent={(url) => setRecent(removeRecent(url))}
           scanning={scanning}
           error={error}
+          freeDeepLeft={paid ? null : freeLeft}
         />
       </div>
 
@@ -890,12 +976,47 @@ export default function Home() {
 
             {tab === "design" ? (
               hasDesign ? (
-                <DesignPanel
-                  palette={result.palette}
-                  typography={result.typography}
-                  tokens={result.tokens}
-                  host={host}
-                />
+                paid ? (
+                  <DesignPanel
+                    palette={result.palette}
+                    typography={result.typography}
+                    tokens={result.tokens}
+                    host={host}
+                  />
+                ) : (
+                  // The real panel, behind glass. Showing the shape of what
+                  // was extracted sells it better than a description could;
+                  // the server-side entitlement is on scans, and the browser
+                  // owns this render either way.
+                  <div className="relative overflow-hidden rounded-xl">
+                    <div className="pointer-events-none select-none blur-lg" aria-hidden>
+                      <DesignPanel
+                        palette={result.palette}
+                        typography={result.typography}
+                        tokens={result.tokens}
+                        host={host}
+                      />
+                    </div>
+                    <div className="absolute inset-0 grid place-items-center bg-background/40">
+                      <div className="max-w-sm rounded-xl border border-border bg-background p-6 text-center shadow-soft">
+                        <p className="text-sm font-semibold">
+                          The design system is part of Pro
+                        </p>
+                        <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground">
+                          Palette, typography and tokens, read from the page as
+                          a browser paints it.
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => setPaywall("design")}
+                          className="mt-4 rounded-md bg-accent px-4 py-2 text-[13px] font-semibold text-accent-fg transition-opacity hover:opacity-90"
+                        >
+                          Unlock for ₹99/month
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )
               ) : (
                 // A quick scan reads the markup, not the painted page, so it has
                 // no colours or type to show yet. Rather than a dead end, the
@@ -928,14 +1049,30 @@ export default function Home() {
                 </p>
               </div>
             ) : tab === "api" || tab === "code" || tab === "data" ? (
-              <NetworkTable assets={visible} onOpen={setExpanded} />
+              <NetworkTable assets={visible} onOpen={openAsset} />
             ) : (
-              <TileGrid
-                assets={visible.slice(0, shown)}
-                onOpen={setExpanded}
-                onMeasure={onMeasure}
-                onBlank={onBlank}
-              />
+              <>
+                {tab === "model" && !paid && (
+                  <div className="mb-6 flex flex-wrap items-center gap-3 rounded-lg border border-accent-line bg-accent-soft px-4 py-3">
+                    <p className="text-[13.5px]">
+                      3D previews and downloads are part of Pro.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setPaywall("model")}
+                      className="ml-auto rounded-md bg-accent px-3 py-1.5 text-[12.5px] font-semibold text-accent-fg"
+                    >
+                      Unlock for ₹99/month
+                    </button>
+                  </div>
+                )}
+                <TileGrid
+                  assets={visible.slice(0, shown)}
+                  onOpen={openAsset}
+                  onMeasure={onMeasure}
+                  onBlank={onBlank}
+                />
+              </>
             )}
 
             {visible.length > shown && (
@@ -1110,6 +1247,18 @@ export default function Home() {
               ? () => stepPreview(1)
               : undefined
           }
+        />
+      )}
+
+      {paywall && (
+        <Paywall
+          reason={paywall}
+          onClose={() => setPaywall(null)}
+          onUnlocked={() => {
+            refreshPlan();
+            setPaywall(null);
+            say("Unlocked. Everything is yours now.");
+          }}
         />
       )}
 
