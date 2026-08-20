@@ -188,7 +188,7 @@ export function PlansGrid({
   // receipt goes and the one handle support has to restore a license for a
   // browser that lost its storage.
   const [email, setEmail] = useState("");
-  const [emailNeeded, setEmailNeeded] = useState(false);
+  const [emailNeededFor, setEmailNeededFor] = useState<"pro" | "pack" | null>(null);
   // Which card the person is leaning toward: click or focus marks it, and
   // the card firms its border so the choice is visible without shouting.
   const [activeCard, setActiveCard] = useState<"free" | "pro" | "pack" | null>(null);
@@ -197,8 +197,7 @@ export function PlansGrid({
   const buy = async (plan: "pro" | "pack") => {
     if (busyPlan) return;
     if (!emailOk) {
-      setEmailNeeded(true);
-      setNote("Enter your email first. The receipt and your license recovery both depend on it.");
+      setEmailNeededFor(plan);
       return;
     }
     setBusyPlan(plan);
@@ -287,25 +286,32 @@ export function PlansGrid({
         pack: { back: "#0b0b0c", colors: ["#121214", "#19191b", "#0e0e0f"] },
       };
 
-  const emailInput = (
-    <input
-      type="email"
-      inputMode="email"
-      autoComplete="email"
-      required
-      value={email}
-      onChange={(e) => {
-        setEmail(e.target.value);
-        if (emailNeeded) setEmailNeeded(false);
-      }}
-      placeholder="you@studio.com"
-      aria-label="Email for your receipt and license"
-      className={`mb-3 block w-full rounded-full border bg-background/60 px-5 py-2.5 text-[14px] focus:outline-none ${
-        emailNeeded
-          ? "border-red-400"
-          : "border-border focus:border-border-strong"
-      }`}
-    />
+  const emailInput = (plan: "pro" | "pack") => (
+    <>
+      <input
+        type="email"
+        inputMode="email"
+        autoComplete="email"
+        required
+        value={email}
+        onChange={(e) => {
+          setEmail(e.target.value);
+          if (emailNeededFor) setEmailNeededFor(null);
+        }}
+        placeholder="you@studio.com"
+        aria-label="Email for your receipt and license"
+        className={`block w-full rounded-full border bg-background/60 px-5 py-2.5 text-[14px] focus:outline-none ${
+          emailNeededFor === plan
+            ? "mb-1.5 border-red-400/80"
+            : "mb-3 border-border focus:border-border-strong"
+        }`}
+      />
+      {emailNeededFor === plan && (
+        <p className="mb-2.5 px-2 text-[12px] leading-snug text-red-400/90">
+          Enter your email first. The receipt goes there.
+        </p>
+      )}
+    </>
   );
 
   return (
@@ -332,14 +338,14 @@ export function PlansGrid({
               <button
                 type="button"
                 onClick={onFreeCta}
-                className="block w-full rounded-full border border-border bg-surface-2 px-6 py-3 text-center text-[14px] font-semibold text-fg-2 transition-colors hover:border-border-strong hover:text-foreground disabled:opacity-50"
+                className="block w-full rounded-full border border-border bg-surface-2 px-6 py-3 text-center text-[14px] font-semibold text-fg-2 disabled:opacity-50"
               >
                 Keep scanning free
               </button>
             ) : (
               <a
                 href="#top"
-                className="block w-full rounded-full border border-border bg-surface-2 px-6 py-3 text-center text-[14px] font-semibold text-fg-2 transition-colors hover:border-border-strong hover:text-foreground disabled:opacity-50"
+                className="block w-full rounded-full border border-border bg-surface-2 px-6 py-3 text-center text-[14px] font-semibold text-fg-2 disabled:opacity-50"
               >
                 Start scanning
               </a>
@@ -368,12 +374,12 @@ export function PlansGrid({
           }
           footer={
             <>
-              {emailInput}
+              {emailInput("pro")}
               <button
                 type="button"
                 onClick={() => buy("pro")}
                 disabled={busyPlan !== null}
-                className="w-full rounded-full bg-accent px-6 py-3 text-center text-[14px] font-semibold text-accent-fg transition-opacity hover:opacity-90 disabled:opacity-50"
+                className="w-full rounded-full bg-accent px-6 py-3 text-center text-[14px] font-semibold text-accent-fg disabled:opacity-50"
               >
                 {busyPlan === "pro" ? "Opening checkout…" : `Get Pro for ₹${PRO_PRICE_INR}/mo`}
               </button>
@@ -399,12 +405,12 @@ export function PlansGrid({
           }
           footer={
             <>
-              {emailInput}
+              {emailInput("pack")}
               <button
                 type="button"
                 onClick={() => buy("pack")}
                 disabled={busyPlan !== null}
-                className="w-full rounded-full border border-border bg-surface-2 px-6 py-3 text-center text-[14px] font-semibold text-fg-2 transition-colors hover:border-border-strong hover:text-foreground disabled:opacity-50"
+                className="w-full rounded-full border border-border bg-surface-2 px-6 py-3 text-center text-[14px] font-semibold text-fg-2 disabled:opacity-50"
               >
                 {busyPlan === "pack"
                   ? "Opening checkout…"
