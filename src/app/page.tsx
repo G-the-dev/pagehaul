@@ -28,8 +28,10 @@ import {
   deepAllowed,
   deepScansLeft,
   isPaid,
+  licensePlan,
   licenseToken,
   recordDeepScan,
+  recordPackScan,
   LOCKED_KINDS,
 } from "@/lib/plan";
 
@@ -140,6 +142,10 @@ export default function Home() {
   }, []);
   useEffect(() => {
     refreshPlan();
+    // The landing pricing section unlocks plans without a callback path to
+    // this component; it announces instead.
+    window.addEventListener("ph-plan-changed", refreshPlan);
+    return () => window.removeEventListener("ph-plan-changed", refreshPlan);
   }, [refreshPlan]);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [shown, setShown] = useState(48);
@@ -460,12 +466,17 @@ export default function Home() {
         partial: !!fresh.partial,
         notes: fresh.notes.length ? fresh.notes : undefined,
       });
-      // Successful deep scans count against the free allowance, and every
-      // deep scan counts. Recording only on success means a scan that
-      // failed cost nothing.
-      if (useDeep && !isPaid()) {
-        recordDeepScan();
-        setFreeLeft(deepScansLeft());
+      // Successful deep scans count against whichever budget is paying for
+      // them: the free allowance, or a pack's five. Recording only on
+      // success means a scan that failed cost nothing.
+      if (useDeep) {
+        if (licensePlan() === "pack" && isPaid()) {
+          recordPackScan();
+          refreshPlan();
+        } else if (!isPaid()) {
+          recordDeepScan();
+          setFreeLeft(deepScansLeft());
+        }
       }
       setResult(data);
       setRanDeep(useDeep);

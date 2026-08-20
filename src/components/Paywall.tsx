@@ -14,6 +14,8 @@ import {
 import { Section, Reveal, Chip } from "./ui/motion-primitives";
 import { useIsLight } from "@/lib/use-is-light";
 import { useInView } from "@/lib/use-in-view";
+import { upiLive } from "@/lib/upi-config";
+import { UpiDialog } from "./UpiDialog";
 
 /**
  * The plans, and the moment of asking for money.
@@ -192,6 +194,7 @@ export function PlansGrid({
   // Which card the person is leaning toward: click or focus marks it, and
   // the card firms its border so the choice is visible without shouting.
   const [activeCard, setActiveCard] = useState<"free" | "pro" | "pack" | null>(null);
+  const [upiPlan, setUpiPlan] = useState<"pro" | "pack" | null>(null);
   const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email.trim());
 
   const buy = async (plan: "pro" | "pack") => {
@@ -200,9 +203,16 @@ export function PlansGrid({
       setEmailNeededFor(plan);
       return;
     }
+    track("checkout_clicked", { plan, origin });
+    // UPI first: when the address is configured, the QR dialog is the whole
+    // checkout. The gateway path below stays wired for the day a gateway
+    // account exists.
+    if (upiLive()) {
+      setUpiPlan(plan);
+      return;
+    }
     setBusyPlan(plan);
     setNote(null);
-    track("checkout_clicked", { plan, origin });
     try {
       const res = await fetch("/api/checkout", {
         method: "POST",
@@ -426,6 +436,19 @@ export function PlansGrid({
         <p className="mt-4 rounded-lg border border-border bg-surface-2/40 px-4 py-3 text-[13.5px] leading-relaxed text-muted-foreground">
           {note}
         </p>
+      )}
+
+      {upiPlan && (
+        <UpiDialog
+          plan={upiPlan}
+          email={email.trim()}
+          onClose={() => setUpiPlan(null)}
+          onUnlocked={() => {
+            setUpiPlan(null);
+            if (onUnlocked) onUnlocked();
+            else window.dispatchEvent(new Event("ph-plan-changed"));
+          }}
+        />
       )}
     </div>
   );

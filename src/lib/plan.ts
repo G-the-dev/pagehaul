@@ -67,11 +67,56 @@ export function storeLicense(token: string): void {
   }
 }
 
+/** The token's payload, read without verifying: display and counting only. */
+export function licensePlan(): "pro" | "pack" | null {
+  const t = licenseToken();
+  if (!t) return null;
+  try {
+    const body = t.split(".")[1] ?? "";
+    const b64 = body.replace(/-/g, "+").replace(/_/g, "/");
+    const pad = b64 + "=".repeat((4 - (b64.length % 4)) % 4);
+    const payload = JSON.parse(atob(pad)) as { plan?: string; exp?: number };
+    if (typeof payload.exp !== "number" || payload.exp < Date.now()) return null;
+    return payload.plan === "pack" ? "pack" : payload.plan === "pro" ? "pro" : null;
+  } catch {
+    return null;
+  }
+}
+
+const PACK_USED_KEY = "ph-pack-used";
+
+export function packScansUsed(): number {
+  if (typeof window === "undefined") return 0;
+  try {
+    const n = Number(window.localStorage.getItem(PACK_USED_KEY) ?? "0");
+    return Number.isFinite(n) && n > 0 ? Math.floor(n) : 0;
+  } catch {
+    return 0;
+  }
+}
+
+export function recordPackScan(): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(PACK_USED_KEY, String(packScansUsed() + 1));
+  } catch {
+    /* nothing to do */
+  }
+}
+
+export function packScansLeft(): number {
+  return Math.max(0, PACK_SCANS - packScansUsed());
+}
+
 /**
- * Paid, as far as this browser knows. The client uses this only to decide
- * what to draw: locks, counters, buttons. The server re-verifies the token
- * on every deep scan, so a hand-written "true" here unlocks nothing real.
+ * Paid, as far as this browser knows. A pack is paid only while it still
+ * has scans in it. The client uses this only to decide what to draw; the
+ * server re-verifies the token on every deep scan, so a hand-written
+ * "true" here unlocks nothing real.
  */
 export function isPaid(): boolean {
-  return !!licenseToken();
+  const plan = licensePlan();
+  if (!plan) return false;
+  if (plan === "pack") return packScansLeft() > 0;
+  return true;
 }
