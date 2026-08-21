@@ -48,14 +48,14 @@ export function buyerUnlockEmail(args: {
 
   const html = WRAP(`
 <tr><td style="padding:22px 32px 0;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;">
-<h1 style="margin:0;font-size:21px;line-height:1.3;letter-spacing:-0.01em;color:#111111;">Payment received.<br>You're unlocked.</h1>
-<p style="margin:12px 0 0;font-size:14px;line-height:1.65;color:#525252;">The browser you paid in is already unlocked. To use your plan anywhere else, a phone, another browser, another machine, open this link there:</p>
+<h1 style="margin:0;font-size:21px;line-height:1.3;letter-spacing:-0.01em;color:#111111;"><span style="color:#10b981;">&#10003;</span> You&#39;re unlocked</h1>
+<p style="margin:12px 0 0;font-size:14px;line-height:1.65;color:#525252;">Open this on any other device you want unlocked:</p>
 </td></tr>
 <tr><td style="padding:20px 32px 0;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;" align="center">
 <a href="${args.restoreUrl}" style="display:inline-block;background:#111111;color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;padding:13px 30px;border-radius:999px;">Unlock this device</a>
 </td></tr>
 <tr><td style="padding:8px 32px 0;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;" align="center">
-<p style="margin:6px 0 0;font-size:12px;line-height:1.6;color:#a1a1a1;">Keep this email. If pagehaul ever locks again, this link is the key.</p>
+<p style="margin:6px 0 0;font-size:12px;line-height:1.6;color:#a1a1a1;">Keep this email. The link is the key.</p>
 </td></tr>
 <tr><td style="padding:20px 32px 0;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-top:1px solid #ececec;">
@@ -97,7 +97,7 @@ export function ownerClaimEmail(args: {
   const html = WRAP(`
 <tr><td style="padding:22px 32px 0;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;">
 <h1 style="margin:0;font-size:19px;line-height:1.3;color:#111111;">Payment window opened</h1>
-<p style="margin:10px 0 0;font-size:14px;line-height:1.65;color:#525252;">The buyer has four minutes to pay. When ₹${args.amount} arrives with the reference below in the note, approve it. No matching payment means they closed the window; ignore this mail.</p>
+<p style="margin:10px 0 0;font-size:14px;line-height:1.65;color:#525252;">When &#8377;${args.amount} lands with this reference in the note, approve. No payment? Ignore this.</p>
 </td></tr>
 <tr><td style="padding:16px 32px 0;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-top:1px solid #ececec;">
@@ -135,7 +135,7 @@ export function renewalReminderEmail(args: {
   const html = WRAP(`
 <tr><td style="padding:22px 32px 0;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;">
 <h1 style="margin:0;font-size:21px;line-height:1.3;color:#111111;">Pro ends on ${args.endsOn}</h1>
-<p style="margin:12px 0 0;font-size:14px;line-height:1.65;color:#525252;">Unlimited deep scans, the design system, audio, screenshots and 3D go back behind the line when it does. Renewing takes a minute: the button below opens pagehaul with your plan attached, and the pricing section does the rest.</p>
+<p style="margin:12px 0 0;font-size:14px;line-height:1.65;color:#525252;">One tap keeps unlimited deep scans and everything unlocked.</p>
 </td></tr>
 <tr><td style="padding:20px 32px 0;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;" align="center">
 <a href="${args.restoreUrl}" style="display:inline-block;background:#111111;color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;padding:13px 30px;border-radius:999px;">Renew Pro · ₹${args.amount}</a>
@@ -160,7 +160,7 @@ export function lowPackEmail(args: {
   const html = WRAP(`
 <tr><td style="padding:22px 32px 0;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;">
 <h1 style="margin:0;font-size:21px;line-height:1.3;color:#111111;">One scan left</h1>
-<p style="margin:12px 0 0;font-size:14px;line-height:1.65;color:#525252;">Your pack is down to its last deep scan. A refill is ${args.packScans} more for ₹${args.amount}: the button opens pagehaul with your plan attached, and the pricing section does the rest.</p>
+<p style="margin:12px 0 0;font-size:14px;line-height:1.65;color:#525252;">A refill adds ${args.packScans} more, and what&#39;s left carries over.</p>
 </td></tr>
 <tr><td style="padding:20px 32px 0;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;" align="center">
 <a href="${args.restoreUrl}" style="display:inline-block;background:#111111;color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;padding:13px 30px;border-radius:999px;">Refill · ₹${args.amount}</a>

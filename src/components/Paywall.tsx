@@ -444,7 +444,7 @@ export function PlansGrid({
               <>
                 {owned === "pack" && (
                   <p className="mb-2 text-center font-mono text-[12px] text-muted-foreground">
-                    {scansLeft} of {PACK_SCANS} scans left
+                    {scansLeft} scan{scansLeft === 1 ? "" : "s"} left
                   </p>
                 )}
                 {emailInput("pack")}

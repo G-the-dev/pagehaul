@@ -88,6 +88,8 @@ export function UpiDialog({
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
     };
+    // Escape is bound once on mount; the paid state overrides it below by
+    // swapping the close handlers instead.
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -116,6 +118,13 @@ export function UpiDialog({
     })();
   }, [stage, ref, plan, email]);
 
+  // After a payment, every way out leads to a fresh page at the top: the
+  // hero, wearing the new plan. A reload would restore the old scroll
+  // position; a replace navigation starts clean.
+  const leaveRenewed = useCallback(() => {
+    window.location.replace(window.location.pathname);
+  }, []);
+
   const finish = useCallback(
     (token: string) => {
       storeLicense(token);
@@ -124,16 +133,10 @@ export function UpiDialog({
         `${window.location.origin}/#restore=${encodeURIComponent(token)}`,
       );
       setStage("done");
-      // The page behind unlocks immediately; the dialog stays half a minute
-      // to hand over the link, then reloads the page so every corner of the
-      // interface stands in the new plan. Closing by hand skips the reload;
-      // the live update already did the work.
       onPaid();
-      autoClose.current = window.setTimeout(() => {
-        window.location.reload();
-      }, 30_000);
+      autoClose.current = window.setTimeout(leaveRenewed, 30_000);
     },
-    [plan, onPaid, onClose],
+    [plan, onPaid, leaveRenewed],
   );
 
   useEffect(
@@ -200,7 +203,10 @@ export function UpiDialog({
     <div
       className="fixed inset-0 z-[100] grid place-items-center overflow-y-auto bg-black/80 p-5 backdrop-blur-sm"
       onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
+        if (e.target === e.currentTarget) {
+          if (stage === "done") leaveRenewed();
+          else onClose();
+        }
       }}
       role="dialog"
       aria-modal="true"
@@ -209,7 +215,7 @@ export function UpiDialog({
       <div className="relative w-full max-w-sm rounded-2xl border border-border bg-background p-6">
         <button
           type="button"
-          onClick={onClose}
+          onClick={stage === "done" ? leaveRenewed : onClose}
           aria-label="Close"
           className="absolute right-4 top-4 grid h-8 w-8 place-items-center rounded-full border border-border text-muted-foreground"
         >
@@ -307,42 +313,32 @@ export function UpiDialog({
 
         {stage === "done" && (
           <div className="pb-2 pt-6 text-center">
-            <div className="mx-auto grid h-10 w-10 place-items-center rounded-full bg-accent text-accent-fg">
-              <Check className="h-5 w-5" aria-hidden />
+            <div className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-emerald-500 text-white shadow-[0_0_0_6px_rgb(16_185_129/0.15)]">
+              <Check className="h-7 w-7" strokeWidth={3} aria-hidden />
             </div>
-            <p className="mt-4 text-[15px] font-semibold">Payment confirmed</p>
-            <p className="mt-1 text-[13px] text-muted-foreground">
-              {plan === "pro"
-                ? "Pro is active on this browser."
-                : "Your scans are loaded on this browser."}
+            <p className="mt-4 text-[17px] font-semibold tracking-tight">
+              Payment confirmed
+            </p>
+            <p className="mt-1 text-[13.5px] text-muted-foreground">
+              {plan === "pro" ? "Pro is active." : "Your scans are loaded."}
             </p>
             {restoreUrl && (
-              <div className="mt-5 rounded-xl border border-border bg-surface p-3 text-left">
-                <p className="text-[12px] font-medium">
-                  Your unlock link, for any other device
-                </p>
-                <p className="mt-1 truncate font-mono text-[10.5px] text-muted-foreground">
-                  {restoreUrl}
-                </p>
-                <button
-                  type="button"
-                  onClick={() => {
-                    navigator.clipboard?.writeText(restoreUrl).then(() => {
-                      setLinkCopied(true);
-                      // Copying means they are reading; the dialog stops
-                      // trying to leave.
-                      if (autoClose.current) clearTimeout(autoClose.current);
-                    });
-                  }}
-                  className="mt-2.5 w-full rounded-full border border-border py-2 text-[12.5px] font-semibold"
-                >
-                  {linkCopied ? "Copied" : "Copy link"}
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  navigator.clipboard?.writeText(restoreUrl).then(() => {
+                    setLinkCopied(true);
+                    // Copying means they are reading; stop trying to leave.
+                    if (autoClose.current) clearTimeout(autoClose.current);
+                  });
+                }}
+                className="mt-5 w-full rounded-full border border-border py-2.5 text-[13px] font-semibold"
+              >
+                {linkCopied ? "Copied ✓" : "Copy unlock link for other devices"}
+              </button>
             )}
-            <p className="mt-3 text-[11px] leading-relaxed text-muted-foreground/70">
-              Also on its way to {email}; check spam if it hides. This page
-              refreshes itself in half a minute.
+            <p className="mt-3 text-[11.5px] text-muted-foreground/70">
+              Emailed to {email} too. Check spam once.
             </p>
           </div>
         )}
