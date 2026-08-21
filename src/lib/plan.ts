@@ -12,7 +12,7 @@
 
 export const FREE_DEEP_SCANS = 2;
 export const PRO_PRICE_INR = 249;
-export const PACK_PRICE_INR = 1; // TEST PRICE - restore to 99 before go-live
+export const PACK_PRICE_INR = 99;
 export const PACK_SCANS = 5;
 
 /** Kinds a free account can see but not open or download. */
