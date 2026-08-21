@@ -265,18 +265,33 @@ export function UpiDialog({
         {stage === "blocked" && (
           <div className="pb-2 pt-6 text-center">
             <p className="text-[15px] font-semibold tracking-tight">
-              Nothing to pay
+              Already yours
             </p>
             <p className="mx-auto mt-1.5 max-w-[32ch] text-[13px] leading-relaxed text-muted-foreground">
               {problem}
             </p>
+            <p className="mx-auto mt-2 max-w-[32ch] text-[12px] leading-relaxed text-muted-foreground/80">
+              Open the link from your inbox in this browser and your plan
+              appears here.
+            </p>
+            <a
+              href="https://mail.google.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-5 block w-full rounded-full bg-accent py-2.5 text-[13.5px] font-semibold text-accent-fg"
+            >
+              Open my inbox
+            </a>
             <button
               type="button"
               onClick={onClose}
-              className="mt-5 w-full rounded-full border border-border py-2.5 text-[13.5px] font-semibold"
+              className="mt-2 w-full rounded-full border border-border py-2.5 text-[13.5px] font-semibold"
             >
               Close
             </button>
+            <p className="mt-3 text-[11px] text-muted-foreground/70">
+              Not there? Check spam once.
+            </p>
           </div>
         )}
 
