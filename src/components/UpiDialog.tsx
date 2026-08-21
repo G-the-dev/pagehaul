@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Check, Copy, TimerOff, X } from "lucide-react";
 import { track } from "@/lib/analytics";
-import { PACK_PRICE_INR, PACK_SCANS, PRO_PRICE_INR, storeLicense } from "@/lib/plan";
+import { PACK_PRICE_INR, PACK_SCANS, PRO_PRICE_INR, storeLicense, tokenStartsAt } from "@/lib/plan";
 import { UPI } from "@/lib/upi-config";
 
 /**
@@ -53,6 +53,7 @@ export function UpiDialog({
   const [left, setLeft] = useState(WINDOW_S);
   const [mounted, setMounted] = useState(false);
   const [restoreUrl, setRestoreUrl] = useState<string | null>(null);
+  const [startsOn, setStartsOn] = useState<string | null>(null);
   const [linkCopied, setLinkCopied] = useState(false);
   const claimedFor = useRef<string | null>(null);
   const autoClose = useRef<number | null>(null);
@@ -146,6 +147,15 @@ export function UpiDialog({
       setRestoreUrl(
         `${window.location.origin}/#restore=${encodeURIComponent(token)}`,
       );
+      const nbf = tokenStartsAt(token);
+      setStartsOn(
+        nbf && nbf > Date.now()
+          ? new Date(nbf).toLocaleDateString("en-IN", {
+              day: "numeric",
+              month: "long",
+            })
+          : null,
+      );
       setStage("done");
       onPaid();
       autoClose.current = window.setTimeout(leaveRenewed, 30_000);
@@ -176,9 +186,11 @@ export function UpiDialog({
     return () => clearInterval(t);
   }, [stage, ref]);
 
-  // Polling starts with the dialog, so a fast payer never touches a button.
+  // Polling runs through the payment window AND past its close: a payment
+  // that squeaked in late still gets approved, and the dialog should flip
+  // to confirmed the moment it is, not sulk in the expired state.
   useEffect(() => {
-    if (stage !== "pay") return;
+    if (stage !== "pay" && stage !== "expired") return;
     let alive = true;
     let timer: number;
     const poll = async () => {
@@ -344,8 +356,8 @@ export function UpiDialog({
               Get a fresh code
             </button>
             <p className="mt-3 text-[11.5px] leading-relaxed text-muted-foreground/70">
-              Paid just before the clock? Your unlock link still arrives at{" "}
-              {email}.
+              Paid just before the clock? This page still unlocks by itself
+              once the payment is confirmed.
             </p>
           </div>
         )}
@@ -359,7 +371,11 @@ export function UpiDialog({
               Payment confirmed
             </p>
             <p className="mt-1 text-[13.5px] text-muted-foreground">
-              {plan === "pro" ? "Pro is active." : "Your scans are loaded."}
+              {startsOn
+                ? `Queued. Your scans arrive ${startsOn}, when Pro ends.`
+                : plan === "pro"
+                  ? "Pro is active."
+                  : "Your scans are loaded."}
             </p>
             {restoreUrl && (
               <button

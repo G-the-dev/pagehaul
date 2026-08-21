@@ -1,28 +1,34 @@
 import { ImapFlow } from "imapflow";
-import { verifyLicense, type LicensePayload } from "./license";
+import {
+  verifyLicense,
+  verifyLicenseAnyTime,
+  type LicensePayload,
+} from "./license";
 
 /**
  * The purchase ledger is the Gmail Sent folder.
  *
  * Every unlock email ever sent sits there, addressed to its buyer and
  * carrying the restore link, which carries the signed token, which carries
- * the plan and its expiry. Searching sent mail by recipient IS the lookup
- * "does this email already have a plan", with no database to run, back up,
- * or lose, and it survives every deploy because Google keeps it.
- *
- * IMAP costs a second or two, which the checkout's opening "checking"
- * moment absorbs. Missing credentials fail open: no ledger means no block,
- * never a broken checkout.
+ * the plan, its expiry, and any queued start date. Searching sent mail by
+ * recipient IS the lookup "what does this email own", with no database to
+ * run, back up, or lose. Missing credentials fail open: no ledger means no
+ * block, never a broken checkout.
  */
 
 const TOKEN_RE = /#restore=([A-Za-z0-9._%\-]+)/g;
 
-export async function findActivePlan(
-  email: string,
-): Promise<{ payload: LicensePayload; token: string } | null> {
+export interface OwnedPlans {
+  /** The plan live right now, if any. */
+  current?: { payload: LicensePayload; token: string };
+  /** A purchase waiting for its start date, if any. */
+  queued?: { payload: LicensePayload; token: string };
+}
+
+export async function findOwnedPlans(email: string): Promise<OwnedPlans> {
   const user = process.env.GMAIL_USER;
   const pass = process.env.GMAIL_APP_PASSWORD;
-  if (!user || !pass) return null;
+  if (!user || !pass) return {};
 
   const client = new ImapFlow({
     host: "imap.gmail.com",
@@ -32,20 +38,19 @@ export async function findActivePlan(
     logger: false,
   });
 
+  const out: OwnedPlans = {};
   try {
     await client.connect();
     const lock = await client.getMailboxLock("[Gmail]/Sent Mail");
     try {
-      // Substring search per IMAP semantics: catches "You're unlocked" and
-      // "Your pagehaul unlock link" alike.
       const uids = await client.search(
         { to: email, subject: "unlock" },
         { uid: true },
       );
-      if (!uids || uids.length === 0) return null;
-      // Newest first; the most recent valid token is the live plan.
-      const recent = uids.slice(-5).reverse();
+      if (!uids || uids.length === 0) return out;
+      const recent = uids.slice(-8).reverse();
       for (const uid of recent) {
+        if (out.current && out.queued) break;
         const msg = await client.fetchOne(String(uid), { source: true }, { uid: true });
         if (!msg || !msg.source) continue;
         const body = msg.source.toString("utf8");
@@ -56,19 +61,25 @@ export async function findActivePlan(
           } catch {
             continue;
           }
-          // Quoted-printable mail wraps long lines with "=\r\n"; heal them.
           token = token.replace(/=\r?\n/g, "").replace(/=3D/g, "=");
-          const payload = verifyLicense(token);
-          if (payload) return { payload, token };
+          const live = verifyLicense(token);
+          if (live && !out.current) {
+            out.current = { payload: live, token };
+            continue;
+          }
+          const any = verifyLicenseAnyTime(token);
+          if (any && any.nbf && any.nbf > Date.now() && !out.queued) {
+            out.queued = { payload: any, token };
+          }
         }
       }
-      return null;
+      return out;
     } finally {
       lock.release();
     }
   } catch (e) {
     console.error("ledger lookup failed:", e instanceof Error ? e.message : e);
-    return null;
+    return out;
   } finally {
     client.logout().catch(() => {});
   }

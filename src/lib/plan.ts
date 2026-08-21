@@ -20,6 +20,7 @@ export const LOCKED_KINDS = ["model", "audio", "screenshot"] as const;
 
 const USED_KEY = "ph-deep-used";
 const LICENSE_KEY = "ph-license";
+const NEXT_KEY = "ph-license-next";
 
 export function usedDeepScans(): number {
   if (typeof window === "undefined") return 0;
@@ -53,7 +54,11 @@ export function deepAllowed(): boolean {
 export function licenseToken(): string | null {
   if (typeof window === "undefined") return null;
   try {
-    return window.localStorage.getItem(LICENSE_KEY);
+    promoteIfDue();
+    const t = window.localStorage.getItem(LICENSE_KEY);
+    const payload = readPayload(t);
+    if (!payload || (payload.nbf && payload.nbf > Date.now())) return null;
+    return t;
   } catch {
     return null;
   }
@@ -63,16 +68,43 @@ const PACK_BONUS_KEY = "ph-pack-bonus";
 
 export function storeLicense(token: string): void {
   try {
-    const prev = readPayload(licenseToken());
+    const prev = readPayload(window.localStorage.getItem(LICENSE_KEY));
     const next = readPayload(token);
     // The same token arriving again (the unlock link opened twice) changes
-    // nothing; a genuinely new purchase resets the ledgers, and a refill
-    // carries the old pack's remaining scans forward rather than eating
-    // them. Paid scans do not vanish because more were bought.
+    // nothing worth resetting.
     if (prev && next && prev.ref && prev.ref === next.ref) {
       window.localStorage.setItem(LICENSE_KEY, token);
       return;
     }
+    // A purchase whose start date is still ahead waits its turn in the
+    // queue slot rather than displacing what is live now.
+    if (next?.nbf && next.nbf > Date.now()) {
+      window.localStorage.setItem(
+        NEXT_KEY,
+        JSON.stringify({ token, fresh: true }),
+      );
+      return;
+    }
+    // Pro arriving over a pack with scans still in it: the pack is stashed,
+    // counters untouched, and resumes when Pro ends. Paid scans do not
+    // vanish because something bigger was bought.
+    if (
+      prev?.plan === "pack" &&
+      next?.plan === "pro" &&
+      packScansLeft() > 0
+    ) {
+      const oldToken = window.localStorage.getItem(LICENSE_KEY);
+      if (oldToken) {
+        window.localStorage.setItem(
+          NEXT_KEY,
+          JSON.stringify({ token: oldToken, fresh: false }),
+        );
+      }
+      window.localStorage.setItem(LICENSE_KEY, token);
+      window.localStorage.removeItem("ph-renewal-sent");
+      return;
+    }
+    // A refill carries the old pack's remaining scans forward.
     const carry =
       prev?.plan === "pack" && next?.plan === "pack" ? packScansLeft() : 0;
     window.localStorage.setItem(LICENSE_KEY, token);
@@ -82,6 +114,19 @@ export function storeLicense(token: string): void {
     window.localStorage.removeItem("ph-renewal-sent");
   } catch {
     /* nothing to do; the unlock dialog also shows the link to copy */
+  }
+}
+
+/** When a stored token (live or queued) begins, for the dialog's copy. */
+export function tokenStartsAt(token: string): number | null {
+  try {
+    const body = token.split(".")[1] ?? "";
+    const b64 = body.replace(/-/g, "+").replace(/_/g, "/");
+    const pad = b64 + "=".repeat((4 - (b64.length % 4)) % 4);
+    const payload = JSON.parse(atob(pad)) as { nbf?: number };
+    return typeof payload.nbf === "number" ? payload.nbf : null;
+  } catch {
+    return null;
   }
 }
 
@@ -98,7 +143,7 @@ function packBonus(): number {
 /** The token's payload, read without verifying: display and counting only. */
 function readPayload(
   t: string | null,
-): { plan: "pro" | "pack"; exp: number; ref?: string } | null {
+): { plan: "pro" | "pack"; exp: number; nbf?: number; ref?: string } | null {
   if (!t) return null;
   try {
     const body = t.split(".")[1] ?? "";
@@ -107,11 +152,63 @@ function readPayload(
     const payload = JSON.parse(atob(pad)) as {
       plan?: string;
       exp?: number;
+      nbf?: number;
       ref?: string;
     };
     if (typeof payload.exp !== "number" || payload.exp < Date.now()) return null;
     if (payload.plan !== "pro" && payload.plan !== "pack") return null;
-    return { plan: payload.plan, exp: payload.exp, ref: payload.ref };
+    return {
+      plan: payload.plan,
+      exp: payload.exp,
+      nbf: typeof payload.nbf === "number" ? payload.nbf : undefined,
+      ref: payload.ref,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The token whose turn it is. If the current one lapsed and a queued
+ * purchase's start date has arrived, the queue steps forward: the waiting
+ * token becomes the license, its ledgers reset if it was a fresh purchase
+ * rather than a stashed remainder.
+ */
+function promoteIfDue(): void {
+  if (typeof window === "undefined") return;
+  try {
+    const cur = readPayload(window.localStorage.getItem(LICENSE_KEY));
+    if (cur && (!cur.nbf || cur.nbf <= Date.now())) return;
+    const rawNext = window.localStorage.getItem(NEXT_KEY);
+    if (!rawNext) return;
+    const parsed = JSON.parse(rawNext) as { token?: string; fresh?: boolean };
+    const next = readPayload(parsed.token ?? null);
+    if (!next) {
+      window.localStorage.removeItem(NEXT_KEY);
+      return;
+    }
+    if (next.nbf && next.nbf > Date.now()) return;
+    window.localStorage.setItem(LICENSE_KEY, parsed.token!);
+    window.localStorage.removeItem(NEXT_KEY);
+    if (parsed.fresh) {
+      window.localStorage.removeItem("ph-pack-used");
+      window.localStorage.setItem(PACK_BONUS_KEY, "0");
+      window.localStorage.removeItem("ph-lowpack-sent");
+      window.localStorage.removeItem("ph-renewal-sent");
+    }
+  } catch {
+    /* storage blocked */
+  }
+}
+
+/** Whether a purchase is waiting behind the current plan. */
+export function queuedPlan(): "pro" | "pack" | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(NEXT_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as { token?: string };
+    return readPayload(parsed.token ?? null)?.plan ?? null;
   } catch {
     return null;
   }

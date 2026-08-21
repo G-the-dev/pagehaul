@@ -11,6 +11,8 @@ import {
   PRO_PRICE_INR,
   licensePlan,
   packScansLeft,
+  planExpiry,
+  queuedPlan,
   storeLicense,
 } from "@/lib/plan";
 import { Section, Reveal, Chip } from "./ui/motion-primitives";
@@ -201,10 +203,19 @@ export function PlansGrid({
   // Pro cannot be bought twice, an owned pack offers a refill.
   const [owned, setOwned] = useState<"pro" | "pack" | null>(null);
   const [scansLeft, setScansLeft] = useState(0);
+  const [renewWindow, setRenewWindow] = useState(false);
+  const [queued, setQueued] = useState<"pro" | "pack" | null>(null);
   useEffect(() => {
     const read = () => {
       setOwned(licensePlan());
       setScansLeft(packScansLeft());
+      const exp = planExpiry();
+      setRenewWindow(
+        licensePlan() === "pro" &&
+          exp !== null &&
+          exp - Date.now() <= 7 * 24 * 60 * 60_000,
+      );
+      setQueued(queuedPlan());
     };
     read();
     window.addEventListener("ph-plan-changed", read);
@@ -399,7 +410,25 @@ export function PlansGrid({
             </>
           }
           footer={
-            owned === "pro" ? (
+            owned === "pro" && queued === "pro" ? (
+              <div className="w-full rounded-full border border-accent-line bg-accent-soft px-6 py-3 text-center text-[14px] font-semibold">
+                Renewed ✓
+              </div>
+            ) : owned === "pro" && renewWindow ? (
+              <>
+                {emailInput("pro")}
+                <button
+                  type="button"
+                  onClick={() => buy("pro")}
+                  disabled={busyPlan !== null}
+                  className="w-full rounded-full bg-accent px-6 py-3 text-center text-[14px] font-semibold text-accent-fg disabled:opacity-50"
+                >
+                  {busyPlan === "pro"
+                    ? "Opening checkout…"
+                    : `Renew Pro · ₹${PRO_PRICE_INR}`}
+                </button>
+              </>
+            ) : owned === "pro" ? (
               <div className="w-full rounded-full border border-accent-line bg-accent-soft px-6 py-3 text-center text-[14px] font-semibold">
                 Your current plan ✓
               </div>
@@ -436,7 +465,25 @@ export function PlansGrid({
             </>
           }
           footer={
-            owned === "pro" ? (
+            owned === "pro" && queued === "pack" ? (
+              <div className="w-full rounded-full border border-accent-line bg-accent-soft px-6 py-3 text-center text-[14px] font-semibold">
+                Queued after Pro ✓
+              </div>
+            ) : owned === "pro" && renewWindow ? (
+              <>
+                {emailInput("pack")}
+                <button
+                  type="button"
+                  onClick={() => buy("pack")}
+                  disabled={busyPlan !== null}
+                  className="w-full rounded-full border border-border bg-surface-2 px-6 py-3 text-center text-[14px] font-semibold text-fg-2 disabled:opacity-50"
+                >
+                  {busyPlan === "pack"
+                    ? "Opening checkout…"
+                    : `Buy for after Pro · ₹${PACK_PRICE_INR}`}
+                </button>
+              </>
+            ) : owned === "pro" ? (
               <div className="w-full rounded-full border border-border px-6 py-3 text-center text-[14px] font-semibold text-muted-foreground">
                 Included in Pro
               </div>

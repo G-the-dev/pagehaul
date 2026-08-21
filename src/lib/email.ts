@@ -38,6 +38,8 @@ export function buyerUnlockEmail(args: {
   reference: string;
   restoreUrl: string;
   packScans: number;
+  /** One extra fact when it matters: a queued start, a stacked end date. */
+  note?: string;
 }): { subject: string; html: string; text: string } {
   const planLabel =
     args.plan === "pro" ? "Pro · one month" : `${args.packScans} deep scans`;
@@ -49,7 +51,7 @@ export function buyerUnlockEmail(args: {
   const html = WRAP(`
 <tr><td style="padding:22px 32px 0;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;">
 <h1 style="margin:0;font-size:21px;line-height:1.3;letter-spacing:-0.01em;color:#111111;"><span style="color:#10b981;">&#10003;</span> You&#39;re unlocked</h1>
-<p style="margin:12px 0 0;font-size:14px;line-height:1.65;color:#525252;">Open this on any other device you want unlocked:</p>
+<p style="margin:12px 0 0;font-size:14px;line-height:1.65;color:#525252;">${args.note ? args.note + " " : ""}Open this on any other device you want unlocked:</p>
 </td></tr>
 <tr><td style="padding:20px 32px 0;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;" align="center">
 <a href="${args.restoreUrl}" style="display:inline-block;background:#111111;color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;padding:13px 30px;border-radius:999px;">Unlock this device</a>
@@ -67,6 +69,7 @@ ${row("Reference", args.reference)}
 
   const text = [
     "Payment received. You're unlocked.",
+    ...(args.note ? ["", args.note] : []),
     "",
     "The browser you paid in is already unlocked. To use your plan on",
     "any other device or browser, open this link there:",

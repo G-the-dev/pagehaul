@@ -3,7 +3,7 @@ import { PACK_PRICE_INR, PRO_PRICE_INR } from "@/lib/plan";
 import { upiLive } from "@/lib/upi-config";
 import { SITE } from "@/lib/site";
 import { ownerClaimEmail, resendUnlockEmail } from "@/lib/email";
-import { findActivePlan } from "@/lib/ledger";
+import { findOwnedPlans } from "@/lib/ledger";
 import { mailConfigured, sendMail } from "@/lib/mailer";
 
 export const runtime = "nodejs";
@@ -82,19 +82,18 @@ export async function POST(req: NextRequest) {
   }
 
   // The sent-mail ledger: an email that already owns a plan is told so
-  // instead of being charged twice. Pro blocks everything except its own
-  // renewal in the final week; a pack owner may refill or step up to Pro.
-  const existing = await findActivePlan(email);
-  if (existing) {
-    const { payload, token } = existing;
-    const week = 7 * 24 * 60 * 60_000;
-    const proBlocksThis =
-      payload.plan === "pro" &&
-      (plan === "pack" || payload.exp - Date.now() > week);
-    if (proBlocksThis) {
+  // instead of being charged twice. Active Pro blocks everything until its
+  // final week; in that week, a renewal and one queued pack are welcome.
+  // A pack owner may always refill or step up to Pro.
+  const owned = await findOwnedPlans(email);
+  const week = 7 * 24 * 60 * 60_000;
+  if (owned.current?.payload.plan === "pro") {
+    const cur = owned.current;
+    const inRenewalWindow = cur.payload.exp - Date.now() <= week;
+    const refuse = async (message: string) => {
       const mail = resendUnlockEmail({
         planLabel: "Pro",
-        restoreUrl: `${req.nextUrl.origin}/#restore=${encodeURIComponent(token)}`,
+        restoreUrl: `${req.nextUrl.origin}/#restore=${encodeURIComponent(cur.token)}`,
       });
       await sendMail({
         to: email,
@@ -103,21 +102,27 @@ export async function POST(req: NextRequest) {
         text: mail.text,
       });
       return NextResponse.json(
-        {
-          error:
-            plan === "pack"
-              ? "This email already has Pro, which includes everything. Unlock link re-sent."
-              : "This email already has Pro. Unlock link re-sent, check your inbox.",
-          code: "has_plan",
-        },
+        { error: message, code: "has_plan" },
         { status: 409 },
+      );
+    };
+    if (!inRenewalWindow) {
+      return refuse(
+        plan === "pack"
+          ? "This email already has Pro, which includes everything. Unlock link re-sent."
+          : "This email already has Pro. Unlock link re-sent, check your inbox.",
+      );
+    }
+    if (owned.queued) {
+      return refuse(
+        "This email already has a purchase queued after Pro. Unlock link re-sent.",
       );
     }
   }
 
   const amount = plan === "pro" ? PRO_PRICE_INR : PACK_PRICE_INR;
   const origin = req.nextUrl.origin;
-  const approve = `${origin}/api/upi/approve?key=${encodeURIComponent(adminKey)}&ref=${encodeURIComponent(ref)}&plan=${plan}&email=${encodeURIComponent(email)}`;
+  const approve = `${origin}/api/upi/approve?key=${encodeURIComponent(adminKey)}&ref=${encodeURIComponent(ref)}&plan=${plan}&email=${encodeURIComponent(email)}&t=${Date.now()}`;
 
   const mail = ownerClaimEmail({
     plan,

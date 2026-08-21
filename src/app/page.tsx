@@ -33,6 +33,7 @@ import {
   storeLicense,
   packScansLeft,
   planExpiry,
+  tokenStartsAt,
   recordDeepScan,
   recordPackScan,
   LOCKED_KINDS,
@@ -185,7 +186,15 @@ export default function Home() {
       if (token.startsWith("v1.")) {
         storeLicense(token);
         refreshPlan();
-        setToast({ id: Date.now(), text: "Your plan is unlocked on this device.", tone: "done" });
+        const nbf = tokenStartsAt(token);
+        setToast({
+          id: Date.now(),
+          text:
+            nbf && nbf > Date.now()
+              ? `Queued. Your purchase activates ${new Date(nbf).toLocaleDateString("en-IN", { day: "numeric", month: "long" })}.`
+              : "Your plan is unlocked on this device.",
+          tone: "done",
+        });
         history.replaceState(null, "", window.location.pathname);
       }
     }

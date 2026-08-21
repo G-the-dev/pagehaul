@@ -98,7 +98,7 @@ export default function PrivacyPage() {
       <Clause n="05" title="Services we rely on">
         <p>
           The site is hosted on Vercel, analytics is processed by PostHog, and
-          email, receipts, licenses and feedback, is delivered by Resend. Each
+          email, receipts, unlock links and feedback, is sent through Gmail. Each
           processes requests on our behalf and will see the usual technical
           information any web request carries, including IP address, as part of
           serving and protecting the service.
