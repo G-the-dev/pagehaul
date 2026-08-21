@@ -9,6 +9,7 @@ import {
   PACK_PRICE_INR,
   PACK_SCANS,
   PRO_PRICE_INR,
+  licenseEmail,
   licensePlan,
   packScansLeft,
   planExpiry,
@@ -205,10 +206,12 @@ export function PlansGrid({
   const [scansLeft, setScansLeft] = useState(0);
   const [renewWindow, setRenewWindow] = useState(false);
   const [queued, setQueued] = useState<"pro" | "pack" | null>(null);
+  const [ownerEmail, setOwnerEmail] = useState<string | null>(null);
   useEffect(() => {
     const read = () => {
       setOwned(licensePlan());
       setScansLeft(packScansLeft());
+      setOwnerEmail(licenseEmail());
       const exp = planExpiry();
       setRenewWindow(
         licensePlan() === "pro" &&
@@ -429,8 +432,15 @@ export function PlansGrid({
                 </button>
               </>
             ) : owned === "pro" ? (
-              <div className="w-full rounded-full border border-accent-line bg-accent-soft px-6 py-3 text-center text-[14px] font-semibold">
-                Your current plan ✓
+              <div>
+                <div className="w-full rounded-full border border-accent-line bg-accent-soft px-6 py-3 text-center text-[14px] font-semibold">
+                  Your current plan ✓
+                </div>
+                {ownerEmail && (
+                  <p className="mt-2 truncate text-center font-mono text-[11px] text-muted-foreground">
+                    on {ownerEmail}
+                  </p>
+                )}
               </div>
             ) : (
               <>
@@ -490,8 +500,9 @@ export function PlansGrid({
             ) : (
               <>
                 {owned === "pack" && (
-                  <p className="mb-2 text-center font-mono text-[12px] text-muted-foreground">
+                  <p className="mb-2 truncate text-center font-mono text-[12px] text-muted-foreground">
                     {scansLeft} scan{scansLeft === 1 ? "" : "s"} left
+                    {ownerEmail ? ` · ${ownerEmail}` : ""}
                   </p>
                 )}
                 {emailInput("pack")}

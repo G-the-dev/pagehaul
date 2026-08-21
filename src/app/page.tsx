@@ -28,6 +28,7 @@ import {
   deepAllowed,
   deepScansLeft,
   isPaid,
+  licenseEmail,
   licensePlan,
   licenseToken,
   storeLicense,
@@ -926,7 +927,10 @@ export default function Home() {
           ))}
           <span className="ml-auto flex items-center gap-2.5 sm:ml-1.5">
             {planLabel && (
-              <span className="rounded-full border border-accent-line bg-accent-soft px-3 py-1.5 font-mono text-[11px] font-semibold">
+              <span
+                title={licenseEmail() ?? undefined}
+                className="rounded-full border border-accent-line bg-accent-soft px-3 py-1.5 font-mono text-[11px] font-semibold"
+              >
                 {planLabel}
               </span>
             )}

@@ -43,10 +43,11 @@ export async function findOwnedPlans(email: string): Promise<OwnedPlans> {
     await client.connect();
     const lock = await client.getMailboxLock("[Gmail]/Sent Mail");
     try {
-      const uids = await client.search(
-        { to: email, subject: "unlock" },
-        { uid: true },
-      );
+      // Recipient only: Gmail's IMAP matches subjects by whole word, so
+      // "unlock" never found "unlocked" and the ledger came up empty. This
+      // account sends nothing but product mail, and token verification
+      // below is the real filter anyway.
+      const uids = await client.search({ to: email }, { uid: true });
       if (!uids || uids.length === 0) return out;
       const recent = uids.slice(-8).reverse();
       for (const uid of recent) {

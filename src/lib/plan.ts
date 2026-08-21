@@ -143,7 +143,13 @@ function packBonus(): number {
 /** The token's payload, read without verifying: display and counting only. */
 function readPayload(
   t: string | null,
-): { plan: "pro" | "pack"; exp: number; nbf?: number; ref?: string } | null {
+): {
+  plan: "pro" | "pack";
+  exp: number;
+  nbf?: number;
+  ref?: string;
+  email?: string;
+} | null {
   if (!t) return null;
   try {
     const body = t.split(".")[1] ?? "";
@@ -154,6 +160,7 @@ function readPayload(
       exp?: number;
       nbf?: number;
       ref?: string;
+      email?: string;
     };
     if (typeof payload.exp !== "number" || payload.exp < Date.now()) return null;
     if (payload.plan !== "pro" && payload.plan !== "pack") return null;
@@ -162,6 +169,7 @@ function readPayload(
       exp: payload.exp,
       nbf: typeof payload.nbf === "number" ? payload.nbf : undefined,
       ref: payload.ref,
+      email: typeof payload.email === "string" ? payload.email : undefined,
     };
   } catch {
     return null;
@@ -221,6 +229,11 @@ export function licensePlan(): "pro" | "pack" | null {
 /** When the current plan runs out, in unix ms; null when there is none. */
 export function planExpiry(): number | null {
   return readPayload(licenseToken())?.exp ?? null;
+}
+
+/** The email the current plan was bought with, for showing whose it is. */
+export function licenseEmail(): string | null {
+  return readPayload(licenseToken())?.email ?? null;
 }
 
 const PACK_USED_KEY = "ph-pack-used";
