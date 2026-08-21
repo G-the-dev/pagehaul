@@ -7,7 +7,12 @@ import { TileGrid } from "@/components/TileGrid";
 import { Hero } from "@/components/Hero";
 import { ScanProgress } from "@/components/ScanProgress";
 import { Faq, Footer, HatchBand } from "@/components/Sections";
-import { PricingSection } from "@/components/Paywall";
+// Code-split but still server-rendered: the pricing section sits far
+// below the fold, and its chunk (cards, checkout, QR machinery) has no
+// business inside the JS that makes the hero interactive.
+const PricingSection = dynamic(() =>
+  import("@/components/Paywall").then((m) => m.PricingSection),
+);
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Toast, type ToastMessage, type ToastTone } from "@/components/Toast";
 import { Countdown } from "@/components/Countdown";

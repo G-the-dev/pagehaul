@@ -47,9 +47,100 @@ const THEME_INIT = `
 `;
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://pagehaul.vercel.app"),
   title: "pagehaul, every asset on any page",
   description:
     "Paste a link and get every image, icon, video, font and document on the page in one grid. Take a single file or all of them. No DevTools, no archive to dig through.",
+  keywords: [
+    "website asset extractor",
+    "download images from website",
+    "extract fonts from website",
+    "website scanner",
+    "download website assets",
+    "extract svg icons",
+    "web design assets",
+  ],
+  alternates: { canonical: "/" },
+  openGraph: {
+    title: "pagehaul, every asset on any page",
+    description:
+      "Paste a link and get every image, icon, video, font and document on the page in one grid.",
+    url: "/",
+    siteName: "pagehaul",
+    type: "website",
+    locale: "en_US",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "pagehaul, every asset on any page",
+    description:
+      "Paste a link and get every image, icon, video, font and document on the page in one grid.",
+  },
+  robots: { index: true, follow: true },
+};
+
+/**
+ * Structured data: the application with its plans, and the FAQ, so search
+ * results can show prices and answers directly. Mirrors the visible page;
+ * when the FAQ or prices change there, change them here.
+ */
+const STRUCTURED_DATA = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebApplication",
+      name: "pagehaul",
+      url: "https://pagehaul.vercel.app",
+      applicationCategory: "DeveloperApplication",
+      operatingSystem: "Web browser",
+      description:
+        "Paste a link and get every image, icon, video, font and document on the page in one grid.",
+      offers: [
+        { "@type": "Offer", name: "Free", price: "0", priceCurrency: "INR" },
+        {
+          "@type": "Offer",
+          name: "Pro, one month",
+          price: "249",
+          priceCurrency: "INR",
+        },
+        {
+          "@type": "Offer",
+          name: "Scan pack, 5 deep scans",
+          price: "99",
+          priceCurrency: "INR",
+        },
+      ],
+    },
+    {
+      "@type": "FAQPage",
+      mainEntity: [
+        {
+          "@type": "Question",
+          name: "Is it free?",
+          acceptedAnswer: {
+            "@type": "Answer",
+            text: "Quick scans are free and unlimited, and you get 2 free deep scans. Past that it is \u20b9249 a month, or a \u20b999 pack of 5 deep scans.",
+          },
+        },
+        {
+          "@type": "Question",
+          name: "Do you keep my files or scans?",
+          acceptedAnswer: {
+            "@type": "Answer",
+            text: "No. Your browser fetches files straight from the original site and builds any archive locally. We keep no history.",
+          },
+        },
+        {
+          "@type": "Question",
+          name: "What does it find?",
+          acceptedAnswer: {
+            "@type": "Answer",
+            text: "Images and every srcset size, SVG icons, video, fonts, documents, scripts, and the API calls a page makes. Deep scans also read its palette and type.",
+          },
+        },
+      ],
+    },
+  ],
 };
 
 export default function RootLayout({
@@ -60,6 +151,10 @@ export default function RootLayout({
     // paint for anyone who prefers light.
     <html lang="en" className="dark" suppressHydrationWarning>
       <head>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(STRUCTURED_DATA) }}
+        />
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT }} />
       </head>
       <body className={`${appSans.variable} ${appMono.variable} antialiased`}>

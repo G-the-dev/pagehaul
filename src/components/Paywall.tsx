@@ -2,7 +2,14 @@
 
 import { useEffect, useState } from "react";
 import { Check, X, Zap, Layers, Package } from "lucide-react";
-import { GrainGradient } from "@paper-design/shaders-react";
+import nextDynamic from "next/dynamic";
+
+// Loaded after hydration; the cards paint their ground colour first and
+// the grain drifts in a beat later, invisible to anyone not staring.
+const GrainGradient = nextDynamic(
+  () => import("@paper-design/shaders-react").then((m) => m.GrainGradient),
+  { ssr: false },
+);
 import { track } from "@/lib/analytics";
 import {
   FREE_DEEP_SCANS,

@@ -8,8 +8,16 @@ import { TryExamples } from "./TryExamples";
 import type { Recent } from "@/lib/recent";
 import { checkUrlInput } from "@/lib/url-input";
 import { ScanProgress } from "./ScanProgress";
-import { Dithering } from "@paper-design/shaders-react";
+import nextDynamic from "next/dynamic";
 import { useIsLight } from "@/lib/use-is-light";
+
+// The WebGL shader library is a luxury, not a dependency of first paint:
+// it arrives after hydration, exactly when the mounted gate below would
+// first draw it anyway. Nothing visual changes; the critical bundle slims.
+const Dithering = nextDynamic(
+  () => import("@paper-design/shaders-react").then((m) => m.Dithering),
+  { ssr: false },
+);
 import { useInView } from "@/lib/use-in-view";
 
 interface Props {
