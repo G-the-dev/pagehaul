@@ -325,7 +325,7 @@ export function PlansGrid({
         }}
         placeholder="you@studio.com"
         aria-label="Email for your receipt and license"
-        className={`block w-full rounded-full border bg-background/60 px-5 py-2.5 text-[14px] focus:outline-none ${
+        className={`block w-full rounded-full border bg-background px-5 py-2.5 text-[14px] focus:outline-none ${
           emailNeededFor === plan
             ? "border-red-400/80"
             : "border-border focus:border-border-strong"

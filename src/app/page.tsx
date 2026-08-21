@@ -32,6 +32,7 @@ import {
   licenseToken,
   storeLicense,
   packScansLeft,
+  planExpiry,
   recordDeepScan,
   recordPackScan,
   LOCKED_KINDS,
@@ -160,6 +161,24 @@ export default function Home() {
     // The unlock link from the receipt email: opening it on any device
     // installs the purchase there. Nobody has to know what a license is;
     // the link is the purchase.
+    try {
+      const exp = planExpiry();
+      if (
+        licensePlan() === "pro" &&
+        exp !== null &&
+        exp - Date.now() < 7 * 24 * 60 * 60_000 &&
+        !window.localStorage.getItem("ph-renewal-sent")
+      ) {
+        window.localStorage.setItem("ph-renewal-sent", "1");
+        fetch("/api/upi/renewal", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ token: licenseToken() }),
+        }).catch(() => {});
+      }
+    } catch {
+      /* storage blocked; the nudge is a nicety */
+    }
     const m = window.location.hash.match(/^#restore=(.+)$/);
     if (m) {
       const token = decodeURIComponent(m[1]);
@@ -498,6 +517,8 @@ export default function Home() {
         if (licensePlan() === "pack" && isPaid()) {
           recordPackScan();
           refreshPlan();
+          // The pricing cards keep their own count; tell them a scan left.
+          window.dispatchEvent(new Event("ph-plan-changed"));
           // Down to the last scan: ask the server to send the refill nudge,
           // once per pack. The token carries the address and the proof.
           try {

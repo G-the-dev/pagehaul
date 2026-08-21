@@ -59,32 +59,71 @@ export function licenseToken(): string | null {
   }
 }
 
+const PACK_BONUS_KEY = "ph-pack-bonus";
+
 export function storeLicense(token: string): void {
   try {
+    const prev = readPayload(licenseToken());
+    const next = readPayload(token);
+    // The same token arriving again (the unlock link opened twice) changes
+    // nothing; a genuinely new purchase resets the ledgers, and a refill
+    // carries the old pack's remaining scans forward rather than eating
+    // them. Paid scans do not vanish because more were bought.
+    if (prev && next && prev.ref && prev.ref === next.ref) {
+      window.localStorage.setItem(LICENSE_KEY, token);
+      return;
+    }
+    const carry =
+      prev?.plan === "pack" && next?.plan === "pack" ? packScansLeft() : 0;
     window.localStorage.setItem(LICENSE_KEY, token);
-    // A fresh purchase starts a fresh ledger: a refilled pack has its full
-    // count again, and the low-scans nudge may fire once more.
+    window.localStorage.setItem(PACK_BONUS_KEY, String(carry));
     window.localStorage.removeItem("ph-pack-used");
     window.localStorage.removeItem("ph-lowpack-sent");
+    window.localStorage.removeItem("ph-renewal-sent");
   } catch {
     /* nothing to do; the unlock dialog also shows the link to copy */
   }
 }
 
+function packBonus(): number {
+  if (typeof window === "undefined") return 0;
+  try {
+    const n = Number(window.localStorage.getItem(PACK_BONUS_KEY) ?? "0");
+    return Number.isFinite(n) && n > 0 ? Math.floor(n) : 0;
+  } catch {
+    return 0;
+  }
+}
+
 /** The token's payload, read without verifying: display and counting only. */
-export function licensePlan(): "pro" | "pack" | null {
-  const t = licenseToken();
+function readPayload(
+  t: string | null,
+): { plan: "pro" | "pack"; exp: number; ref?: string } | null {
   if (!t) return null;
   try {
     const body = t.split(".")[1] ?? "";
     const b64 = body.replace(/-/g, "+").replace(/_/g, "/");
     const pad = b64 + "=".repeat((4 - (b64.length % 4)) % 4);
-    const payload = JSON.parse(atob(pad)) as { plan?: string; exp?: number };
+    const payload = JSON.parse(atob(pad)) as {
+      plan?: string;
+      exp?: number;
+      ref?: string;
+    };
     if (typeof payload.exp !== "number" || payload.exp < Date.now()) return null;
-    return payload.plan === "pack" ? "pack" : payload.plan === "pro" ? "pro" : null;
+    if (payload.plan !== "pro" && payload.plan !== "pack") return null;
+    return { plan: payload.plan, exp: payload.exp, ref: payload.ref };
   } catch {
     return null;
   }
+}
+
+export function licensePlan(): "pro" | "pack" | null {
+  return readPayload(licenseToken())?.plan ?? null;
+}
+
+/** When the current plan runs out, in unix ms; null when there is none. */
+export function planExpiry(): number | null {
+  return readPayload(licenseToken())?.exp ?? null;
 }
 
 const PACK_USED_KEY = "ph-pack-used";
@@ -109,7 +148,7 @@ export function recordPackScan(): void {
 }
 
 export function packScansLeft(): number {
-  return Math.max(0, PACK_SCANS - packScansUsed());
+  return Math.max(0, PACK_SCANS + packBonus() - packScansUsed());
 }
 
 /**

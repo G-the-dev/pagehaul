@@ -1,19 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyLicense } from "@/lib/license";
-import { lowPackEmail } from "@/lib/email";
-import { PACK_PRICE_INR, PACK_SCANS } from "@/lib/plan";
+import { renewalReminderEmail } from "@/lib/email";
+import { PRO_PRICE_INR } from "@/lib/plan";
 import { sendMail } from "@/lib/mailer";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /**
- * The pack's last-scan nudge. The browser notices its own pack running dry
- * and asks for the refill email; the token proves whose pack it is and
- * carries the address. Worst case someone triggers their own nudge twice,
- * which is why one per reference per instance is plenty of throttling.
+ * The Pro renewal nudge, requested by the browser that noticed its own
+ * plan entering the last week. Gmail cannot schedule mail the way an email
+ * API can, so the visit is the scheduler: a Pro user who shows up inside
+ * the final seven days triggers exactly one reminder. One who never shows
+ * up was not going to renew off an email either.
  */
 
+const SEVEN_DAYS = 7 * 24 * 60 * 60_000;
 const sent = new Map<string, number>();
 
 export async function POST(req: NextRequest) {
@@ -25,8 +27,11 @@ export async function POST(req: NextRequest) {
   }
 
   const payload = verifyLicense(body.token ?? null);
-  if (!payload || payload.plan !== "pack" || !payload.email) {
-    return NextResponse.json({ error: "No pack found." }, { status: 400 });
+  if (!payload || payload.plan !== "pro" || !payload.email) {
+    return NextResponse.json({ error: "No plan found." }, { status: 400 });
+  }
+  if (payload.exp - Date.now() > SEVEN_DAYS) {
+    return NextResponse.json({ ok: true });
   }
 
   const key = payload.ref ?? payload.email;
@@ -38,10 +43,14 @@ export async function POST(req: NextRequest) {
   }
 
   const restoreUrl = `${req.nextUrl.origin}/#restore=${encodeURIComponent(body.token!)}`;
-  const mail = lowPackEmail({
-    packScans: PACK_SCANS,
-    amount: PACK_PRICE_INR,
+  const endsOn = new Date(payload.exp).toLocaleDateString("en-IN", {
+    day: "numeric",
+    month: "long",
+  });
+  const mail = renewalReminderEmail({
+    amount: PRO_PRICE_INR,
     restoreUrl,
+    endsOn,
   });
   await sendMail({
     to: payload.email,
@@ -49,6 +58,5 @@ export async function POST(req: NextRequest) {
     html: mail.html,
     text: mail.text,
   });
-
   return NextResponse.json({ ok: true });
 }

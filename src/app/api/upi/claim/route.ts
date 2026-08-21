@@ -3,6 +3,7 @@ import { PACK_PRICE_INR, PRO_PRICE_INR } from "@/lib/plan";
 import { upiLive } from "@/lib/upi-config";
 import { SITE } from "@/lib/site";
 import { ownerClaimEmail } from "@/lib/email";
+import { mailConfigured, sendMail } from "@/lib/mailer";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -70,10 +71,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Bad payment reference." }, { status: 400 });
   }
 
-  const apiKey = process.env.RESEND_API_KEY;
   const adminKey = process.env.PH_ADMIN_KEY;
   const to = process.env.FEEDBACK_TO ?? SITE.contactEmail;
-  if (!apiKey || !adminKey || !process.env.PH_LICENSE_SECRET) {
+  if (!mailConfigured() || !adminKey || !process.env.PH_LICENSE_SECRET) {
     return NextResponse.json(
       { error: "Payments are opening shortly.", code: "not_live" },
       { status: 503 },
@@ -91,23 +91,13 @@ export async function POST(req: NextRequest) {
     buyerEmail: email,
     approveUrl: approve,
   });
-  const res = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
-      authorization: `Bearer ${apiKey}`,
-      "content-type": "application/json",
-    },
-    body: JSON.stringify({
-      from: process.env.FEEDBACK_FROM ?? "pagehaul <onboarding@resend.dev>",
-      to: [to],
-      subject: mail.subject,
-      html: mail.html,
-      text: mail.text,
-    }),
+  const ok = await sendMail({
+    to,
+    subject: mail.subject,
+    html: mail.html,
+    text: mail.text,
   });
-
-  if (!res.ok) {
-    console.error("upi claim mail failed:", res.status, await res.text().catch(() => ""));
+  if (!ok) {
     return NextResponse.json(
       { error: "Could not register the payment claim. Try again in a moment." },
       { status: 502 },

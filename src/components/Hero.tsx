@@ -303,7 +303,7 @@ export function Hero({
               // height, 23px, while the button beside it stood at 48.
               // text-[17px] below sm: iOS zooms the whole page into any input
               // whose text is under 16px, which reads as the layout jumping.
-              className={`h-12 rounded-lg border bg-surface/80 px-4 text-[17px] backdrop-blur-md outline-none transition-colors placeholder:text-muted-foreground disabled:opacity-60 sm:flex-1 sm:text-[16px] ${
+              className={`h-12 rounded-lg border bg-surface px-4 text-[17px] outline-none transition-colors placeholder:text-muted-foreground disabled:opacity-60 sm:flex-1 sm:text-[16px] ${
                 inputError ? "border-danger/60" : "border-border focus:border-border-strong"
               }`}
             />
@@ -342,7 +342,7 @@ export function Hero({
             <div
               role="radiogroup"
               aria-label="Scan depth"
-              className={`inline-flex rounded-lg border border-border bg-surface/80 p-1 backdrop-blur-md transition-opacity ${
+              className={`inline-flex rounded-lg border border-border bg-surface p-1 transition-opacity ${
                 scanning ? "opacity-55" : ""
               }`}
             >

@@ -18,7 +18,7 @@ const WRAP = (inner: string) => `<!doctype html>
 </td></tr>
 ${inner}
 <tr><td style="padding:0 32px 26px;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;">
-<p style="margin:18px 0 0;font-size:12px;line-height:1.6;color:#a1a1a1;">Something wrong? Just reply to this email.</p>
+<p style="margin:18px 0 0;font-size:12px;line-height:1.6;color:#a1a1a1;">Something wrong? Just reply to this email.<br>Found this in spam? Move it to your inbox so the next one lands right.</p>
 </td></tr>
 </table>
 </td></tr>

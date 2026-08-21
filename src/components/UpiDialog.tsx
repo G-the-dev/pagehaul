@@ -124,10 +124,14 @@ export function UpiDialog({
         `${window.location.origin}/#restore=${encodeURIComponent(token)}`,
       );
       setStage("done");
-      // The page behind unlocks immediately; the dialog stays to hand over
-      // the link, then sees itself out.
+      // The page behind unlocks immediately; the dialog stays half a minute
+      // to hand over the link, then reloads the page so every corner of the
+      // interface stands in the new plan. Closing by hand skips the reload;
+      // the live update already did the work.
       onPaid();
-      autoClose.current = window.setTimeout(() => onClose(), 10_000);
+      autoClose.current = window.setTimeout(() => {
+        window.location.reload();
+      }, 30_000);
     },
     [plan, onPaid, onClose],
   );
@@ -336,8 +340,9 @@ export function UpiDialog({
                 </button>
               </div>
             )}
-            <p className="mt-3 text-[11px] text-muted-foreground/70">
-              Also on its way to {email}. This closes by itself.
+            <p className="mt-3 text-[11px] leading-relaxed text-muted-foreground/70">
+              Also on its way to {email}; check spam if it hides. This page
+              refreshes itself in half a minute.
             </p>
           </div>
         )}
