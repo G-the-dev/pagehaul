@@ -29,7 +29,7 @@ function makeRef(): string {
   return "PH-" + [...bytes].map((b) => alphabet[b % alphabet.length]).join("");
 }
 
-type Stage = "pay" | "done" | "expired" | "paste";
+type Stage = "pay" | "done" | "expired";
 
 export function UpiDialog({
   plan,
@@ -48,7 +48,6 @@ export function UpiDialog({
   const [stage, setStage] = useState<Stage>("pay");
   const [qr, setQr] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
-  const [pasted, setPasted] = useState("");
   const [problem, setProblem] = useState<string | null>(null);
   const [left, setLeft] = useState(WINDOW_S);
   const [mounted, setMounted] = useState(false);
@@ -249,16 +248,9 @@ export function UpiDialog({
               </div>
             )}
             <p className="mt-2 text-center text-[11.5px] leading-relaxed text-muted-foreground/80">
-              Pay within the time and this page unlocks by itself.
-              Confirmation lands at {email} too.
+              Pay within the time and this page unlocks by itself. An unlock
+              link for your other devices lands at {email}.
             </p>
-            <button
-              type="button"
-              onClick={() => setStage("paste")}
-              className="mt-2 w-full text-center text-[11.5px] text-muted-foreground/70 underline underline-offset-2"
-            >
-              Have a license from a previous payment?
-            </button>
           </>
         )}
 
@@ -266,8 +258,8 @@ export function UpiDialog({
           <div className="py-6 text-center">
             <p className="text-[15px] font-semibold">The payment window closed</p>
             <p className="mx-auto mt-1.5 max-w-[32ch] text-[12.5px] leading-relaxed text-muted-foreground">
-              If you already paid, your license arrives at {email}. Otherwise
-              start again with a fresh code.
+              If you already paid, your unlock link arrives at {email}.
+              Otherwise start again with a fresh code.
             </p>
             <button
               type="button"
@@ -279,45 +271,6 @@ export function UpiDialog({
               className="mt-5 rounded-full bg-accent px-6 py-2.5 text-[14px] font-semibold text-accent-fg"
             >
               Start again
-            </button>
-          </div>
-        )}
-
-        {stage === "paste" && (
-          <div>
-            <p className="mb-2 text-[13px] text-muted-foreground">
-              Paste the license from your email:
-            </p>
-            <textarea
-              value={pasted}
-              onChange={(e) => setPasted(e.target.value)}
-              rows={3}
-              className="w-full rounded-lg border border-border bg-surface p-3 font-mono text-[11.5px] focus:border-border-strong focus:outline-none"
-              placeholder="v1.eyJw…"
-            />
-            <button
-              type="button"
-              onClick={() => {
-                const t = pasted.trim();
-                if (t.startsWith("v1.")) finish(t);
-                else setProblem("That does not look like a license.");
-              }}
-              className="mt-3 w-full rounded-full bg-accent px-6 py-3 text-[14px] font-semibold text-accent-fg"
-            >
-              Unlock
-            </button>
-            {problem && (
-              <p className="mt-2 text-[12.5px] text-red-400/90">{problem}</p>
-            )}
-            <button
-              type="button"
-              onClick={() => {
-                setProblem(null);
-                setStage("pay");
-              }}
-              className="mt-2 w-full text-center text-[12.5px] text-muted-foreground underline underline-offset-2"
-            >
-              Back to payment
             </button>
           </div>
         )}

@@ -30,6 +30,7 @@ import {
   isPaid,
   licensePlan,
   licenseToken,
+  storeLicense,
   recordDeepScan,
   recordPackScan,
   LOCKED_KINDS,
@@ -145,6 +146,19 @@ export default function Home() {
     // The landing pricing section unlocks plans without a callback path to
     // this component; it announces instead.
     window.addEventListener("ph-plan-changed", refreshPlan);
+    // The unlock link from the receipt email: opening it on any device
+    // installs the purchase there. Nobody has to know what a license is;
+    // the link is the purchase.
+    const m = window.location.hash.match(/^#restore=(.+)$/);
+    if (m) {
+      const token = decodeURIComponent(m[1]);
+      if (token.startsWith("v1.")) {
+        storeLicense(token);
+        refreshPlan();
+        setToast({ id: Date.now(), text: "Your plan is unlocked on this device.", tone: "done" });
+        history.replaceState(null, "", window.location.pathname);
+      }
+    }
     return () => window.removeEventListener("ph-plan-changed", refreshPlan);
   }, [refreshPlan]);
   const [pickerOpen, setPickerOpen] = useState(false);

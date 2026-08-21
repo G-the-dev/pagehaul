@@ -42,10 +42,10 @@ export default function TermsPage() {
         <p>
           Payment is by UPI. After you pay, we confirm the payment on our side
           and issue a license, usually within minutes, not instantly. The
-          license is a token stored in your browser and emailed to you; it is
-          what unlocks the product, it is yours, and it is not transferable by
-          sale. If you clear your browser storage, paste the license from your
-          receipt email to restore it.
+          purchase lives in your browser and in the unlock link emailed to
+          you; opening that link unlocks any browser or device you choose, and
+          it is not transferable by sale. If your browser ever forgets the
+          purchase, the link in your receipt email restores it.
         </p>
         <p>
           If you paid and nothing unlocked, write to{" "}

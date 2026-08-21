@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { PACK_PRICE_INR, PRO_PRICE_INR } from "@/lib/plan";
 import { upiLive } from "@/lib/upi-config";
 import { SITE } from "@/lib/site";
+import { ownerClaimEmail } from "@/lib/email";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -83,6 +84,13 @@ export async function POST(req: NextRequest) {
   const origin = req.nextUrl.origin;
   const approve = `${origin}/api/upi/approve?key=${encodeURIComponent(adminKey)}&ref=${encodeURIComponent(ref)}&plan=${plan}&email=${encodeURIComponent(email)}`;
 
+  const mail = ownerClaimEmail({
+    plan,
+    amount,
+    reference: ref,
+    buyerEmail: email,
+    approveUrl: approve,
+  });
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: {
@@ -92,19 +100,9 @@ export async function POST(req: NextRequest) {
     body: JSON.stringify({
       from: process.env.FEEDBACK_FROM ?? "pagehaul <onboarding@resend.dev>",
       to: [to],
-      subject: `UPI payment claim: ₹${amount} ${plan} · ${ref}`,
-      text: [
-        `Plan: ${plan} (₹${amount})`,
-        `Reference in the payment note: ${ref}`,
-        `Buyer email: ${email}`,
-        "",
-        "This fires when the payment window opens; the buyer has four",
-        "minutes to pay. When the amount shows up with this reference,",
-        "approve:",
-        approve,
-        "",
-        "No matching payment means they closed the window; ignore this mail.",
-      ].join("\n"),
+      subject: mail.subject,
+      html: mail.html,
+      text: mail.text,
     }),
   });
 

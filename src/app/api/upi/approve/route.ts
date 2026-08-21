@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { timingSafeEqual } from "crypto";
 import { mintLicense } from "@/lib/license";
 import { parkApproval } from "@/lib/upi-claims";
+import { buyerUnlockEmail } from "@/lib/email";
+import { PACK_PRICE_INR, PACK_SCANS, PRO_PRICE_INR } from "@/lib/plan";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -56,9 +58,18 @@ export async function GET(req: NextRequest) {
 
   parkApproval(ref, token);
 
-  // The buyer's copy, so a missed poll still ends well.
+  // The buyer's copy: a link that unlocks any device it is opened on.
+  // Nobody has to know what a license is; the link IS the purchase.
+  const restoreUrl = `${req.nextUrl.origin}/#restore=${encodeURIComponent(token)}`;
   const apiKey = process.env.RESEND_API_KEY;
   if (apiKey) {
+    const mail = buyerUnlockEmail({
+      plan,
+      amount: plan === "pro" ? PRO_PRICE_INR : PACK_PRICE_INR,
+      reference: ref,
+      restoreUrl,
+      packScans: PACK_SCANS,
+    });
     await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
@@ -68,24 +79,16 @@ export async function GET(req: NextRequest) {
       body: JSON.stringify({
         from: process.env.FEEDBACK_FROM ?? "pagehaul <onboarding@resend.dev>",
         to: [email],
-        subject: "Your pagehaul license",
-        text: [
-          "Payment received. Thank you.",
-          "",
-          "If the site did not unlock by itself, paste this license into",
-          '"Already paid?" on the pricing dialog:',
-          "",
-          token,
-          "",
-          `Plan: ${plan === "pro" ? "Pro, one month" : "5 deep scans"}`,
-        ].join("\n"),
+        subject: mail.subject,
+        html: mail.html,
+        text: mail.text,
       }),
-    }).catch((e) => console.error("buyer license mail failed:", e));
+    }).catch((e) => console.error("buyer unlock mail failed:", e));
   }
 
   return page(
     "Payment approved",
-    `${plan === "pro" ? "Pro" : "Scan pack"} for ${email}. Their page unlocks by itself; the license was also emailed to them.`,
+    `${plan === "pro" ? "Pro" : "Scan pack"} for ${email}. Their page unlocks by itself, and their unlock link is on its way to them.`,
     true,
   );
 }
