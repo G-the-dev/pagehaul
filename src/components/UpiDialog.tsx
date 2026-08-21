@@ -1,19 +1,26 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Check, Copy, X } from "lucide-react";
 import { track } from "@/lib/analytics";
 import { PACK_PRICE_INR, PACK_SCANS, PRO_PRICE_INR, storeLicense } from "@/lib/plan";
 import { UPI } from "@/lib/upi-config";
 
 /**
- * The UPI checkout: a QR with the amount and a reference baked in, the
- * payee's name and address beside it, and a patient little state machine.
- * "I have paid" registers the claim; the dialog then polls until the owner,
- * who can see the money, approves it — at which point the license installs
- * itself and the page unlocks. A paste box covers the one case where the
- * approval and the poll land on different servers.
+ * The UPI checkout. Opening it is the claim: the owner is notified at once,
+ * the dialog polls from the first second, and the buyer's only job is to
+ * pay before the four-minute clock runs out. When the owner confirms the
+ * money, the license installs itself and the page unlocks; no button needs
+ * pressing in between.
+ *
+ * Rendered through a portal to the body: inside the pricing card's animated
+ * wrapper, position:fixed answers to the transformed ancestor rather than
+ * the viewport, which is how the dialog ended up underneath the nav with a
+ * backdrop that flickered on scroll.
  */
+
+const WINDOW_S = 4 * 60;
 
 function makeRef(): string {
   const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -22,7 +29,7 @@ function makeRef(): string {
   return "PH-" + [...bytes].map((b) => alphabet[b % alphabet.length]).join("");
 }
 
-type Stage = "pay" | "waiting" | "done" | "paste";
+type Stage = "pay" | "done" | "expired" | "paste";
 
 export function UpiDialog({
   plan,
@@ -37,71 +44,106 @@ export function UpiDialog({
 }) {
   const amount = plan === "pro" ? PRO_PRICE_INR : PACK_PRICE_INR;
   const label = plan === "pro" ? "Pro, one month" : `${PACK_SCANS} deep scans`;
-  const [ref] = useState(makeRef);
+  const [ref, setRef] = useState(makeRef);
   const [stage, setStage] = useState<Stage>("pay");
   const [qr, setQr] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [pasted, setPasted] = useState("");
   const [problem, setProblem] = useState<string | null>(null);
-  const pollTimer = useRef<number | null>(null);
+  const [left, setLeft] = useState(WINDOW_S);
+  const [mounted, setMounted] = useState(false);
+  const claimedFor = useRef<string | null>(null);
+
+  useEffect(() => setMounted(true), []);
+
+  // The page behind holds still; a scrolling backdrop is what made the
+  // blur stutter, and there is nothing back there to reach mid-payment.
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, []);
 
   const upiUrl = `upi://pay?pa=${encodeURIComponent(UPI.vpa)}&am=${amount}&cu=INR&tn=${encodeURIComponent(ref)}`;
 
   useEffect(() => {
-    track("upi_dialog", { plan });
     let alive = true;
     import("qrcode").then((QR) =>
       QR.toDataURL(upiUrl, { margin: 1, width: 480 }).then((url) => {
         if (alive) setQr(url);
       }),
     );
+    return () => {
+      alive = false;
+    };
+  }, [upiUrl]);
+
+  useEffect(() => {
+    track("upi_dialog", { plan });
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
     };
     window.addEventListener("keydown", onKey);
-    return () => {
-      alive = false;
-      window.removeEventListener("keydown", onKey);
-    };
+    return () => window.removeEventListener("keydown", onKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Opening the dialog IS the claim. One notification per reference.
+  useEffect(() => {
+    if (stage !== "pay" || claimedFor.current === ref) return;
+    claimedFor.current = ref;
+    (async () => {
+      try {
+        const res = await fetch("/api/upi/claim", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ plan, email, ref }),
+        });
+        const data = (await res.json()) as { ok?: boolean; error?: string };
+        if (!res.ok || !data.ok) {
+          setProblem(data.error ?? "Could not start the payment. Close and try again.");
+          return;
+        }
+        track("upi_claimed", { plan });
+      } catch {
+        setProblem("Could not start the payment. Close and try again.");
+      }
+    })();
+  }, [stage, ref, plan, email]);
 
   const finish = useCallback(
     (token: string) => {
       storeLicense(token);
       track("purchase", { plan, origin: "upi" });
       setStage("done");
-      window.setTimeout(() => {
-        onUnlocked();
-      }, 1600);
+      window.setTimeout(() => onUnlocked(), 1600);
     },
     [plan, onUnlocked],
   );
 
-  const claim = useCallback(async () => {
-    setProblem(null);
-    try {
-      const res = await fetch("/api/upi/claim", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ plan, email, ref }),
-      });
-      const data = (await res.json()) as { ok?: boolean; error?: string };
-      if (!res.ok || !data.ok) {
-        setProblem(data.error ?? "Could not register the payment. Try again.");
-        return;
-      }
-      track("upi_claimed", { plan });
-      setStage("waiting");
-    } catch {
-      setProblem("Could not register the payment. Try again.");
-    }
-  }, [plan, email, ref]);
-
-  // While waiting, ask every five seconds whether the owner approved.
+  // The clock: four minutes to pay, counted where the buyer can see it.
   useEffect(() => {
-    if (stage !== "waiting") return;
+    if (stage !== "pay") return;
+    setLeft(WINDOW_S);
+    const t0 = Date.now();
+    const t = window.setInterval(() => {
+      const remaining = WINDOW_S - Math.floor((Date.now() - t0) / 1000);
+      setLeft(Math.max(0, remaining));
+      if (remaining <= 0) {
+        clearInterval(t);
+        setStage("expired");
+      }
+    }, 1000);
+    return () => clearInterval(t);
+  }, [stage, ref]);
+
+  // Polling starts with the dialog, so a fast payer never touches a button.
+  useEffect(() => {
+    if (stage !== "pay") return;
     let alive = true;
+    let timer: number;
     const poll = async () => {
       try {
         const res = await fetch(`/api/upi/status?ref=${ref}`);
@@ -113,12 +155,12 @@ export function UpiDialog({
       } catch {
         /* transient; the next poll tries again */
       }
-      if (alive) pollTimer.current = window.setTimeout(poll, 5000);
+      if (alive) timer = window.setTimeout(poll, 5000);
     };
     poll();
     return () => {
       alive = false;
-      if (pollTimer.current) clearTimeout(pollTimer.current);
+      clearTimeout(timer);
     };
   }, [stage, ref, finish]);
 
@@ -129,9 +171,14 @@ export function UpiDialog({
     });
   };
 
-  return (
+  const mm = Math.floor(left / 60);
+  const ss = String(left % 60).padStart(2, "0");
+
+  if (!mounted) return null;
+
+  return createPortal(
     <div
-      className="fixed inset-0 z-[60] grid place-items-center overflow-y-auto bg-black/80 p-5 backdrop-blur-sm"
+      className="fixed inset-0 z-[100] grid place-items-center overflow-y-auto bg-black/80 p-5 backdrop-blur-sm"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
@@ -139,22 +186,21 @@ export function UpiDialog({
       aria-modal="true"
       aria-label="Pay with UPI"
     >
-      <div className="w-full max-w-sm rounded-2xl border border-border bg-background p-6">
-        <div className="mb-5 flex items-start justify-between gap-4">
-          <div>
-            <h2 className="text-[17px] font-semibold tracking-tight">Pay with UPI</h2>
-            <p className="mt-0.5 text-[13px] text-muted-foreground">
-              {label} · ₹{amount}
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close"
-            className="rounded-md p-1.5 text-muted-foreground"
-          >
-            <X className="h-4.5 w-4.5" aria-hidden />
-          </button>
+      <div className="relative w-full max-w-sm rounded-2xl border border-border bg-background p-6">
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Close"
+          className="absolute right-4 top-4 grid h-8 w-8 place-items-center rounded-full border border-border text-muted-foreground"
+        >
+          <X className="h-4 w-4" aria-hidden />
+        </button>
+
+        <div className="mb-4 pr-10">
+          <h2 className="text-[17px] font-semibold tracking-tight">Pay with UPI</h2>
+          <p className="mt-0.5 text-[13px] text-muted-foreground">
+            {label} · ₹{amount}
+          </p>
         </div>
 
         {stage === "pay" && (
@@ -162,74 +208,77 @@ export function UpiDialog({
             <div className="mx-auto w-fit rounded-xl border border-border bg-white p-3">
               {qr ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={qr} alt="UPI payment QR" className="h-52 w-52" />
+                <img src={qr} alt="UPI payment QR" className="h-48 w-48" />
               ) : (
-                <div className="h-52 w-52 animate-pulse rounded-lg bg-neutral-200" />
+                <div className="h-48 w-48 animate-pulse rounded-lg bg-neutral-200" />
               )}
             </div>
-            <div className="mt-4 space-y-2 text-[13px]">
+
+            {/* The facts in one line: address, amount, reference. */}
+            <div className="mt-3.5 flex items-stretch divide-x divide-border rounded-lg border border-border text-[12px]">
               <button
                 type="button"
                 onClick={() => copy(UPI.vpa)}
-                className="flex w-full items-center justify-between rounded-lg border border-border px-3 py-2"
+                className="flex min-w-0 flex-1 items-center justify-center gap-1.5 px-2 py-2 font-mono text-[11.5px]"
+                title="Copy UPI ID"
               >
-                <span className="text-muted-foreground">UPI ID</span>
-                <span className="flex items-center gap-1.5 font-mono text-[12.5px]">
-                  {UPI.vpa}
-                  {copied ? (
-                    <Check className="h-3.5 w-3.5" aria-hidden />
-                  ) : (
-                    <Copy className="h-3.5 w-3.5 opacity-60" aria-hidden />
-                  )}
-                </span>
+                <span className="truncate">{UPI.vpa}</span>
+                {copied ? (
+                  <Check className="h-3 w-3 shrink-0" aria-hidden />
+                ) : (
+                  <Copy className="h-3 w-3 shrink-0 opacity-60" aria-hidden />
+                )}
               </button>
-              <div className="flex items-center justify-between rounded-lg border border-border px-3 py-2">
-                <span className="text-muted-foreground">Amount</span>
-                <span className="font-semibold">₹{amount}</span>
-              </div>
-              <div className="flex items-center justify-between rounded-lg border border-border px-3 py-2">
-                <span className="text-muted-foreground">Reference</span>
-                <span className="font-mono text-[12.5px]">{ref}</span>
-              </div>
+              <span className="grid shrink-0 place-items-center px-3 font-semibold">
+                ₹{amount}
+              </span>
+              <span className="grid shrink-0 place-items-center px-3 font-mono text-[11.5px] text-muted-foreground">
+                {ref}
+              </span>
             </div>
-            <p className="mt-3 text-[12px] leading-relaxed text-muted-foreground">
-              Scan with any UPI app, or pay to the UPI ID with the exact amount.
-              The reference rides along in the payment note.
-            </p>
-            {problem && (
-              <p className="mt-2 text-[12.5px] text-red-400/90">{problem}</p>
+
+            {problem ? (
+              <p className="mt-3 text-center text-[12.5px] text-red-400/90">{problem}</p>
+            ) : (
+              <div className="mt-3.5 flex items-center justify-center gap-2.5 text-[12.5px] text-muted-foreground">
+                <span className="h-3.5 w-3.5 animate-spin rounded-full border-[1.5px] border-border border-t-foreground" />
+                Waiting for your payment
+                <span className="rounded-md border border-border px-1.5 py-0.5 font-mono text-[11.5px] tabular-nums">
+                  {mm}:{ss}
+                </span>
+              </div>
             )}
-            <button
-              type="button"
-              onClick={claim}
-              className="mt-4 w-full rounded-full bg-accent px-6 py-3 text-[14px] font-semibold text-accent-fg"
-            >
-              I have paid ₹{amount}
-            </button>
+            <p className="mt-2 text-center text-[11.5px] leading-relaxed text-muted-foreground/80">
+              Pay within the time and this page unlocks by itself.
+              Confirmation lands at {email} too.
+            </p>
             <button
               type="button"
               onClick={() => setStage("paste")}
-              className="mt-2 w-full text-center text-[12.5px] text-muted-foreground underline underline-offset-2"
+              className="mt-2 w-full text-center text-[11.5px] text-muted-foreground/70 underline underline-offset-2"
             >
-              Already paid? Enter your license
+              Have a license from a previous payment?
             </button>
           </>
         )}
 
-        {stage === "waiting" && (
+        {stage === "expired" && (
           <div className="py-6 text-center">
-            <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-border border-t-foreground" />
-            <p className="mt-4 text-[14px] font-medium">Confirming your payment</p>
-            <p className="mx-auto mt-1.5 max-w-[30ch] text-[12.5px] leading-relaxed text-muted-foreground">
-              Usually a few minutes. This page unlocks by itself, and the
-              license also goes to {email}.
+            <p className="text-[15px] font-semibold">The payment window closed</p>
+            <p className="mx-auto mt-1.5 max-w-[32ch] text-[12.5px] leading-relaxed text-muted-foreground">
+              If you already paid, your license arrives at {email}. Otherwise
+              start again with a fresh code.
             </p>
             <button
               type="button"
-              onClick={() => setStage("paste")}
-              className="mt-5 text-[12.5px] text-muted-foreground underline underline-offset-2"
+              onClick={() => {
+                setProblem(null);
+                setRef(makeRef());
+                setStage("pay");
+              }}
+              className="mt-5 rounded-full bg-accent px-6 py-2.5 text-[14px] font-semibold text-accent-fg"
             >
-              Got the license by email? Paste it
+              Start again
             </button>
           </div>
         )}
@@ -262,7 +311,10 @@ export function UpiDialog({
             )}
             <button
               type="button"
-              onClick={() => setStage("pay")}
+              onClick={() => {
+                setProblem(null);
+                setStage("pay");
+              }}
               className="mt-2 w-full text-center text-[12.5px] text-muted-foreground underline underline-offset-2"
             >
               Back to payment
@@ -282,6 +334,7 @@ export function UpiDialog({
           </div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
