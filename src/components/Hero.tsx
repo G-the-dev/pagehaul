@@ -199,7 +199,7 @@ export function Hero({
   }, [words]);
 
   return (
-    <section className="relative isolate flex min-h-[100svh] flex-col justify-center overflow-hidden">
+    <section className="relative isolate flex min-h-[100svh] flex-col justify-start overflow-hidden sm:justify-center">
       {/* A quiet ground: one soft light from above and a faint grid that fades
           out well before the copy begins. */}
       <div
@@ -214,7 +214,7 @@ export function Hero({
           the whole hero, running only while the hero is on screen. */}
       <DitherLayer />
 
-      <div className="relative z-20 mx-auto w-full max-w-3xl px-6 py-24 text-center">
+      <div className="relative z-20 mx-auto w-full max-w-3xl px-6 pb-16 pt-44 text-center sm:py-24">
         <motion.h1
           initial={{ opacity: 0, y: 18 }}
           animate={{ opacity: 1, y: 0 }}
