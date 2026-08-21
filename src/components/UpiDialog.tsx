@@ -35,12 +35,13 @@ export function UpiDialog({
   plan,
   email,
   onClose,
-  onUnlocked,
+  onPaid,
 }: {
   plan: "pro" | "pack";
   email: string;
   onClose: () => void;
-  onUnlocked: () => void;
+  /** Fired the moment the purchase lands, while the dialog stays up. */
+  onPaid: () => void;
 }) {
   const amount = plan === "pro" ? PRO_PRICE_INR : PACK_PRICE_INR;
   const label = plan === "pro" ? "Pro, one month" : `${PACK_SCANS} deep scans`;
@@ -51,7 +52,10 @@ export function UpiDialog({
   const [problem, setProblem] = useState<string | null>(null);
   const [left, setLeft] = useState(WINDOW_S);
   const [mounted, setMounted] = useState(false);
+  const [restoreUrl, setRestoreUrl] = useState<string | null>(null);
+  const [linkCopied, setLinkCopied] = useState(false);
   const claimedFor = useRef<string | null>(null);
+  const autoClose = useRef<number | null>(null);
 
   useEffect(() => setMounted(true), []);
 
@@ -116,10 +120,23 @@ export function UpiDialog({
     (token: string) => {
       storeLicense(token);
       track("purchase", { plan, origin: "upi" });
+      setRestoreUrl(
+        `${window.location.origin}/#restore=${encodeURIComponent(token)}`,
+      );
       setStage("done");
-      window.setTimeout(() => onUnlocked(), 1600);
+      // The page behind unlocks immediately; the dialog stays to hand over
+      // the link, then sees itself out.
+      onPaid();
+      autoClose.current = window.setTimeout(() => onClose(), 10_000);
     },
-    [plan, onUnlocked],
+    [plan, onPaid, onClose],
+  );
+
+  useEffect(
+    () => () => {
+      if (autoClose.current) clearTimeout(autoClose.current);
+    },
+    [],
   );
 
   // The clock: four minutes to pay, counted where the buyer can see it.
@@ -285,13 +302,42 @@ export function UpiDialog({
         )}
 
         {stage === "done" && (
-          <div className="py-8 text-center">
+          <div className="pb-2 pt-6 text-center">
             <div className="mx-auto grid h-10 w-10 place-items-center rounded-full bg-accent text-accent-fg">
               <Check className="h-5 w-5" aria-hidden />
             </div>
             <p className="mt-4 text-[15px] font-semibold">Payment confirmed</p>
             <p className="mt-1 text-[13px] text-muted-foreground">
-              Everything is unlocked. Enjoy.
+              {plan === "pro"
+                ? "Pro is active on this browser."
+                : "Your scans are loaded on this browser."}
+            </p>
+            {restoreUrl && (
+              <div className="mt-5 rounded-xl border border-border bg-surface p-3 text-left">
+                <p className="text-[12px] font-medium">
+                  Your unlock link, for any other device
+                </p>
+                <p className="mt-1 truncate font-mono text-[10.5px] text-muted-foreground">
+                  {restoreUrl}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard?.writeText(restoreUrl).then(() => {
+                      setLinkCopied(true);
+                      // Copying means they are reading; the dialog stops
+                      // trying to leave.
+                      if (autoClose.current) clearTimeout(autoClose.current);
+                    });
+                  }}
+                  className="mt-2.5 w-full rounded-full border border-border py-2 text-[12.5px] font-semibold"
+                >
+                  {linkCopied ? "Copied" : "Copy link"}
+                </button>
+              </div>
+            )}
+            <p className="mt-3 text-[11px] text-muted-foreground/70">
+              Also on its way to {email}. This closes by itself.
             </p>
           </div>
         )}

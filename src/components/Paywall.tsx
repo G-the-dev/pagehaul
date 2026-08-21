@@ -9,6 +9,8 @@ import {
   PACK_PRICE_INR,
   PACK_SCANS,
   PRO_PRICE_INR,
+  licensePlan,
+  packScansLeft,
   storeLicense,
 } from "@/lib/plan";
 import { Section, Reveal, Chip } from "./ui/motion-primitives";
@@ -195,6 +197,19 @@ export function PlansGrid({
   // the card firms its border so the choice is visible without shouting.
   const [activeCard, setActiveCard] = useState<"free" | "pro" | "pack" | null>(null);
   const [upiPlan, setUpiPlan] = useState<"pro" | "pack" | null>(null);
+  // What this browser already owns, so the cards tell the truth: an owned
+  // Pro cannot be bought twice, an owned pack offers a refill.
+  const [owned, setOwned] = useState<"pro" | "pack" | null>(null);
+  const [scansLeft, setScansLeft] = useState(0);
+  useEffect(() => {
+    const read = () => {
+      setOwned(licensePlan());
+      setScansLeft(packScansLeft());
+    };
+    read();
+    window.addEventListener("ph-plan-changed", read);
+    return () => window.removeEventListener("ph-plan-changed", read);
+  }, []);
   const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email.trim());
 
   const buy = async (plan: "pro" | "pack") => {
@@ -384,17 +399,23 @@ export function PlansGrid({
             </>
           }
           footer={
-            <>
-              {emailInput("pro")}
-              <button
-                type="button"
-                onClick={() => buy("pro")}
-                disabled={busyPlan !== null}
-                className="w-full rounded-full bg-accent px-6 py-3 text-center text-[14px] font-semibold text-accent-fg disabled:opacity-50"
-              >
-                {busyPlan === "pro" ? "Opening checkout…" : `Get Pro for ₹${PRO_PRICE_INR}/mo`}
-              </button>
-            </>
+            owned === "pro" ? (
+              <div className="w-full rounded-full border border-accent-line bg-accent-soft px-6 py-3 text-center text-[14px] font-semibold">
+                Your current plan ✓
+              </div>
+            ) : (
+              <>
+                {emailInput("pro")}
+                <button
+                  type="button"
+                  onClick={() => buy("pro")}
+                  disabled={busyPlan !== null}
+                  className="w-full rounded-full bg-accent px-6 py-3 text-center text-[14px] font-semibold text-accent-fg disabled:opacity-50"
+                >
+                  {busyPlan === "pro" ? "Opening checkout…" : `Get Pro for ₹${PRO_PRICE_INR}/mo`}
+                </button>
+              </>
+            )
           }
         />
 
@@ -415,19 +436,32 @@ export function PlansGrid({
             </>
           }
           footer={
-            <>
-              {emailInput("pack")}
-              <button
-                type="button"
-                onClick={() => buy("pack")}
-                disabled={busyPlan !== null}
-                className="w-full rounded-full border border-border bg-surface-2 px-6 py-3 text-center text-[14px] font-semibold text-fg-2 disabled:opacity-50"
-              >
-                {busyPlan === "pack"
-                  ? "Opening checkout…"
-                  : `Buy ${PACK_SCANS} scans for ₹${PACK_PRICE_INR}`}
-              </button>
-            </>
+            owned === "pro" ? (
+              <div className="w-full rounded-full border border-border px-6 py-3 text-center text-[14px] font-semibold text-muted-foreground">
+                Included in Pro
+              </div>
+            ) : (
+              <>
+                {owned === "pack" && (
+                  <p className="mb-2 text-center font-mono text-[12px] text-muted-foreground">
+                    {scansLeft} of {PACK_SCANS} scans left
+                  </p>
+                )}
+                {emailInput("pack")}
+                <button
+                  type="button"
+                  onClick={() => buy("pack")}
+                  disabled={busyPlan !== null}
+                  className="w-full rounded-full border border-border bg-surface-2 px-6 py-3 text-center text-[14px] font-semibold text-fg-2 disabled:opacity-50"
+                >
+                  {busyPlan === "pack"
+                    ? "Opening checkout…"
+                    : owned === "pack"
+                      ? `Refill · ${PACK_SCANS} more for ₹${PACK_PRICE_INR}`
+                      : `Buy ${PACK_SCANS} scans for ₹${PACK_PRICE_INR}`}
+                </button>
+              </>
+            )
           }
         />
       </div>
@@ -443,10 +477,9 @@ export function PlansGrid({
           plan={upiPlan}
           email={email.trim()}
           onClose={() => setUpiPlan(null)}
-          onUnlocked={() => {
-            setUpiPlan(null);
+          onPaid={() => {
+            window.dispatchEvent(new Event("ph-plan-changed"));
             if (onUnlocked) onUnlocked();
-            else window.dispatchEvent(new Event("ph-plan-changed"));
           }}
         />
       )}

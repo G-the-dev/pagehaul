@@ -31,6 +31,7 @@ import {
   licensePlan,
   licenseToken,
   storeLicense,
+  packScansLeft,
   recordDeepScan,
   recordPackScan,
   LOCKED_KINDS,
@@ -137,9 +138,19 @@ export default function Home() {
   const [paid, setPaid] = useState(false);
   const [freeLeft, setFreeLeft] = useState<number | null>(null);
   const [paywall, setPaywall] = useState<null | "limit" | "design" | "locked">(null);
+  /** "Pro" or "Pack · n left", shown in the nav so a paid person can tell. */
+  const [planLabel, setPlanLabel] = useState<string | null>(null);
   const refreshPlan = useCallback(() => {
     setPaid(isPaid());
     setFreeLeft(deepScansLeft());
+    const plan = licensePlan();
+    setPlanLabel(
+      plan === "pro"
+        ? "Pro"
+        : plan === "pack"
+          ? `Pack · ${packScansLeft()} left`
+          : null,
+    );
   }, []);
   useEffect(() => {
     refreshPlan();
@@ -487,6 +498,23 @@ export default function Home() {
         if (licensePlan() === "pack" && isPaid()) {
           recordPackScan();
           refreshPlan();
+          // Down to the last scan: ask the server to send the refill nudge,
+          // once per pack. The token carries the address and the proof.
+          try {
+            if (
+              packScansLeft() === 1 &&
+              !window.localStorage.getItem("ph-lowpack-sent")
+            ) {
+              window.localStorage.setItem("ph-lowpack-sent", "1");
+              fetch("/api/upi/lowpack", {
+                method: "POST",
+                headers: { "content-type": "application/json" },
+                body: JSON.stringify({ token: licenseToken() }),
+              }).catch(() => {});
+            }
+          } catch {
+            /* storage blocked; the nudge is a nicety */
+          }
         } else if (!isPaid()) {
           recordDeepScan();
           setFreeLeft(deepScansLeft());
@@ -867,6 +895,11 @@ export default function Home() {
             </a>
           ))}
           <span className="ml-auto flex items-center gap-2.5 sm:ml-1.5">
+            {planLabel && (
+              <span className="rounded-full border border-accent-line bg-accent-soft px-3 py-1.5 font-mono text-[11px] font-semibold">
+                {planLabel}
+              </span>
+            )}
             <ThemeToggle />
             {/* The nav's one loud button goes to the feedback form while the
                 platform is finding its feet, and a tester's report is worth more

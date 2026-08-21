@@ -125,3 +125,53 @@ ${row("Buyer", args.buyerEmail)}
 
   return { subject, html, text };
 }
+
+export function renewalReminderEmail(args: {
+  amount: number;
+  restoreUrl: string;
+  endsOn: string;
+}): { subject: string; html: string; text: string } {
+  const subject = "Your pagehaul Pro ends in a week";
+  const html = WRAP(`
+<tr><td style="padding:22px 32px 0;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;">
+<h1 style="margin:0;font-size:21px;line-height:1.3;color:#111111;">Pro ends on ${args.endsOn}</h1>
+<p style="margin:12px 0 0;font-size:14px;line-height:1.65;color:#525252;">Unlimited deep scans, the design system, audio, screenshots and 3D go back behind the line when it does. Renewing takes a minute: the button below opens pagehaul with your plan attached, and the pricing section does the rest.</p>
+</td></tr>
+<tr><td style="padding:20px 32px 0;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;" align="center">
+<a href="${args.restoreUrl}" style="display:inline-block;background:#111111;color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;padding:13px 30px;border-radius:999px;">Renew Pro · ₹${args.amount}</a>
+</td></tr>`);
+  const text = [
+    `Your pagehaul Pro ends on ${args.endsOn}.`,
+    "",
+    "Renewing takes a minute. Open this link, it unlocks the browser it",
+    "opens in, and pick Pro again from the pricing section:",
+    "",
+    args.restoreUrl,
+  ].join("\n");
+  return { subject, html, text };
+}
+
+export function lowPackEmail(args: {
+  packScans: number;
+  amount: number;
+  restoreUrl: string;
+}): { subject: string; html: string; text: string } {
+  const subject = "One deep scan left in your pack";
+  const html = WRAP(`
+<tr><td style="padding:22px 32px 0;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;">
+<h1 style="margin:0;font-size:21px;line-height:1.3;color:#111111;">One scan left</h1>
+<p style="margin:12px 0 0;font-size:14px;line-height:1.65;color:#525252;">Your pack is down to its last deep scan. A refill is ${args.packScans} more for ₹${args.amount}: the button opens pagehaul with your plan attached, and the pricing section does the rest.</p>
+</td></tr>
+<tr><td style="padding:20px 32px 0;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;" align="center">
+<a href="${args.restoreUrl}" style="display:inline-block;background:#111111;color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;padding:13px 30px;border-radius:999px;">Refill · ₹${args.amount}</a>
+</td></tr>`);
+  const text = [
+    "Your pack is down to its last deep scan.",
+    "",
+    `A refill is ${args.packScans} more for ₹${args.amount}. Open this link, it`,
+    "unlocks the browser it opens in, then use the pricing section:",
+    "",
+    args.restoreUrl,
+  ].join("\n");
+  return { subject, html, text };
+}

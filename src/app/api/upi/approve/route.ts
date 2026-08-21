@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { timingSafeEqual } from "crypto";
 import { mintLicense } from "@/lib/license";
 import { parkApproval } from "@/lib/upi-claims";
-import { buyerUnlockEmail } from "@/lib/email";
+import { buyerUnlockEmail, renewalReminderEmail } from "@/lib/email";
 import { PACK_PRICE_INR, PACK_SCANS, PRO_PRICE_INR } from "@/lib/plan";
 
 export const runtime = "nodejs";
@@ -29,7 +29,7 @@ function keyOk(given: string | null): boolean {
 
 function page(title: string, body: string, ok: boolean): NextResponse {
   return new NextResponse(
-    `<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><body style="margin:0;display:grid;min-height:100svh;place-items:center;background:#0a0a0a;color:#fafafa;font-family:system-ui"><div style="text-align:center;padding:24px"><div style="font-size:40px">${ok ? "✓" : "✕"}</div><h1 style="font-size:19px;margin:12px 0 6px">${title}</h1><p style="color:#a1a1a1;font-size:14px;max-width:32ch">${body}</p></div>`,
+    `<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><body style="margin:0;display:grid;min-height:100svh;place-items:center;background:#0a0a0a;color:#fafafa;font-family:system-ui"><div style="text-align:center;padding:24px"><div style="font-size:40px">${ok ? "✓" : "✕"}</div><h1 style="font-size:19px;margin:12px 0 6px">${title}</h1><p style="color:#a1a1a1;font-size:14px;max-width:32ch">${body}</p></div>`,
     { headers: { "content-type": "text/html" }, status: ok ? 200 : 403 },
   );
 }
@@ -62,6 +62,25 @@ export async function GET(req: NextRequest) {
   // Nobody has to know what a license is; the link IS the purchase.
   const restoreUrl = `${req.nextUrl.origin}/#restore=${encodeURIComponent(token)}`;
   const apiKey = process.env.RESEND_API_KEY;
+  const from = process.env.FEEDBACK_FROM ?? "pagehaul <onboarding@resend.dev>";
+  const send = (payload: Record<string, unknown>) =>
+    fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${apiKey}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        from,
+        reply_to: process.env.FEEDBACK_TO,
+        ...payload,
+      }),
+    }).then(async (r) => {
+      if (!r.ok) {
+        console.error("mail send failed:", r.status, await r.text().catch(() => ""));
+      }
+    });
+
   if (apiKey) {
     const mail = buyerUnlockEmail({
       plan,
@@ -70,20 +89,35 @@ export async function GET(req: NextRequest) {
       restoreUrl,
       packScans: PACK_SCANS,
     });
-    await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        authorization: `Bearer ${apiKey}`,
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({
-        from: process.env.FEEDBACK_FROM ?? "pagehaul <onboarding@resend.dev>",
-        to: [email],
-        subject: mail.subject,
-        html: mail.html,
-        text: mail.text,
-      }),
+    await send({
+      to: [email],
+      subject: mail.subject,
+      html: mail.html,
+      text: mail.text,
     }).catch((e) => console.error("buyer unlock mail failed:", e));
+
+    // Pro's renewal nudge, scheduled at purchase time for a week before
+    // the end: no database, no cron, the mail is simply already in the
+    // post. Resend delivers it on the date.
+    if (plan === "pro") {
+      const endsAt = Date.now() + PRO_MS;
+      const endsOn = new Date(endsAt).toLocaleDateString("en-IN", {
+        day: "numeric",
+        month: "long",
+      });
+      const reminder = renewalReminderEmail({
+        amount: PRO_PRICE_INR,
+        restoreUrl,
+        endsOn,
+      });
+      await send({
+        to: [email],
+        subject: reminder.subject,
+        html: reminder.html,
+        text: reminder.text,
+        scheduled_at: new Date(endsAt - 7 * 24 * 60 * 60_000).toISOString(),
+      }).catch((e) => console.error("renewal reminder schedule failed:", e));
+    }
   }
 
   return page(

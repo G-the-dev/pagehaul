@@ -62,8 +62,12 @@ export function licenseToken(): string | null {
 export function storeLicense(token: string): void {
   try {
     window.localStorage.setItem(LICENSE_KEY, token);
+    // A fresh purchase starts a fresh ledger: a refilled pack has its full
+    // count again, and the low-scans nudge may fire once more.
+    window.localStorage.removeItem("ph-pack-used");
+    window.localStorage.removeItem("ph-lowpack-sent");
   } catch {
-    /* nothing to do; the purchase response also shows the token to copy */
+    /* nothing to do; the unlock dialog also shows the link to copy */
   }
 }
 
