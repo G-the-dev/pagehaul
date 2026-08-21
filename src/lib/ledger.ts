@@ -53,7 +53,15 @@ export async function findOwnedPlans(email: string): Promise<OwnedPlans> {
         if (out.current && out.queued) break;
         const msg = await client.fetchOne(String(uid), { source: true }, { uid: true });
         if (!msg || !msg.source) continue;
-        const body = msg.source.toString("utf8");
+        // Quoted-printable mail folds long lines with "=\r\n" and writes
+        // "=" as "=3D", straight through the middle of a restore URL, and
+        // sometimes through the word "restore" itself. Heal the whole body
+        // before looking for anything, or every extracted token is a
+        // truncated stub that verifies as nothing.
+        const body = msg.source
+          .toString("utf8")
+          .replace(/=\r?\n/g, "")
+          .replace(/=3D/g, "=");
         for (const m of body.matchAll(TOKEN_RE)) {
           let token: string;
           try {
@@ -61,7 +69,6 @@ export async function findOwnedPlans(email: string): Promise<OwnedPlans> {
           } catch {
             continue;
           }
-          token = token.replace(/=\r?\n/g, "").replace(/=3D/g, "=");
           const live = verifyLicense(token);
           if (live && !out.current) {
             out.current = { payload: live, token };
