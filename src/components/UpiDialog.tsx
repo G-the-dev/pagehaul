@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Check, Copy, X } from "lucide-react";
+import { Check, Copy, TimerOff, X } from "lucide-react";
 import { track } from "@/lib/analytics";
 import { PACK_PRICE_INR, PACK_SCANS, PRO_PRICE_INR, storeLicense } from "@/lib/plan";
 import { UPI } from "@/lib/upi-config";
@@ -255,11 +255,16 @@ export function UpiDialog({
         )}
 
         {stage === "expired" && (
-          <div className="py-6 text-center">
-            <p className="text-[15px] font-semibold">The payment window closed</p>
-            <p className="mx-auto mt-1.5 max-w-[32ch] text-[12.5px] leading-relaxed text-muted-foreground">
-              If you already paid, your unlock link arrives at {email}.
-              Otherwise start again with a fresh code.
+          <div className="pb-2 pt-4 text-center">
+            <div className="mx-auto grid h-11 w-11 place-items-center rounded-full border border-border text-muted-foreground">
+              <TimerOff className="h-4.5 w-4.5" aria-hidden />
+            </div>
+            <p className="mt-4 text-[16px] font-semibold tracking-tight">
+              Time ran out
+            </p>
+            <p className="mx-auto mt-1.5 max-w-[30ch] text-[13px] leading-relaxed text-muted-foreground">
+              No harm done. A fresh code takes one tap and the QR works the
+              same.
             </p>
             <button
               type="button"
@@ -268,10 +273,14 @@ export function UpiDialog({
                 setRef(makeRef());
                 setStage("pay");
               }}
-              className="mt-5 rounded-full bg-accent px-6 py-2.5 text-[14px] font-semibold text-accent-fg"
+              className="mt-5 w-full rounded-full bg-accent px-6 py-3 text-[14px] font-semibold text-accent-fg"
             >
-              Start again
+              Get a fresh code
             </button>
+            <p className="mt-3 text-[11.5px] leading-relaxed text-muted-foreground/70">
+              Paid just before the clock? Your unlock link still arrives at{" "}
+              {email}.
+            </p>
           </div>
         )}
 
