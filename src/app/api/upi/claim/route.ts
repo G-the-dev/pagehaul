@@ -109,14 +109,12 @@ export async function POST(req: NextRequest) {
     if (!inRenewalWindow) {
       return refuse(
         plan === "pack"
-          ? "This email already has Pro, which includes everything. Unlock link re-sent."
-          : "This email already has Pro. Unlock link re-sent, check your inbox.",
+          ? "Pro is on this email, and it includes everything."
+          : "Pro is on this email already.",
       );
     }
     if (owned.queued) {
-      return refuse(
-        "This email already has a purchase queued after Pro. Unlock link re-sent.",
-      );
+      return refuse("A purchase is already queued on this email.");
     }
   }
 

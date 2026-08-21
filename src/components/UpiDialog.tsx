@@ -267,12 +267,8 @@ export function UpiDialog({
             <p className="text-[15px] font-semibold tracking-tight">
               Already yours
             </p>
-            <p className="mx-auto mt-1.5 max-w-[32ch] text-[13px] leading-relaxed text-muted-foreground">
-              {problem}
-            </p>
-            <p className="mx-auto mt-2 max-w-[32ch] text-[12px] leading-relaxed text-muted-foreground/80">
-              Open the link from your inbox in this browser and your plan
-              appears here.
+            <p className="mx-auto mt-1.5 max-w-[30ch] text-[13.5px] leading-relaxed text-muted-foreground">
+              {problem} A sign-in link is in your inbox.
             </p>
             <a
               href="https://mail.google.com"
@@ -290,7 +286,7 @@ export function UpiDialog({
               Close
             </button>
             <p className="mt-3 text-[11px] text-muted-foreground/70">
-              Not there? Check spam once.
+              Open it here and your plan appears. Check spam once.
             </p>
           </div>
         )}
