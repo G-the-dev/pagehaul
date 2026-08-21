@@ -6,7 +6,8 @@ import type { Asset, AssetKind, ScanResult } from "@/lib/types";
 import { TileGrid } from "@/components/TileGrid";
 import { Hero } from "@/components/Hero";
 import { ScanProgress } from "@/components/ScanProgress";
-import { Faq, Footer } from "@/components/Sections";
+import { Faq, Footer, HatchBand } from "@/components/Sections";
+import { PricingSection } from "@/components/Paywall";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Toast, type ToastMessage, type ToastTone } from "@/components/Toast";
 import { Countdown } from "@/components/Countdown";
@@ -27,8 +28,15 @@ import {
   deepAllowed,
   deepScansLeft,
   isPaid,
+  licensePlan,
   licenseToken,
-  recordDeepHost,
+  storeLicense,
+  packScansLeft,
+  planExpiry,
+  tokenStartsAt,
+  recordDeepScan,
+  recordPackScan,
+  LOCKED_KINDS,
 } from "@/lib/plan";
 
 /** The host alone — what was scanned, never the whole address. */
@@ -131,13 +139,66 @@ export default function Home() {
    */
   const [paid, setPaid] = useState(false);
   const [freeLeft, setFreeLeft] = useState<number | null>(null);
-  const [paywall, setPaywall] = useState<null | "limit" | "design" | "model">(null);
+  const [paywall, setPaywall] = useState<null | "limit" | "design" | "locked">(null);
+  /** "Pro" or "Pack · n left", shown in the nav so a paid person can tell. */
+  const [planLabel, setPlanLabel] = useState<string | null>(null);
   const refreshPlan = useCallback(() => {
     setPaid(isPaid());
     setFreeLeft(deepScansLeft());
+    const plan = licensePlan();
+    setPlanLabel(
+      plan === "pro"
+        ? "Pro"
+        : plan === "pack"
+          ? `Pack · ${packScansLeft()} left`
+          : null,
+    );
   }, []);
   useEffect(() => {
     refreshPlan();
+    // The landing pricing section unlocks plans without a callback path to
+    // this component; it announces instead.
+    window.addEventListener("ph-plan-changed", refreshPlan);
+    // The unlock link from the receipt email: opening it on any device
+    // installs the purchase there. Nobody has to know what a license is;
+    // the link is the purchase.
+    try {
+      const exp = planExpiry();
+      if (
+        licensePlan() === "pro" &&
+        exp !== null &&
+        exp - Date.now() < 7 * 24 * 60 * 60_000 &&
+        !window.localStorage.getItem("ph-renewal-sent")
+      ) {
+        window.localStorage.setItem("ph-renewal-sent", "1");
+        fetch("/api/upi/renewal", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ token: licenseToken() }),
+        }).catch(() => {});
+      }
+    } catch {
+      /* storage blocked; the nudge is a nicety */
+    }
+    const m = window.location.hash.match(/^#restore=(.+)$/);
+    if (m) {
+      const token = decodeURIComponent(m[1]);
+      if (token.startsWith("v1.")) {
+        storeLicense(token);
+        refreshPlan();
+        const nbf = tokenStartsAt(token);
+        setToast({
+          id: Date.now(),
+          text:
+            nbf && nbf > Date.now()
+              ? `Queued. Your purchase activates ${new Date(nbf).toLocaleDateString("en-IN", { day: "numeric", month: "long" })}.`
+              : "Your plan is unlocked on this device.",
+          tone: "done",
+        });
+        history.replaceState(null, "", window.location.pathname);
+      }
+    }
+    return () => window.removeEventListener("ph-plan-changed", refreshPlan);
   }, [refreshPlan]);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [shown, setShown] = useState(48);
@@ -316,7 +377,11 @@ export default function Home() {
         // tile, and the preview walk should not be a side door through it.
         do {
           i += delta;
-        } while (visible[i] && visible[i].kind === "model" && !isPaid());
+        } while (
+          visible[i] &&
+          (LOCKED_KINDS as readonly string[]).includes(visible[i].kind) &&
+          !isPaid()
+        );
         return visible[i] ?? current;
       });
     },
@@ -325,8 +390,8 @@ export default function Home() {
 
   /** Opens a preview — except locked 3D, which opens the pricing dialog. */
   const openAsset = useCallback((a: Asset) => {
-    if (a.kind === "model" && !isPaid()) {
-      setPaywall("model");
+    if ((LOCKED_KINDS as readonly string[]).includes(a.kind) && !isPaid()) {
+      setPaywall("locked");
       return;
     }
     setExpanded(a);
@@ -359,12 +424,9 @@ export default function Home() {
   const runScan = useCallback(async (target: string, useDeep: boolean) => {
     // The allowance is checked before anything is torn down, so hitting the
     // limit leaves whatever results are on screen exactly as they were.
-    if (useDeep && !isPaid()) {
-      const h = hostOf(target) ?? target;
-      if (!deepAllowed(h)) {
-        setPaywall("limit");
-        return;
-      }
+    if (useDeep && !isPaid() && !deepAllowed()) {
+      setPaywall("limit");
+      return;
     }
     // A second scan supersedes the first rather than racing it.
     abortRef.current?.abort();
@@ -417,7 +479,7 @@ export default function Home() {
           /timeout|timed out|took too long/i.test(body);
         throw new Error(
           tooLong
-            ? "That page took too long to scan. Deep scans of very large sites can run past our limit — try again, or use quick."
+            ? "That page took too long to scan. Deep scans of very large sites can run past our limit. Try again, or use quick."
             : "That scan did not complete. Try again in a moment.",
         );
       }
@@ -457,11 +519,36 @@ export default function Home() {
         partial: !!fresh.partial,
         notes: fresh.notes.length ? fresh.notes : undefined,
       });
-      // Successful deep scans count against the free allowance, by site —
-      // recording only on success means a scan that failed cost nothing.
-      if (useDeep && !isPaid()) {
-        recordDeepHost(hostKey);
-        setFreeLeft(deepScansLeft());
+      // Successful deep scans count against whichever budget is paying for
+      // them: the free allowance, or a pack's five. Recording only on
+      // success means a scan that failed cost nothing.
+      if (useDeep) {
+        if (licensePlan() === "pack" && isPaid()) {
+          recordPackScan();
+          refreshPlan();
+          // The pricing cards keep their own count; tell them a scan left.
+          window.dispatchEvent(new Event("ph-plan-changed"));
+          // Down to the last scan: ask the server to send the refill nudge,
+          // once per pack. The token carries the address and the proof.
+          try {
+            if (
+              packScansLeft() === 1 &&
+              !window.localStorage.getItem("ph-lowpack-sent")
+            ) {
+              window.localStorage.setItem("ph-lowpack-sent", "1");
+              fetch("/api/upi/lowpack", {
+                method: "POST",
+                headers: { "content-type": "application/json" },
+                body: JSON.stringify({ token: licenseToken() }),
+              }).catch(() => {});
+            }
+          } catch {
+            /* storage blocked; the nudge is a nicety */
+          }
+        } else if (!isPaid()) {
+          recordDeepScan();
+          setFreeLeft(deepScansLeft());
+        }
       }
       setResult(data);
       setRanDeep(useDeep);
@@ -684,14 +771,17 @@ export default function Home() {
   const hush = useCallback(() => setToast(null), []);
 
   async function runDownload(list: Asset[], asZip: boolean) {
-    // 3D files belong to Pro. All-models asks the question directly; a mixed
-    // haul goes ahead without them and says so, because refusing a hundred
-    // images over two locked models would punish the wrong files.
+    // Audio, screenshots and 3D belong to Pro. An all-locked haul asks the
+    // question directly; a mixed one goes ahead without them and says so,
+    // because refusing a hundred images over two locked files would punish
+    // the wrong files.
     let heldBack = 0;
     if (!isPaid()) {
-      const kept = list.filter((a) => a.kind !== "model");
+      const kept = list.filter(
+        (a) => !(LOCKED_KINDS as readonly string[]).includes(a.kind),
+      );
       if (kept.length === 0 && list.length > 0) {
-        setPaywall("model");
+        setPaywall("locked");
         return;
       }
       heldBack = list.length - kept.length;
@@ -701,7 +791,7 @@ export default function Home() {
     setBusy(true);
     setToast(null);
     if (heldBack > 0) {
-      say("3D files are part of Pro, so they stayed behind.", "partial");
+      say("Audio, screenshots and 3D are part of Pro, so they stayed behind.", "partial");
     }
 
     if (list.length === 1) {
@@ -795,8 +885,8 @@ export default function Home() {
           scrolled ? "-translate-y-full" : ""
         }`}
       >
-        <p className="bg-accent px-4 py-2.5 text-center text-[12.5px] font-semibold leading-snug text-accent-fg">
-          You&apos;re on the pocket version — open pagehaul on a desktop for
+        <p className="bg-accent px-4 py-2.5 text-center text-[13.5px] font-semibold leading-snug text-accent-fg">
+          You&apos;re on the pocket version. Open pagehaul on a desktop for
           full previews and every asset.
         </p>
       </div>
@@ -811,7 +901,7 @@ export default function Home() {
         <nav className="keep-blur pointer-events-auto flex w-full items-center gap-1.5 rounded-full border border-border bg-surface/70 py-2 pl-4 pr-1.5 backdrop-blur-md sm:w-auto sm:pl-6 sm:pr-2">
           <a
             href="#top"
-            className="flex items-center gap-1.5 pr-4 text-[15px] font-semibold tracking-tight sm:gap-2"
+            className="flex items-center gap-1.5 pr-4 text-[16px] font-semibold tracking-tight sm:gap-2"
           >
             <Mark size={15} />
             pagehaul
@@ -823,24 +913,30 @@ export default function Home() {
           {[
             ["What you get", "#what"],
             ["How", "#how"],
+            ["Pricing", "#pricing"],
             ["FAQ", "#faq"],
           ].map(([label, href]) => (
             <a
               key={href}
               href={href}
-              className="hidden rounded-full px-3.5 py-2 text-[13px] text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground sm:block"
+              className="hidden rounded-full px-3.5 py-2 text-[14px] text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground sm:block"
             >
               {label}
             </a>
           ))}
           <span className="ml-auto flex items-center gap-2.5 sm:ml-1.5">
+            {planLabel && (
+              <span className="rounded-full border border-accent-line bg-accent-soft px-3 py-1.5 font-mono text-[11px] font-semibold">
+                {planLabel}
+              </span>
+            )}
             <ThemeToggle />
             {/* The nav's one loud button goes to the feedback form while the
-                platform is finding its feet — a tester's report is worth more
+                platform is finding its feet, and a tester's report is worth more
                 than a star. The repo keeps its link in the footer. */}
             <a
               href="/contact"
-              className="rounded-full bg-foreground px-5 py-2.5 text-[13.5px] font-semibold text-background transition-opacity hover:opacity-90"
+              className="rounded-full bg-foreground px-5 py-2.5 text-[14.5px] font-semibold text-background transition-opacity hover:opacity-90"
             >
               Feedback
             </a>
@@ -882,13 +978,13 @@ export default function Home() {
               at every width. */}
           <div className="mx-auto max-w-[1400px] px-6 py-10 xl:px-12 2xl:max-w-[1680px] 2xl:px-16">
             <div className="mb-6 flex flex-wrap items-baseline justify-between gap-3">
-              <h2 className="text-[1.6rem] font-medium tracking-tight">
+              <h2 className="text-[1.75rem] font-medium tracking-tight">
                 {counts.all}{" "}
                 <span className="text-muted-foreground">
                   file{counts.all === 1 ? "" : "s"}
                 </span>
               </h2>
-              <div className="flex items-center gap-3 font-mono text-[11px] text-muted-foreground">
+              <div className="flex items-center gap-3 font-mono text-[12px] text-muted-foreground">
                 <span>{host}</span>
                 <span className="h-3 w-px bg-border" />
                 <span>{(result.ms / 1000).toFixed(1)}s</span>
@@ -904,14 +1000,14 @@ export default function Home() {
             </div>
 
             {result.notes.length > 0 && (
-              <div className="mb-6 rounded-lg border border-warn/25 bg-warn-soft px-4 py-3 text-[13.5px] leading-relaxed text-warn">
+              <div className="mb-6 rounded-lg border border-warn/25 bg-warn-soft px-4 py-3 text-[14.5px] leading-relaxed text-warn">
                 {result.notes.join(" ")}
               </div>
             )}
 
             {!ranDeep && counts.all < 10 && (
               <div className="mb-6 flex flex-wrap items-center gap-3 rounded-lg border border-accent-line bg-accent-soft px-4 py-3">
-                <p className="text-[13.5px]">
+                <p className="text-[14.5px]">
                   This page loads most of its content with JavaScript.
                 </p>
                 <button
@@ -920,7 +1016,7 @@ export default function Home() {
                     setDeep(true);
                     runScan(result.target, true);
                   }}
-                  className="ml-auto rounded-md bg-accent px-3 py-1.5 text-[12.5px] font-semibold text-accent-fg"
+                  className="ml-auto rounded-md bg-accent px-3 py-1.5 text-[13.5px] font-semibold text-accent-fg"
                 >
                   Run deep scan
                 </button>
@@ -999,19 +1095,19 @@ export default function Home() {
                     </div>
                     <div className="absolute inset-0 grid place-items-center bg-background/40">
                       <div className="max-w-sm rounded-xl border border-border bg-background p-6 text-center shadow-soft">
-                        <p className="text-sm font-semibold">
+                        <p className="text-[15px] font-semibold">
                           The design system is part of Pro
                         </p>
-                        <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground">
+                        <p className="mt-1.5 text-[14px] leading-relaxed text-muted-foreground">
                           Palette, typography and tokens, read from the page as
                           a browser paints it.
                         </p>
                         <button
                           type="button"
                           onClick={() => setPaywall("design")}
-                          className="mt-4 rounded-md bg-accent px-4 py-2 text-[13px] font-semibold text-accent-fg transition-opacity hover:opacity-90"
+                          className="mt-4 rounded-md bg-accent px-4 py-2 text-[14px] font-semibold text-accent-fg transition-opacity hover:opacity-90"
                         >
-                          Unlock for ₹99/month
+                          Unlock with Pro
                         </button>
                       </div>
                     </div>
@@ -1022,12 +1118,12 @@ export default function Home() {
                 // no colours or type to show yet. Rather than a dead end, the
                 // tab explains where the design system comes from and fetches it.
                 <div className="rounded-xl border border-dashed border-border py-16 text-center">
-                  <p className="text-sm text-foreground">
+                  <p className="text-[15px] text-foreground">
                     The design system comes from a deep scan.
                   </p>
-                  <p className="mx-auto mt-1.5 max-w-sm text-[13px] leading-relaxed text-muted-foreground">
+                  <p className="mx-auto mt-1.5 max-w-sm text-[14px] leading-relaxed text-muted-foreground">
                     Colours, fonts and design tokens are read from the page as a
-                    browser paints it — a quick scan only sees the markup.
+                    browser paints it; a quick scan only sees the markup.
                   </p>
                   <button
                     type="button"
@@ -1036,7 +1132,7 @@ export default function Home() {
                       setTab("all");
                       runScan(result.target, true);
                     }}
-                    className="mt-5 rounded-md bg-accent px-4 py-2 text-[13px] font-semibold text-accent-fg transition-opacity hover:opacity-90"
+                    className="mt-5 rounded-md bg-accent px-4 py-2 text-[14px] font-semibold text-accent-fg transition-opacity hover:opacity-90"
                   >
                     Extract the design system
                   </button>
@@ -1044,7 +1140,7 @@ export default function Home() {
               )
             ) : visible.length === 0 ? (
               <div className="rounded-xl border border-dashed border-border py-16 text-center">
-                <p className="text-sm text-muted-foreground">
+                <p className="text-[15px] text-muted-foreground">
                   No {activeTabLabel.toLowerCase()} on this page.
                 </p>
               </div>
@@ -1052,17 +1148,17 @@ export default function Home() {
               <NetworkTable assets={visible} onOpen={openAsset} />
             ) : (
               <>
-                {tab === "model" && !paid && (
+                {(LOCKED_KINDS as readonly string[]).includes(tab) && !paid && (
                   <div className="mb-6 flex flex-wrap items-center gap-3 rounded-lg border border-accent-line bg-accent-soft px-4 py-3">
-                    <p className="text-[13.5px]">
-                      3D previews and downloads are part of Pro.
+                    <p className="text-[14.5px]">
+                      Previews and downloads here are part of Pro.
                     </p>
                     <button
                       type="button"
-                      onClick={() => setPaywall("model")}
-                      className="ml-auto rounded-md bg-accent px-3 py-1.5 text-[12.5px] font-semibold text-accent-fg"
+                      onClick={() => setPaywall("locked")}
+                      className="ml-auto rounded-md bg-accent px-3 py-1.5 text-[13.5px] font-semibold text-accent-fg"
                     >
-                      Unlock for ₹99/month
+                      Unlock with Pro
                     </button>
                   </div>
                 )}
@@ -1080,10 +1176,10 @@ export default function Home() {
                 <button
                   type="button"
                   onClick={() => setShown((n) => n + 96)}
-                  className="rounded-lg border border-border px-5 py-2.5 text-[13.5px] font-medium text-fg-2 transition-colors hover:border-border-strong hover:text-foreground"
+                  className="rounded-lg border border-border px-5 py-2.5 text-[14.5px] font-medium text-fg-2 transition-colors hover:border-border-strong hover:text-foreground"
                 >
                   Show {Math.min(96, visible.length - shown)} more
-                  <span className="ml-2 font-mono text-[11px] text-muted-foreground">
+                  <span className="ml-2 font-mono text-[12px] text-muted-foreground">
                     {shown} of {visible.length}
                   </span>
                 </button>
@@ -1123,7 +1219,7 @@ export default function Home() {
                   barCompact ? "px-4 py-2.5" : "px-5 py-3.5"
                 } ${barResizing ? "" : "backdrop-blur-xl"}`}
               >
-                <span className="text-[13px] text-muted-foreground">
+                <span className="text-[14px] text-muted-foreground">
                   {visible.length} {activeTabLabel.toLowerCase()}
                   {visibleBytes > 0 && ` · ${formatBytes(visibleBytes)}`}
                   {/* Said where the download buttons are, because that is the
@@ -1142,7 +1238,7 @@ export default function Home() {
                         style={{ width: `${(progress.done / progress.total) * 100}%` }}
                       />
                     </div>
-                    <span className="font-mono text-[11px] text-muted-foreground">
+                    <span className="font-mono text-[12px] text-muted-foreground">
                       {progress.done}/{progress.total}
                     </span>
                   </div>
@@ -1152,7 +1248,7 @@ export default function Home() {
                     type="button"
                     disabled={busy}
                     onClick={() => setPickerOpen(true)}
-                    className="h-9 rounded-lg border border-border px-4 text-[13px] font-medium transition-colors hover:border-accent disabled:opacity-40"
+                    className="h-9 rounded-lg border border-border px-4 text-[14px] font-medium transition-colors hover:border-accent disabled:opacity-40"
                   >
                     {barCompact ? "Choose" : "Choose files"}
                   </button>
@@ -1160,7 +1256,7 @@ export default function Home() {
                     type="button"
                     disabled={busy}
                     onClick={() => runDownload(visible, true)}
-                    className="h-9 rounded-lg bg-accent px-4 text-[13px] font-semibold text-accent-fg transition-all hover:brightness-110 disabled:opacity-40"
+                    className="h-9 rounded-lg bg-accent px-4 text-[14px] font-semibold text-accent-fg transition-all hover:brightness-110 disabled:opacity-40"
                   >
                     {busy
                       ? "Working"
@@ -1182,10 +1278,10 @@ export default function Home() {
       {!result && expiredHost && (
         <section ref={expiredRef as React.RefObject<HTMLElement>} className="mx-auto max-w-[1400px] px-6 py-14">
           <div className="rounded-xl border border-dashed border-border px-6 py-14 text-center">
-            <p className="text-[16px] font-semibold">
+            <p className="text-[17px] font-semibold">
               Those results have cleared.
             </p>
-            <p className="mx-auto mt-2.5 max-w-md text-[14px] leading-relaxed text-muted-foreground">
+            <p className="mx-auto mt-2.5 max-w-md text-[15px] leading-relaxed text-muted-foreground">
               A scan is held for {SITE.resultsMinutes} minutes and then dropped.
               Nothing was stored on our side to begin with, so scanning again
               costs you only the wait.
@@ -1203,7 +1299,7 @@ export default function Home() {
                 });
                 runScan(expiredHost, deep);
               }}
-              className="mt-6 inline-flex h-10 items-center rounded-lg bg-accent px-5 text-[13.5px] font-semibold text-accent-fg transition-all hover:brightness-110"
+              className="mt-6 inline-flex h-10 items-center rounded-lg bg-accent px-5 text-[14.5px] font-semibold text-accent-fg transition-all hover:brightness-110"
             >
               Scan {expiredHost} again
             </button>
@@ -1212,8 +1308,13 @@ export default function Home() {
       )}
 
       <Features />
+      <HatchBand />
       <Audience />
+      <HatchBand />
       <Steps />
+      <HatchBand />
+      <PricingSection />
+      <HatchBand />
       <Faq />
       <Footer />
 
@@ -1289,7 +1390,7 @@ function TabButton({
       // difference of two values and reads as nothing at all. It now lifts to
       // the next surface up with a lit top edge, so selection is legible
       // without colour, in either theme.
-      className={`flex items-center gap-1.5 whitespace-nowrap rounded-md px-3.5 py-1.5 text-[13px] font-medium transition-all ${
+      className={`flex items-center gap-1.5 whitespace-nowrap rounded-md px-3.5 py-1.5 text-[14px] font-medium transition-all ${
         active
           ? "bg-surface-3 text-foreground shadow-lift ring-1 ring-inset ring-[rgb(var(--raise)/0.14)]"
           : "text-muted-foreground hover:bg-[rgb(var(--raise)/0.05)] hover:text-foreground"
@@ -1298,7 +1399,7 @@ function TabButton({
       {label}
       {count !== undefined && (
         <span
-          className={`font-mono text-[10px] tabular-nums ${
+          className={`font-mono text-[11px] tabular-nums ${
             active ? "text-accent" : "opacity-60"
           }`}
         >
@@ -1330,29 +1431,29 @@ function NetworkTable({
             }`}
           >
             {a.method && (
-              <span className="w-11 shrink-0 font-mono text-[10px] font-semibold text-accent">
+              <span className="w-11 shrink-0 font-mono text-[11px] font-semibold text-accent">
                 {a.method}
               </span>
             )}
-            <span className="shrink-0 rounded border border-border bg-surface-2 px-1.5 py-px font-mono text-[9.5px] font-semibold">
+            <span className="shrink-0 rounded border border-border bg-surface-2 px-1.5 py-px font-mono text-[10.5px] font-semibold">
               {a.format}
             </span>
-            <span className="min-w-0 flex-1 truncate text-[13px]">{a.displayName}</span>
+            <span className="min-w-0 flex-1 truncate text-[14px]">{a.displayName}</span>
             {a.preview && (
-              <span className="hidden min-w-0 max-w-[38%] flex-1 truncate font-mono text-[11px] text-muted-foreground lg:block">
+              <span className="hidden min-w-0 max-w-[38%] flex-1 truncate font-mono text-[12px] text-muted-foreground lg:block">
                 {a.preview}
               </span>
             )}
             {a.status !== undefined && (
               <span
-                className={`shrink-0 font-mono text-[10px] ${
+                className={`shrink-0 font-mono text-[11px] ${
                   a.status >= 400 ? "text-danger" : "text-muted-foreground"
                 }`}
               >
                 {a.status}
               </span>
             )}
-            <span className="w-14 shrink-0 text-right font-mono text-[10px] tabular-nums text-muted-foreground">
+            <span className="w-14 shrink-0 text-right font-mono text-[11px] tabular-nums text-muted-foreground">
               {formatBytes(a.bytes)}
             </span>
           </button>

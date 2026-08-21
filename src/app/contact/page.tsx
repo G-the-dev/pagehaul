@@ -22,8 +22,8 @@ export default function ContactPage() {
         <ContactEmail />
       </div>
 
-      <div className="mt-14 space-y-5 text-[15px] leading-[1.7] text-fg-2">
-        <h2 className="text-[17px] font-semibold tracking-tight text-foreground">
+      <div className="mt-14 space-y-5 text-[16px] leading-[1.7] text-fg-2">
+        <h2 className="text-[18px] font-semibold tracking-tight text-foreground">
           What makes a report useful
         </h2>
         <p>

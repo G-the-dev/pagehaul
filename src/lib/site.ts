@@ -19,7 +19,7 @@ export const SITE = {
   repo: "https://github.com/G-the-dev/pagehaul",
 
   /** Shown on the legal pages. Update when you change the wording. */
-  legalUpdated: "18 August 2026",
+  legalUpdated: "20 August 2026",
 
   /** Must match DOWNLOAD_TTL_MINUTES in src/config/limits.ts. */
   retentionMinutes: 5,

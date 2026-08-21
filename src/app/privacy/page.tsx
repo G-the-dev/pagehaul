@@ -18,21 +18,25 @@ export default function PrivacyPage() {
     >
       <Clause n="01" title="Analytics, and what it sees">
         <p>
-          No account is required to use {SITE.name}, so we hold no name, email
-          address or password. There is no advertising, and nothing about you is
-          sold to anyone.
+          No account is required to use {SITE.name}, so for most visitors we
+          hold no name, email address or password. If you buy a plan, we ask
+          for an email address; what happens to it is in the payments section
+          below. There is no advertising, and nothing about you is sold to
+          anyone.
         </p>
         <p>
           We use PostHog for product analytics: pages visited, buttons pressed,
           and session replays showing how the interface behaved. A replay
-          captures the {SITE.name} interface as you saw it — including the
+          captures the {SITE.name} interface as you saw it, including the
           results of a scan on your screen. We use this to find what is broken
           and what is confusing, and for nothing else.
         </p>
         <p>
-          Beyond that, your browser keeps your theme choice and your recent
-          scans in local storage, on your own device. Those never reach us and
-          you can clear them at any time.
+          Beyond that, your browser keeps your theme choice, your recent scans,
+          your remaining free-scan count and, if you bought a plan, your
+          license, all in local storage on your own device. You can clear them
+          at any time; clearing also removes the license, which is why the
+          receipt email carries a copy.
         </p>
       </Clause>
 
@@ -52,30 +56,52 @@ export default function PrivacyPage() {
           These records are kept for no longer than 90 days and are not used for
           profiling, advertising or resale.
         </p>
+        <p>
+          To enforce the free plan&rsquo;s scan allowance, the server also keeps
+          a short-lived count of deep scans per hashed network address. It holds
+          a one-way hash rather than the address itself, lives in memory only,
+          and is gone within days.
+        </p>
       </Clause>
 
-      <Clause n="03" title="The files themselves">
+      <Clause n="03" title="When you buy a plan">
         <p>
-          Files are fetched from the site you named, not from us. Where a capture
-          is packaged for download, the archive is deleted after{" "}
-          {SITE.retentionMinutes} minutes and the link stops working at the same
-          moment.
+          A purchase asks for your email address. It is used for exactly three
+          things: sending your receipt and license, matching a payment to you
+          if something goes wrong, and restoring a license your browser lost.
+          It is embedded in the license itself and appears in the payment
+          notification we receive.
+        </p>
+        <p>
+          Payments are made by UPI, directly from your bank to ours. We never
+          see or store card numbers, bank details or UPI PINs; your payment app
+          handles all of that. What we keep is the payment reference, the plan,
+          the amount and your email, for as long as needed to honour the
+          license and answer disputes.
+        </p>
+      </Clause>
+
+      <Clause n="04" title="The files themselves">
+        <p>
+          Files travel from the site you named to your browser; they are never
+          stored with us. When you download an archive, your own browser builds
+          it on your own device. Scan results live in your browser and expire
+          there after {SITE.resultsMinutes} minutes.
         </p>
         <p>
           We do not read, index, analyse or retain the contents of what you
-          capture. The short retention window is deliberate: it keeps storage cost
-          near zero and limits how long a copy of anyone&rsquo;s site exists
-          anywhere in our systems.
+          capture, and there is nothing to delete on our side, because no copy
+          of anyone&rsquo;s site ever exists in our systems.
         </p>
       </Clause>
 
-      <Clause n="04" title="Services we rely on">
+      <Clause n="05" title="Services we rely on">
         <p>
-          The site is hosted on Vercel, finished archives are stored briefly on
-          Cloudflare R2, and analytics is processed by PostHog. Each processes
-          requests on our behalf and will see the usual technical information
-          any web request carries, including IP address, as part of serving and
-          protecting the service.
+          The site is hosted on Vercel, analytics is processed by PostHog, and
+          email, receipts, unlock links and feedback, is sent through Gmail. Each
+          processes requests on our behalf and will see the usual technical
+          information any web request carries, including IP address, as part of
+          serving and protecting the service.
         </p>
         <p>
           When you scan a page, your browser and our server both make requests to
@@ -84,7 +110,7 @@ export default function PrivacyPage() {
         </p>
       </Clause>
 
-      <Clause n="05" title="Your rights">
+      <Clause n="06" title="Your rights">
         <p>
           You can ask what we hold about a request, ask for it to be deleted, or
           object to us holding it. Write to{" "}
@@ -96,11 +122,12 @@ export default function PrivacyPage() {
         </p>
       </Clause>
 
-      <Clause n="06" title="Changes">
+      <Clause n="07" title="Changes">
         <p>
           If this policy changes in a way that affects what we collect, the date
           at the top will change and the previous wording will no longer apply.
-          There is no mailing list to notify, because we do not have your email.
+          There is no mailing list to notify; unless you bought a plan, we have
+          no way to reach you.
         </p>
       </Clause>
     </PageShell>

@@ -1,13 +1,16 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { motion } from "framer-motion";
 import { ArrowRight, Loader2 } from "lucide-react";
 import { EASE } from "./ui/motion-primitives";
 import { TryExamples } from "./TryExamples";
 import type { Recent } from "@/lib/recent";
 import { checkUrlInput } from "@/lib/url-input";
 import { ScanProgress } from "./ScanProgress";
+import { Dithering } from "@paper-design/shaders-react";
+import { useIsLight } from "@/lib/use-is-light";
+import { useInView } from "@/lib/use-in-view";
 
 interface Props {
   url: string;
@@ -28,10 +31,51 @@ interface Props {
   freeDeepLeft?: number | null;
 }
 
+/**
+ * The dither field: a murmur, not a subject. Dim enough that the headline
+ * owns the room, moving on its own, indifferent to the cursor.
+ */
+function HeroDither() {
+  const light = useIsLight();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  if (!mounted) return null;
+  return (
+    <Dithering
+      colorBack={light ? "#fafafa" : "#0a0a0a"}
+      colorFront={light ? "#f0f0ee" : "#151517"}
+      shape="warp"
+      type="4x4"
+      size={2}
+      speed={1}
+      minPixelRatio={1}
+      maxPixelCount={700_000}
+      style={{ width: "100%", height: "100%" }}
+    />
+  );
+}
+
 const MODES = [
-  { id: "quick" as const, label: "Quick", hint: "Reads the markup and stylesheets. A few seconds." },
-  { id: "deep" as const, label: "Deep", hint: "Runs the page in a real browser. Finds far more." },
+  { id: "quick" as const, label: "Quick", hint: "Reads the markup. Seconds." },
+  { id: "deep" as const, label: "Deep", hint: "Real browser. Finds far more." },
 ];
+
+function DitherLayer() {
+  const [ref, inView] = useInView<HTMLDivElement>("0px");
+  return (
+    <div
+      ref={ref}
+      aria-hidden
+      className="pointer-events-none absolute inset-0"
+      style={{
+        maskImage: "linear-gradient(#000 0%, #000 72%, transparent 100%)",
+        WebkitMaskImage: "linear-gradient(#000 0%, #000 72%, transparent 100%)",
+      }}
+    >
+      {inView && <HeroDither />}
+    </div>
+  );
+}
 
 export function Hero({
   url,
@@ -94,19 +138,57 @@ export function Hero({
   // someone halfway through typing "stripe.c".
   const inputError = touched && url.trim() && !check.ok ? check.message : null;
 
-  const [index, setIndex] = useState(0);
   const words = useMemo(
     () => ["image", "icon", "video", "audio", "font", "3D asset"],
     [],
   );
-
+  // The word edits itself the way a person would: erase back to whatever
+  // the next word shares, then type the rest. The left of the sentence
+  // never moves, the selection frame never blinks out; it just follows
+  // the text as it shortens and grows.
+  const [word, setWord] = useState(words[0]);
+  const [editing, setEditing] = useState(false);
   useEffect(() => {
-    const t = setTimeout(
-      () => setIndex((n) => (n === words.length - 1 ? 0 : n + 1)),
-      2400,
-    );
-    return () => clearTimeout(t);
-  }, [index, words]);
+    let cancelled = false;
+    let wi = 0;
+    const later = (fn: () => void, ms: number) =>
+      window.setTimeout(() => {
+        if (!cancelled) fn();
+      }, ms);
+    const change = () => {
+      const cur = words[wi];
+      wi = (wi + 1) % words.length;
+      const next = words[wi];
+      let keep = 0;
+      while (keep < cur.length && keep < next.length && cur[keep] === next[keep]) keep++;
+      let pos = cur.length;
+      setEditing(true);
+      const erase = () => {
+        if (pos > keep) {
+          pos -= 1;
+          setWord(cur.slice(0, pos));
+          later(erase, 45);
+        } else {
+          type();
+        }
+      };
+      const type = () => {
+        if (pos < next.length) {
+          pos += 1;
+          setWord(next.slice(0, pos));
+          later(type, 62);
+        } else {
+          setEditing(false);
+          later(change, 2500);
+        }
+      };
+      erase();
+    };
+    later(change, 2500);
+    return () => {
+      cancelled = true;
+    };
+  }, [words]);
 
   return (
     <section className="relative isolate flex min-h-[100svh] flex-col justify-center overflow-hidden">
@@ -120,77 +202,74 @@ export function Hero({
             "radial-gradient(ellipse 60% 55% at 50% -8%, rgb(var(--glow) / 0.055), transparent 72%)",
         }}
       />
-      <div
-        aria-hidden
-        className="bg-grid pointer-events-none absolute inset-x-0 top-0 h-[520px] opacity-40"
-        style={{
-          maskImage:
-            "radial-gradient(ellipse 55% 60% at 50% 0%, #000 10%, transparent 70%)",
-          WebkitMaskImage:
-            "radial-gradient(ellipse 55% 60% at 50% 0%, #000 10%, transparent 70%)",
-        }}
-      />
+      {/* The brand as weather: an ordered-dither field in slow motion over
+          the whole hero, running only while the hero is on screen. */}
+      <DitherLayer />
 
       <div className="relative z-20 mx-auto w-full max-w-3xl px-6 py-24 text-center">
         <motion.h1
           initial={{ opacity: 0, y: 18 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.08, ease: EASE }}
-          className="text-balance text-[2.4rem] font-medium leading-[1.06] tracking-[-0.035em] sm:text-[3.6rem]"
+          className="text-balance text-[2.6rem] font-medium leading-[1.18] tracking-[-0.035em] sm:text-[3.9rem]"
         >
-          Every{" "}
           {/*
-            Only one word is animated at a time, so it always enters from below
-            and leaves upward. Positioning words by their index made the motion
-            reverse on the wrap from the last word back to the first, because
-            the first was sitting above rather than below.
-
-            The slot is sized by an invisible copy of the CURRENT word, not the
-            longest one. Holding the widest word's width was fine while the
-            words were all close in length; "3D asset" joined and every shorter
-            word sat in a slot twice its size, with the gap to show for it.
-            The layout animation glides the width between words instead.
+            The rotating word sits at the END of the heading and inside a slot
+            sized by the widest word in the set, stacked invisibly beneath it.
+            The line's length is therefore constant: nothing re-centres,
+            nothing reflows, whichever word is up. Words hand over with a
+            short blur-fade rather than a slide, and the selection frame hugs
+            each word and fades with it, so the change reads as the selection
+            moving on, not the sentence moving around.
           */}
-          {/* The clip window has to sit a descender's depth below the
-              baseline, or a rotating word ending in g/p/y loses its tail to
-              overflow-hidden. The padding opens that room; the matching
-              negative margin keeps the line box the same height, so nothing
-              reflows. */}
-          <motion.span
-            layout
-            transition={{ duration: 0.45, ease: EASE }}
-            className="relative inline-grid overflow-hidden align-baseline pb-[0.14em] -mb-[0.14em]"
-          >
-            <span
-              aria-hidden
-              className="invisible col-start-1 row-start-1 whitespace-nowrap font-semibold"
-            >
-              {words[index]}
+          <span className="block">Any page, one click,</span>
+          <span className="block whitespace-nowrap">
+            every{" "}
+            <span className="relative inline-grid align-baseline">
+              {words.map((w) => (
+                <span
+                  key={w}
+                  aria-hidden
+                  className="invisible col-start-1 row-start-1 whitespace-nowrap px-[0.14em] font-semibold"
+                >
+                  {w}
+                </span>
+              ))}
+              <span className="col-start-1 row-start-1 grid justify-items-start">
+                <span className="relative inline-block whitespace-nowrap px-[0.14em] font-semibold">
+                  <span className="invisible absolute">M</span>
+                  {word}
+                  {editing && (
+                    <span
+                      aria-hidden
+                      className="absolute top-[0.16em] bottom-[0.08em] ml-[0.02em] inline-block w-[2px] animate-pulse bg-foreground/80"
+                    />
+                  )}
+                  {/* The selection frame never unmounts. It rides the text,
+                      shrinking and growing with each keystroke of the edit. */}
+                  <span
+                    aria-hidden
+                    className="pointer-events-none absolute inset-x-0 top-[0.08em] bottom-0 rounded-[0.1em] border border-accent-line bg-accent-soft/40"
+                  >
+                    <span className="absolute -left-[3.5px] -top-[3.5px] h-[7px] w-[7px] rounded-[1.5px] border border-accent-line bg-background" />
+                    <span className="absolute -right-[3.5px] -top-[3.5px] h-[7px] w-[7px] rounded-[1.5px] border border-accent-line bg-background" />
+                    <span className="absolute -bottom-[3.5px] -left-[3.5px] h-[7px] w-[7px] rounded-[1.5px] border border-accent-line bg-background" />
+                    <span className="absolute -bottom-[3.5px] -right-[3.5px] h-[7px] w-[7px] rounded-[1.5px] border border-accent-line bg-background" />
+                  </span>
+                </span>
+              </span>
             </span>
-            <AnimatePresence mode="popLayout" initial={false}>
-              <motion.span
-                key={index}
-                initial={{ y: "110%", opacity: 0 }}
-                animate={{ y: "0%", opacity: 1 }}
-                exit={{ y: "-110%", opacity: 0 }}
-                transition={{ type: "spring", stiffness: 90, damping: 17 }}
-                className="col-start-1 row-start-1 whitespace-nowrap font-semibold"
-              >
-                {words[index]}
-              </motion.span>
-            </AnimatePresence>
-          </motion.span>{" "}
-          on any page.
+          </span>
         </motion.h1>
 
         <motion.p
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.16, ease: EASE }}
-          className="mx-auto mt-6 max-w-md text-[15.5px] leading-relaxed text-muted-foreground"
+          className="mx-auto mt-6 max-w-md text-[16.5px] leading-relaxed text-muted-foreground"
         >
-          Paste a link and see what a page is actually built from. Take one file,
-          or take everything.
+          Paste a link. Every file the page is built from shows up named and
+          previewed. Take one, or take all of it.
         </motion.p>
 
         <motion.form
@@ -222,16 +301,16 @@ export function Hero({
               // a column, and a flex-basis of 0% on the column's main axis
               // overrides h-12 entirely — the box collapsed to its text
               // height, 23px, while the button beside it stood at 48.
-              // text-base below sm: iOS zooms the whole page into any input
+              // text-[17px] below sm: iOS zooms the whole page into any input
               // whose text is under 16px, which reads as the layout jumping.
-              className={`h-12 rounded-lg border bg-surface/80 px-4 text-base backdrop-blur-md outline-none transition-colors placeholder:text-muted-foreground disabled:opacity-60 sm:flex-1 sm:text-[15px] ${
+              className={`h-12 rounded-lg border bg-surface px-4 text-[17px] outline-none transition-colors placeholder:text-muted-foreground disabled:opacity-60 sm:flex-1 sm:text-[16px] ${
                 inputError ? "border-danger/60" : "border-border focus:border-border-strong"
               }`}
             />
             <button
               type="submit"
               disabled={!url.trim() || scanning}
-              className="inline-flex h-12 shrink-0 items-center justify-center gap-2 rounded-lg bg-foreground px-7 text-[14.5px] font-semibold text-background transition-opacity hover:opacity-90 disabled:opacity-40"
+              className="inline-flex h-12 shrink-0 items-center justify-center gap-2 rounded-lg bg-foreground px-7 text-[15.5px] font-semibold text-background transition-opacity hover:opacity-90 disabled:opacity-40"
             >
               {scanning ? (
                 <>
@@ -253,7 +332,7 @@ export function Hero({
             <p
               id="scan-error"
               role="alert"
-              className="mt-2 text-left text-[13px] text-danger"
+              className="mt-2 text-left text-[14px] text-danger"
             >
               {inputError ?? error}
             </p>
@@ -263,7 +342,7 @@ export function Hero({
             <div
               role="radiogroup"
               aria-label="Scan depth"
-              className={`inline-flex rounded-lg border border-border bg-surface/80 p-1 backdrop-blur-md transition-opacity ${
+              className={`inline-flex rounded-lg border border-border bg-surface p-1 transition-opacity ${
                 scanning ? "opacity-55" : ""
               }`}
             >
@@ -281,7 +360,7 @@ export function Hero({
                     // scan that is not the one running.
                     disabled={scanning}
                     onClick={() => setDeep(m.id === "deep")}
-                    className={`rounded-md px-5 py-1.5 text-[13px] font-medium transition-colors ${
+                    className={`rounded-md px-5 py-1.5 text-[14px] font-medium transition-colors ${
                       active
                         ? "bg-foreground text-background"
                         : "text-muted-foreground hover:text-foreground"
@@ -292,28 +371,24 @@ export function Hero({
                 );
               })}
             </div>
-            <p className="text-[12.5px] text-muted-foreground">
+            <p className="text-[13.5px] text-muted-foreground">
               {MODES[deep ? 1 : 0].hint}
-            </p>
-            {/* The allowance, said plainly where the choice is made — not in
-                a settings page discovered after the wall. Rescans of counted
-                sites stay free, so "sites" is the honest unit. */}
-            {deep && freeDeepLeft != null && (
-              <p className="text-[11.5px] text-muted-foreground/80">
-                {freeDeepLeft > 0 ? (
-                  <>
-                    {freeDeepLeft} free deep-scan site{freeDeepLeft === 1 ? "" : "s"} left
-                  </>
-                ) : (
-                  <>
-                    Free deep scans used — rescans of your sites stay free ·{" "}
-                    <a href="/pricing" className="underline underline-offset-2 hover:text-foreground">
-                      pricing
+              {deep && freeDeepLeft != null && (
+                <>
+                  {" · "}
+                  {freeDeepLeft > 0 ? (
+                    `${freeDeepLeft} free left`
+                  ) : (
+                    <a
+                      href="/#pricing"
+                      className="underline underline-offset-2 hover:text-foreground"
+                    >
+                      0 free left · pricing
                     </a>
-                  </>
-                )}
-              </p>
-            )}
+                  )}
+                </>
+              )}
+            </p>
           </div>
 
         </motion.form>

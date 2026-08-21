@@ -1,88 +1,262 @@
 /**
  * Who is allowed how much, remembered in the browser.
  *
- * There are no accounts, so the browser's storage is the ledger: which sites
- * this person has deep-scanned free, and the license token a purchase minted.
- * It is honest bookkeeping rather than a lock — someone clearing storage gets
- * a fresh allowance, and the server keeps its own rough count by address to
- * keep that from being a habit. The expensive thing being protected is
- * browser time on our compute; the design tab and 3D files are the value
- * that makes upgrading worth it.
+ * There are no accounts, so the browser's storage is the ledger: how many
+ * deep scans this person has run free, and the license token a purchase
+ * minted. It is honest bookkeeping rather than a lock. Someone clearing
+ * storage gets a fresh allowance, and the server keeps its own rough count
+ * by address to keep that from being a habit. The expensive thing being
+ * protected is browser time on our compute; the design system, audio,
+ * screenshots and 3D files are the value that makes upgrading worth it.
  */
 
-export const FREE_DEEP_SITES = 2;
-export const PRO_PRICE_INR = 99;
+export const FREE_DEEP_SCANS = 2;
+export const PRO_PRICE_INR = 249;
 export const PACK_PRICE_INR = 99;
-export const PACK_SCANS = 25;
+export const PACK_SCANS = 5;
 
-const HOSTS_KEY = "ph-deep-hosts";
+/** Kinds a free account can see but not open or download. */
+export const LOCKED_KINDS = ["model", "audio", "screenshot"] as const;
+
+const USED_KEY = "ph-deep-used";
 const LICENSE_KEY = "ph-license";
+const NEXT_KEY = "ph-license-next";
 
-function read<T>(key: string, fallback: T): T {
-  if (typeof window === "undefined") return fallback;
+export function usedDeepScans(): number {
+  if (typeof window === "undefined") return 0;
   try {
-    const raw = window.localStorage.getItem(key);
-    return raw ? (JSON.parse(raw) as T) : fallback;
+    const n = Number(window.localStorage.getItem(USED_KEY) ?? "0");
+    return Number.isFinite(n) && n > 0 ? Math.floor(n) : 0;
   } catch {
-    return fallback;
+    return 0;
   }
 }
 
-/** Hosts this browser has deep-scanned on the free plan. */
-export function usedDeepHosts(): string[] {
-  const v = read<unknown>(HOSTS_KEY, []);
-  return Array.isArray(v) ? v.filter((h): h is string => typeof h === "string") : [];
-}
-
-/**
- * Counts a site against the free allowance. A rescan of a site already on
- * the list is free — heavy pages ask to be scanned again, and charging the
- * retry would punish exactly the person the retry exists for.
- */
-export function recordDeepHost(host: string): void {
+/** Counts one deep scan. Every deep scan counts, rescans included. */
+export function recordDeepScan(): void {
   if (typeof window === "undefined") return;
-  const hosts = usedDeepHosts();
-  if (hosts.includes(host)) return;
   try {
-    window.localStorage.setItem(HOSTS_KEY, JSON.stringify([...hosts, host].slice(-24)));
+    window.localStorage.setItem(USED_KEY, String(usedDeepScans() + 1));
   } catch {
-    /* storage full or blocked — the server's count still stands */
+    /* storage full or blocked; the server's count still stands */
   }
 }
 
 export function deepScansLeft(): number {
-  return Math.max(0, FREE_DEEP_SITES - usedDeepHosts().length);
+  return Math.max(0, FREE_DEEP_SCANS - usedDeepScans());
 }
 
-/** Whether this host can be deep-scanned free: new within allowance, or a retry. */
-export function deepAllowed(host: string): boolean {
-  const hosts = usedDeepHosts();
-  return hosts.includes(host) || hosts.length < FREE_DEEP_SITES;
+export function deepAllowed(): boolean {
+  return deepScansLeft() > 0;
 }
 
 /** The license token a purchase minted, if any. The server verifies it. */
 export function licenseToken(): string | null {
   if (typeof window === "undefined") return null;
   try {
-    return window.localStorage.getItem(LICENSE_KEY);
+    promoteIfDue();
+    const t = window.localStorage.getItem(LICENSE_KEY);
+    const payload = readPayload(t);
+    if (!payload || (payload.nbf && payload.nbf > Date.now())) return null;
+    return t;
   } catch {
     return null;
   }
 }
 
+const PACK_BONUS_KEY = "ph-pack-bonus";
+
 export function storeLicense(token: string): void {
   try {
+    const prev = readPayload(window.localStorage.getItem(LICENSE_KEY));
+    const next = readPayload(token);
+    // The same token arriving again (the unlock link opened twice) changes
+    // nothing worth resetting.
+    if (prev && next && prev.ref && prev.ref === next.ref) {
+      window.localStorage.setItem(LICENSE_KEY, token);
+      return;
+    }
+    // A purchase whose start date is still ahead waits its turn in the
+    // queue slot rather than displacing what is live now.
+    if (next?.nbf && next.nbf > Date.now()) {
+      window.localStorage.setItem(
+        NEXT_KEY,
+        JSON.stringify({ token, fresh: true }),
+      );
+      return;
+    }
+    // Pro arriving over a pack with scans still in it: the pack is stashed,
+    // counters untouched, and resumes when Pro ends. Paid scans do not
+    // vanish because something bigger was bought.
+    if (
+      prev?.plan === "pack" &&
+      next?.plan === "pro" &&
+      packScansLeft() > 0
+    ) {
+      const oldToken = window.localStorage.getItem(LICENSE_KEY);
+      if (oldToken) {
+        window.localStorage.setItem(
+          NEXT_KEY,
+          JSON.stringify({ token: oldToken, fresh: false }),
+        );
+      }
+      window.localStorage.setItem(LICENSE_KEY, token);
+      window.localStorage.removeItem("ph-renewal-sent");
+      return;
+    }
+    // A refill carries the old pack's remaining scans forward.
+    const carry =
+      prev?.plan === "pack" && next?.plan === "pack" ? packScansLeft() : 0;
     window.localStorage.setItem(LICENSE_KEY, token);
+    window.localStorage.setItem(PACK_BONUS_KEY, String(carry));
+    window.localStorage.removeItem("ph-pack-used");
+    window.localStorage.removeItem("ph-lowpack-sent");
+    window.localStorage.removeItem("ph-renewal-sent");
   } catch {
-    /* nothing to do — the purchase response also shows the token to copy */
+    /* nothing to do; the unlock dialog also shows the link to copy */
+  }
+}
+
+/** When a stored token (live or queued) begins, for the dialog's copy. */
+export function tokenStartsAt(token: string): number | null {
+  try {
+    const body = token.split(".")[1] ?? "";
+    const b64 = body.replace(/-/g, "+").replace(/_/g, "/");
+    const pad = b64 + "=".repeat((4 - (b64.length % 4)) % 4);
+    const payload = JSON.parse(atob(pad)) as { nbf?: number };
+    return typeof payload.nbf === "number" ? payload.nbf : null;
+  } catch {
+    return null;
+  }
+}
+
+function packBonus(): number {
+  if (typeof window === "undefined") return 0;
+  try {
+    const n = Number(window.localStorage.getItem(PACK_BONUS_KEY) ?? "0");
+    return Number.isFinite(n) && n > 0 ? Math.floor(n) : 0;
+  } catch {
+    return 0;
+  }
+}
+
+/** The token's payload, read without verifying: display and counting only. */
+function readPayload(
+  t: string | null,
+): { plan: "pro" | "pack"; exp: number; nbf?: number; ref?: string } | null {
+  if (!t) return null;
+  try {
+    const body = t.split(".")[1] ?? "";
+    const b64 = body.replace(/-/g, "+").replace(/_/g, "/");
+    const pad = b64 + "=".repeat((4 - (b64.length % 4)) % 4);
+    const payload = JSON.parse(atob(pad)) as {
+      plan?: string;
+      exp?: number;
+      nbf?: number;
+      ref?: string;
+    };
+    if (typeof payload.exp !== "number" || payload.exp < Date.now()) return null;
+    if (payload.plan !== "pro" && payload.plan !== "pack") return null;
+    return {
+      plan: payload.plan,
+      exp: payload.exp,
+      nbf: typeof payload.nbf === "number" ? payload.nbf : undefined,
+      ref: payload.ref,
+    };
+  } catch {
+    return null;
   }
 }
 
 /**
- * Paid, as far as this browser knows. The client uses this only to decide
- * what to draw — locks, counters, buttons. The server re-verifies the token
- * on every deep scan, so a hand-written "true" here unlocks nothing real.
+ * The token whose turn it is. If the current one lapsed and a queued
+ * purchase's start date has arrived, the queue steps forward: the waiting
+ * token becomes the license, its ledgers reset if it was a fresh purchase
+ * rather than a stashed remainder.
+ */
+function promoteIfDue(): void {
+  if (typeof window === "undefined") return;
+  try {
+    const cur = readPayload(window.localStorage.getItem(LICENSE_KEY));
+    if (cur && (!cur.nbf || cur.nbf <= Date.now())) return;
+    const rawNext = window.localStorage.getItem(NEXT_KEY);
+    if (!rawNext) return;
+    const parsed = JSON.parse(rawNext) as { token?: string; fresh?: boolean };
+    const next = readPayload(parsed.token ?? null);
+    if (!next) {
+      window.localStorage.removeItem(NEXT_KEY);
+      return;
+    }
+    if (next.nbf && next.nbf > Date.now()) return;
+    window.localStorage.setItem(LICENSE_KEY, parsed.token!);
+    window.localStorage.removeItem(NEXT_KEY);
+    if (parsed.fresh) {
+      window.localStorage.removeItem("ph-pack-used");
+      window.localStorage.setItem(PACK_BONUS_KEY, "0");
+      window.localStorage.removeItem("ph-lowpack-sent");
+      window.localStorage.removeItem("ph-renewal-sent");
+    }
+  } catch {
+    /* storage blocked */
+  }
+}
+
+/** Whether a purchase is waiting behind the current plan. */
+export function queuedPlan(): "pro" | "pack" | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(NEXT_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as { token?: string };
+    return readPayload(parsed.token ?? null)?.plan ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export function licensePlan(): "pro" | "pack" | null {
+  return readPayload(licenseToken())?.plan ?? null;
+}
+
+/** When the current plan runs out, in unix ms; null when there is none. */
+export function planExpiry(): number | null {
+  return readPayload(licenseToken())?.exp ?? null;
+}
+
+const PACK_USED_KEY = "ph-pack-used";
+
+export function packScansUsed(): number {
+  if (typeof window === "undefined") return 0;
+  try {
+    const n = Number(window.localStorage.getItem(PACK_USED_KEY) ?? "0");
+    return Number.isFinite(n) && n > 0 ? Math.floor(n) : 0;
+  } catch {
+    return 0;
+  }
+}
+
+export function recordPackScan(): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(PACK_USED_KEY, String(packScansUsed() + 1));
+  } catch {
+    /* nothing to do */
+  }
+}
+
+export function packScansLeft(): number {
+  return Math.max(0, PACK_SCANS + packBonus() - packScansUsed());
+}
+
+/**
+ * Paid, as far as this browser knows. A pack is paid only while it still
+ * has scans in it. The client uses this only to decide what to draw; the
+ * server re-verifies the token on every deep scan, so a hand-written
+ * "true" here unlocks nothing real.
  */
 export function isPaid(): boolean {
-  return !!licenseToken();
+  const plan = licensePlan();
+  if (!plan) return false;
+  if (plan === "pack") return packScansLeft() > 0;
+  return true;
 }

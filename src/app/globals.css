@@ -138,8 +138,8 @@
   --color-input: var(--input);
   --color-ring: var(--ring);
 
-  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
-  --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, monospace;
+  --font-sans: var(--font-app-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-app-mono), ui-monospace, SFMono-Regular, monospace;
 
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
@@ -209,7 +209,7 @@
 @layer components {
   .label-mono {
     font-family: var(--font-mono);
-    font-size: 0.6875rem;
+    font-size: 0.75rem;
     line-height: 1;
     letter-spacing: 0.14em;
     text-transform: uppercase;
@@ -226,6 +226,16 @@
       linear-gradient(-45deg, transparent 75%, var(--checker-b) 75%);
     background-size: 12px 12px;
     background-position: 0 0, 0 6px, 6px -6px, -6px 0;
+  }
+
+  /* Hairline diagonal stripes, the drafting-paper filler for decorative
+     bands and gutters. Uses the border token so it recolours with the theme. */
+  .hatch {
+    background-image: repeating-linear-gradient(
+      -45deg,
+      var(--border) 0 1px,
+      transparent 1px 7px
+    );
   }
 
   .bg-grid {
@@ -390,12 +400,7 @@ html.is-scrolling [class*="backdrop-blur"]:not(.keep-blur) {
   animation-duration: 1.1s;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
-  }
-}
+/* No blanket reduced-motion kill switch, by explicit decision: the flag
+   ships enabled on countless Windows machines whose owners never chose it,
+   and it was flattening every transition and killing smooth scrolling.
+   Motion here is quiet and decorative throughout. */

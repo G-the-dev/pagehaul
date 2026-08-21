@@ -1,8 +1,9 @@
 "use client";
 
-import { motion, useReducedMotion } from "framer-motion";
+import { motion } from "framer-motion";
 import { useEffect, useMemo, useState } from "react";
 import { EASE, Reveal, Section, SectionHead, Card } from "./ui/motion-primitives";
+import { useInView } from "@/lib/use-in-view";
 
 /* ------------------------------------------------------------------ *
  * Visuals. Each demonstrates its claim; none is decoration.
@@ -10,148 +11,251 @@ import { EASE, Reveal, Section, SectionHead, Card } from "./ui/motion-primitives
 
 const TILE = "rounded-md";
 
-/** A page resolving into typed files. */
-function CoverageVisual({ active }: { active: boolean }) {
-  const reduce = useReducedMotion();
-  const items = [
-    { l: "WEBP", w: 2, tone: "bg-foreground/80" },
-    { l: "SVG", w: 1, tone: "bg-surface-3" },
-    { l: "MP4", w: 1, tone: "bg-surface-3" },
-    { l: "WOFF2", w: 1, tone: "bg-surface-3" },
-    { l: "JSON", w: 2, tone: "bg-surface-3" },
-    { l: "PNG", w: 1, tone: "bg-foreground/45" },
-    { l: "CSS", w: 1, tone: "bg-surface-3" },
-    { l: "PDF", w: 1, tone: "bg-surface-3" },
+/**
+ * A shared clock for looping visuals: progress 0..1 over the duration,
+ * frozen at a finished frame for anyone who asked their OS for less motion.
+ */
+function useLoop(durationMs: number, run: boolean = true): number {
+  const [p, setP] = useState(0);
+  useEffect(() => {
+    if (!run) return;
+    const t0 = performance.now();
+    let raf = 0;
+    let last = 0;
+    const FRAME = 1000 / 24;
+    const tick = (t: number) => {
+      raf = requestAnimationFrame(tick);
+      if (t - last < FRAME) return;
+      last = t;
+      setP(((t - t0) % durationMs) / durationMs);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [durationMs, run]);
+  return p;
+}
+
+/** Ease-out for anything that travels; thresholds pop without it. */
+const easeOut = (t: number) => 1 - Math.pow(1 - Math.max(0, Math.min(1, t)), 3);
+
+/** 1 through the cycle, easing to 0 at the wrap so loops close, not cut. */
+function wrapFade(p: number): number {
+  if (p < 0.05) return easeOut(p / 0.05);
+  if (p > 0.9) return 1 - easeOut((p - 0.9) / 0.1);
+  return 1;
+}
+
+/** The mono eyebrow + status pill header every fragment card opens with. */
+function FragmentHead({ label, pill }: { label: string; pill: string }) {
+  return (
+    <div className="flex items-center justify-between border-b border-border px-3 py-2">
+      <span className="font-mono text-[9.5px] uppercase tracking-[0.12em] text-muted-foreground">
+        {label}
+      </span>
+      <span className="flex items-center gap-1.5 rounded-full border border-border bg-surface-2/60 px-2 py-0.5">
+        <motion.span
+          animate={{ opacity: [1, 0.35, 1] }}
+          transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+          className="h-1.5 w-1.5 rounded-full bg-foreground"
+        />
+        <span className="font-mono text-[8.5px] uppercase tracking-wide text-fg-2">{pill}</span>
+      </span>
+    </div>
+  );
+}
+
+/**
+ * The scan, as its own log: timestamped lines landing one after another,
+ * the way the product actually reports a deep scan. The claim is the card.
+ */
+function CoverageVisual({ active: _active }: { active: boolean }) {
+  const [ref, inView] = useInView<HTMLDivElement>();
+  const p = useLoop(7000, inView);
+  const fade = wrapFade(p);
+  const rows = [
+    { t: "0.8s", m: "+", body: "206 images", tail: "webp · avif", at: 0.06 },
+    { t: "1.4s", m: "+", body: "41 icons", tail: "inline svg", at: 0.2 },
+    { t: "2.2s", m: "+", body: "9 fonts", tail: "woff2", at: 0.34 },
+    { t: "3.6s", m: "~", body: "6 sections", tail: "screenshots", at: 0.48 },
+    { t: "5.1s", m: "\u2713", body: "Scan complete", tail: "466 files", at: 0.64, done: true },
   ];
   return (
-    <div className="grid h-full grid-cols-4 content-center gap-2">
-      {items.map((it, i) => (
-        <motion.div
-          key={it.l}
-          initial={{ opacity: 0, y: 12 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: "-60px" }}
-          animate={reduce || !active ? {} : { y: [0, -3, 0] }}
-          transition={{ duration: 0.5, delay: i * 0.055, ease: EASE }}
-          style={{ gridColumn: `span ${it.w}` }}
-          className={`flex h-11 items-center justify-center ${TILE} ${it.tone}`}
-        >
-          <span
-            className={`font-mono text-[9px] tracking-wider ${
-              it.tone.includes("foreground/80")
-                ? "text-background"
-                : "text-muted-foreground"
-            }`}
-          >
-            {it.l}
-          </span>
-        </motion.div>
-      ))}
+    <div ref={ref} className="flex h-full items-center">
+      <div className="w-full overflow-hidden rounded-lg border border-border bg-background shadow-soft">
+        <FragmentHead label="Deep scan · stripe.com" pill="Live" />
+        <div className="space-y-[3px] px-3 py-2.5 font-mono text-[10.5px]">
+          {rows.map((r) => {
+            const on = p >= r.at;
+            return (
+              <div
+                key={r.t}
+                className="flex items-center gap-2 transition-all duration-500 ease-out"
+                style={{
+                  opacity: on ? fade : 0.12,
+                  transform: on ? "translateY(0)" : "translateY(5px)",
+                }}
+              >
+                <span className="text-muted-foreground/70">{r.t}</span>
+                <span className={r.done ? "text-foreground" : "text-muted-foreground"}>
+                  {r.m}
+                </span>
+                <span className={r.done ? "font-semibold text-foreground" : "text-fg-2"}>
+                  {r.body}
+                </span>
+                <span className="ml-auto text-muted-foreground/70">{r.tail}</span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 }
 
-/** One file leaving the set. */
-function PrecisionVisual({ active }: { active: boolean }) {
-  const reduce = useReducedMotion();
+/**
+ * One file chosen and taken: the cursor drifts to a thumbnail, the tile
+ * answers, and the receipt arrives as a toast. Watching it is the pitch.
+ */
+function PrecisionVisual({ active: _active }: { active: boolean }) {
+  const [ref, inView] = useInView<HTMLDivElement>();
+  const p = useLoop(6400, inView);
+  const seg = (from: number, to: number, a: number, b: number) =>
+    p <= from ? a : p >= to ? b : a + easeOut((p - from) / (to - from)) * (b - a);
+  // Out, dwell, and home again: the cursor never teleports, so the loop
+  // reads as one continuous gesture rather than a cut.
+  const cx = p < 0.6 ? seg(0.05, 0.3, 86, 48) : seg(0.9, 1, 48, 86);
+  const cy = p < 0.6 ? seg(0.05, 0.3, 88, 42) : seg(0.9, 1, 42, 88);
+  const picked = p >= 0.34 && p < 0.88;
+  const toast = p >= 0.42 && p < 0.84;
+  const THUMBS = [
+    "linear-gradient(135deg,#3a3a3d,#232326)",
+    "linear-gradient(160deg,#2c2c2f,#1a1a1c)",
+    "linear-gradient(120deg,#48484c,#2a2a2d)",
+    "linear-gradient(150deg,#242427,#161618)",
+    "linear-gradient(135deg,#565659,#39393c)",
+    "linear-gradient(140deg,#2e2e31,#1d1d1f)",
+    "linear-gradient(125deg,#3f3f42,#252528)",
+    "linear-gradient(155deg,#27272a,#19191b)",
+    "linear-gradient(130deg,#333336,#202023)",
+  ];
   return (
-    <div className="grid h-full grid-cols-3 content-center gap-2">
-      {Array.from({ length: 9 }).map((_, i) => {
-        const pick = i === 4;
-        return (
-          <motion.div
-            key={i}
-            initial={{ opacity: 0, scale: 0.86 }}
-            whileInView={{ opacity: 1, scale: 1 }}
-            viewport={{ once: true, margin: "-60px" }}
-            animate={
-              reduce
-                ? {}
-                : pick
-                  ? active
-                    ? { y: -14, scale: 1.12 }
-                    : { y: 0, scale: 1 }
-                  : { opacity: active ? 0.28 : 1 }
-            }
-            transition={{ duration: 0.45, delay: i * 0.03, ease: EASE }}
-            className={`relative h-12 ${TILE} ${
-              pick ? "z-10 bg-foreground" : "bg-surface-2"
-            }`}
-          >
-            {pick && (
-              <span className="absolute inset-0 grid place-items-center">
-                <svg
-                  viewBox="0 0 24 24"
-                  className="h-4 w-4 text-background"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M12 4v11m0 0 4-4m-4 4-4-4M5 19h14" />
-                </svg>
-              </span>
-            )}
-          </motion.div>
-        );
-      })}
+    <div ref={ref} className="flex h-full items-center">
+      <div className="relative w-full overflow-hidden rounded-lg border border-border bg-background shadow-soft">
+        <FragmentHead label="Results · images" pill="12 found" />
+        <div className="grid grid-cols-3 gap-1.5 p-2.5">
+          {THUMBS.map((bg, i) => {
+            const pick = i === 4;
+            return (
+              <div
+                key={i}
+                className={"h-9 rounded-[5px] transition-all duration-500 ease-out " + (
+                  pick && picked
+                    ? "ring-2 ring-accent-line ring-offset-2 ring-offset-background"
+                    : !pick && picked
+                      ? "opacity-30"
+                      : ""
+                )}
+                style={{ background: bg }}
+              />
+            );
+          })}
+        </div>
+        <svg
+          viewBox="0 0 24 24"
+          className="absolute z-10 h-4 w-4 text-foreground drop-shadow transition-[left,top] duration-100 ease-linear"
+          style={{ left: cx + "%", top: cy + "%" }}
+          fill="currentColor"
+        >
+          <path d="M5 3l14 8-6.5 1.5L9 19z" />
+        </svg>
+        {/* The receipt, floating dark, the way a toast should. */}
+        <div
+          className="absolute inset-x-6 bottom-2 z-10 flex items-center justify-center gap-2 rounded-full bg-foreground px-3 py-1.5 text-background shadow-soft transition-all duration-500 ease-out"
+          style={{
+            opacity: toast ? 1 : 0,
+            transform: toast ? "translateY(0)" : "translateY(10px)",
+          }}
+        >
+          <svg viewBox="0 0 24 24" className="h-2.5 w-2.5" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M20 6 9 17l-5-5" />
+          </svg>
+          <span className="font-mono text-[9.5px]">hero@2x.webp · 214 KB</span>
+        </div>
+      </div>
     </div>
   );
 }
 
-/** Colour and type, read off the page. */
-function DesignVisual({ active }: { active: boolean }) {
-  const reduce = useReducedMotion();
+/**
+ * The design tab assembling itself: swatches with their share of the page,
+ * the type, the tokens typed live, and where you can take them.
+ */
+function DesignVisual({ active: _active }: { active: boolean }) {
+  const [ref, inView] = useInView<HTMLDivElement>();
+  const p = useLoop(7200, inView);
+  const fade = wrapFade(p);
   const swatches = [
     { c: "#fafafa", n: "62%" },
     { c: "#a1a1a1", n: "21%" },
     { c: "#525252", n: "11%" },
     { c: "#262626", n: "6%" },
   ];
+  const token = "--font-sans: Inter";
+  const typedT = Math.max(0, Math.min(1, (p - 0.42) / 0.18));
+  const typed = token.slice(0, Math.round(typedT * token.length));
+  const chips = ["CSS variables", "Figma tokens", "Tailwind"];
   return (
-    <div className="flex h-full flex-col justify-center gap-4">
-      <div className="flex gap-2">
-        {swatches.map((s, i) => (
-          <motion.div
-            key={s.c}
-            initial={{ opacity: 0, y: 14 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: "-60px" }}
-            animate={reduce || !active ? {} : { y: [0, -5, 0] }}
-            transition={{ duration: 0.5, delay: i * 0.07, ease: EASE }}
-            className={`flex-1 overflow-hidden ${TILE} border border-border`}
+    <div ref={ref} className="flex h-full items-center">
+      <div className="w-full overflow-hidden rounded-lg border border-border bg-background shadow-soft">
+        <FragmentHead label="Design system" pill="Read" />
+        <div className="space-y-2.5 p-3">
+          <div className="flex gap-1.5">
+            {swatches.map((sw, i) => {
+              const on = p >= 0.06 + i * 0.07;
+              return (
+                <div
+                  key={sw.c}
+                  className="flex-1 overflow-hidden rounded-[5px] border border-border transition-all duration-500 ease-out"
+                  style={{
+                    opacity: on ? fade : 0.12,
+                    transform: on ? "translateY(0)" : "translateY(5px)",
+                  }}
+                >
+                  <div className="h-6 w-full" style={{ background: sw.c }} />
+                  <div className="bg-surface-2 py-px text-center font-mono text-[8px] text-muted-foreground">
+                    {sw.n}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <div
+            className="flex h-[20px] items-center rounded-[5px] bg-surface-2/70 px-2 font-mono text-[10px] text-fg-2 transition-opacity duration-500 ease-out"
+            style={{ opacity: p >= 0.4 ? fade : 0.12 }}
           >
-            <div className="h-9 w-full" style={{ background: s.c }} />
-            <div className="bg-surface-2 py-1 text-center font-mono text-[8.5px] text-muted-foreground">
-              {s.n}
-            </div>
-          </motion.div>
-        ))}
-      </div>
-      <div className="flex items-baseline gap-3">
-        {["Aa", "Aa", "Aa"].map((t, i) => (
-          <motion.span
-            key={i}
-            initial={{ opacity: 0, y: 10 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true, margin: "-60px" }}
-            transition={{ duration: 0.5, delay: 0.25 + i * 0.08, ease: EASE }}
-            style={{ fontSize: `${28 - i * 8}px`, fontWeight: 700 - i * 200 }}
-            className="leading-none text-fg-2"
-          >
-            {t}
-          </motion.span>
-        ))}
-        <motion.span
-          initial={{ opacity: 0 }}
-          whileInView={{ opacity: 1 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.5, delay: 0.5 }}
-          className="ml-auto font-mono text-[9.5px] text-muted-foreground"
-        >
-          3 families
-        </motion.span>
+            {typed}
+            {typedT > 0 && typedT < 1 && (
+              <span className="ml-px h-3 w-px bg-foreground" />
+            )}
+          </div>
+          <div className="flex gap-1.5">
+            {chips.map((c, i) => {
+              const on = p >= 0.68 + i * 0.08;
+              return (
+                <span
+                  key={c}
+                  className="rounded-md border border-border bg-surface-2/50 px-2 py-1 font-mono text-[8.5px] text-muted-foreground transition-all duration-500 ease-out"
+                  style={{
+                    opacity: on ? fade : 0.12,
+                    transform: on ? "translateY(0)" : "translateY(4px)",
+                  }}
+                >
+                  {c}
+                </span>
+              );
+            })}
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -161,19 +265,19 @@ const FEATURES = [
   {
     tag: "Coverage",
     title: "Nothing stays hidden",
-    body: "CSS backgrounds, every srcset size, fonts, video, API responses.",
+    body: "CSS backgrounds, every srcset size, fonts, video, API responses. If the page loads it, it shows up.",
     Visual: CoverageVisual,
   },
   {
     tag: "Precision",
     title: "One file, not the archive",
-    body: "Click an asset, it downloads. Named properly, on its own.",
+    body: "Click a file and it downloads, alone, named like a person would name it.",
     Visual: PrecisionVisual,
   },
   {
     tag: "Design",
     title: "Read the design itself",
-    body: "The palette a page paints with, its type, and its tokens.",
+    body: "The palette it paints with, the type it sets, the tokens underneath. Read from the live page.",
     Visual: DesignVisual,
   },
 ];
@@ -194,7 +298,7 @@ export function Features() {
         }
       />
 
-      <div className="mt-16 grid gap-5 lg:grid-cols-3">
+      <div className="mt-14 grid gap-5 lg:grid-cols-3">
         {FEATURES.map((f, i) => (
           <Reveal key={f.title} delay={i * 0.1}>
             <div
@@ -204,16 +308,19 @@ export function Features() {
             >
               <Card className="flex h-full flex-col">
                 <div className="p-6 pb-0">
-                  <div className="h-[190px]">
-                    <f.Visual active={hovered === i} />
+                  <div className="relative h-[190px]">
+                    <div aria-hidden className="hatch absolute -inset-x-6 -top-6 bottom-0 opacity-70" style={{ maskImage: "linear-gradient(#000 55%, transparent 100%)", WebkitMaskImage: "linear-gradient(#000 55%, transparent 100%)" }} />
+                    <div className="relative h-full">
+                      <f.Visual active={hovered === i} />
+                    </div>
                   </div>
                 </div>
                 <div className="flex flex-1 flex-col p-6 pt-7">
                   <div className="label-mono mb-3">{f.tag}</div>
-                  <h3 className="mb-2 text-[16.5px] font-semibold tracking-tight">
+                  <h3 className="mb-2 text-[17.5px] font-semibold tracking-tight">
                     {f.title}
                   </h3>
-                  <p className="text-[13.5px] leading-relaxed text-muted-foreground">
+                  <p className="text-[14.5px] leading-relaxed text-muted-foreground">
                     {f.body}
                   </p>
                 </div>
@@ -234,17 +341,17 @@ const STEPS = [
   {
     n: "01",
     h: "Paste a link",
-    p: "Any public page. Choose quick, or deep for sites built with JavaScript.",
+    p: "Any public page. Quick reads the markup; deep runs the page in a real browser.",
   },
   {
     n: "02",
     h: "See what it is made of",
-    p: "Images, icons, video, fonts, documents and network calls, each named so you can read it.",
+    p: "Images, icons, video, fonts, documents and network calls, named so you can tell them apart.",
   },
   {
     n: "03",
     h: "Take what you need",
-    p: "One file downloads on its own. Or pick a set and get an archive with a manifest.",
+    p: "One file downloads on its own. A selection arrives as a zip with a manifest.",
   },
 ];
 
@@ -252,48 +359,54 @@ const STEPS = [
  * Step one: an address being typed, over and over.
  *
  * These loop rather than playing once on scroll, because the section is about
- * a process and a still frame does not read as one. All three are guarded by
- * reduced motion, where they settle on a finished state instead.
+ * a process and a still frame does not read as one.
  */
 function PasteVisual() {
-  const reduce = useReducedMotion();
   const full = "stripe.com";
-  const [typed, setTyped] = useState(reduce ? full : "");
+  const [typed, setTyped] = useState("");
+  const [ref, inView] = useInView<HTMLDivElement>();
 
   useEffect(() => {
-    if (reduce) return;
+    if (!inView) return;
     let i = 0;
     let hold = 0;
+    let erasing = false;
     const t = setInterval(() => {
       if (hold > 0) {
         hold -= 1;
         return;
       }
-      if (i <= full.length) {
-        setTyped(full.slice(0, i));
-        i += 1;
-        if (i > full.length) hold = 18; // pause on the finished address
-      } else {
-        i = 0;
-        setTyped("");
+      if (erasing) {
+        i -= 1;
+        setTyped(full.slice(0, Math.max(0, i)));
+        if (i <= 0) {
+          erasing = false;
+          hold = 4;
+        }
+        return;
+      }
+      setTyped(full.slice(0, i));
+      i += 1;
+      if (i > full.length) {
+        i = full.length;
+        hold = 18; // linger on the finished address
+        erasing = true;
       }
     }, 130);
     return () => clearInterval(t);
-  }, [reduce]);
+  }, [inView]);
 
   return (
-    <div className="flex h-full items-center">
+    <div ref={ref} className="flex h-full items-center">
       <div className="flex w-full items-center gap-2 rounded-lg border border-border bg-background px-3 py-2.5">
         <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-surface-3" />
-        <span className="font-mono text-[11.5px] text-fg-2">{typed}</span>
-        {!reduce && (
-          <motion.span
-            animate={{ opacity: [1, 0, 1] }}
-            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-            className="h-3.5 w-px bg-foreground"
-          />
-        )}
-        <span className="ml-auto shrink-0 rounded-md bg-foreground px-2 py-1 text-[10px] font-semibold text-background">
+        <span className="font-mono text-[12.5px] text-fg-2">{typed}</span>
+        <motion.span
+          animate={{ opacity: [1, 0, 1] }}
+          transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+          className="h-3.5 w-px bg-foreground"
+        />
+        <span className="ml-auto shrink-0 rounded-md bg-foreground px-2 py-1 text-[11px] font-semibold text-background">
           Scan
         </span>
       </div>
@@ -303,7 +416,6 @@ function PasteVisual() {
 
 /** Step two: counts climbing as files are found. */
 function FoundVisual() {
-  const reduce = useReducedMotion();
   const rows = useMemo(
     () => [
       { k: "Images", n: 206 },
@@ -312,19 +424,26 @@ function FoundVisual() {
     ],
     [],
   );
-  const [counts, setCounts] = useState<number[]>(
-    reduce ? rows.map((r) => r.n) : [0, 0, 0],
-  );
+  const [counts, setCounts] = useState<number[]>([0, 0, 0]);
+  const [ref, inView] = useInView<HTMLDivElement>();
 
   useEffect(() => {
-    if (reduce) return;
+    if (!inView) return;
     let frame = 0;
     const total = 70;
+    const hold = 26;
+    const down = 14;
     const t = setInterval(() => {
       frame += 1;
-      if (frame > total + 26) {
+      if (frame > total + hold + down) {
         frame = 0;
-        setCounts([0, 0, 0]);
+        return;
+      }
+      if (frame > total + hold) {
+        // Roll back down rather than snapping to zero: the loop closes.
+        const d = (frame - total - hold) / down;
+        const eased = 1 - Math.pow(d, 2);
+        setCounts(rows.map((r) => Math.round(r.n * eased)));
         return;
       }
       const p = Math.min(1, frame / total);
@@ -333,18 +452,18 @@ function FoundVisual() {
       setCounts(rows.map((r) => Math.round(r.n * eased)));
     }, 40);
     return () => clearInterval(t);
-  }, [reduce, rows]);
+  }, [rows, inView]);
 
   return (
-    <div className="flex h-full flex-col justify-center gap-1.5">
+    <div ref={ref} className="flex h-full flex-col justify-center gap-1.5">
       {rows.map((r, i) => (
         <div
           key={r.k}
           className="flex items-center gap-2.5 rounded-md border border-border bg-background px-2.5 py-2"
         >
           <span className="h-5 w-5 shrink-0 rounded bg-surface-3" />
-          <span className="text-[11.5px] text-fg-2">{r.k}</span>
-          <span className="ml-auto font-mono text-[10.5px] tabular-nums text-muted-foreground">
+          <span className="text-[12.5px] text-fg-2">{r.k}</span>
+          <span className="ml-auto font-mono text-[11.5px] tabular-nums text-muted-foreground">
             {counts[i]}
           </span>
         </div>
@@ -355,8 +474,7 @@ function FoundVisual() {
 
 /** Step three: one file lifting clear, then settling back. */
 function TakeVisual() {
-  const reduce = useReducedMotion();
-  return (
+    return (
     <div className="flex h-full items-center justify-center gap-2">
       {[0, 1, 2, 3].map((i) => {
         const pick = i === 1;
@@ -364,16 +482,12 @@ function TakeVisual() {
           <motion.div
             key={i}
             animate={
-              reduce
-                ? {}
-                : pick
+              pick
                   ? { y: [0, -10, -10, 0] }
                   : { opacity: [1, 0.4, 0.4, 1] }
             }
             transition={
-              reduce
-                ? {}
-                : {
+              {
                     duration: 2.8,
                     times: [0, 0.25, 0.7, 1],
                     repeat: Infinity,
@@ -430,13 +544,13 @@ export function Steps() {
                     number sat against a cut-off edge. This gap is the
                     separation. */}
                 <div className="flex flex-1 flex-col p-5 pt-7">
-                  <div className="mb-2.5 font-mono text-[11px] font-semibold text-muted-foreground">
+                  <div className="mb-2.5 font-mono text-[12px] font-semibold text-muted-foreground">
                     {s.n}
                   </div>
-                  <h3 className="mb-2 text-[16px] font-semibold tracking-tight">
+                  <h3 className="mb-2 text-[17px] font-semibold tracking-tight">
                     {s.h}
                   </h3>
-                  <p className="text-[13.5px] leading-relaxed text-muted-foreground">
+                  <p className="text-[14.5px] leading-relaxed text-muted-foreground">
                     {s.p}
                   </p>
                 </div>
@@ -459,67 +573,117 @@ export function Steps() {
  * reason to exist.
  */
 function DesignerMark() {
+  const [ref, inView] = useInView<HTMLDivElement>();
+  const p = useLoop(5200, inView);
+  const sw = [
+    { c: "#fafafa", n: "#FAFAFA" },
+    { c: "#a1a1a1", n: "#A1A1A1" },
+    { c: "#525252", n: "#525252" },
+    { c: "#2e2e2e", n: "#2E2E2E" },
+  ];
+  const idx = Math.floor(p * 4) % 4;
   return (
-    <div className="flex gap-1.5">
-      {["#fafafa", "#a1a1a1", "#525252", "#2e2e2e"].map((c) => (
+    <div ref={ref} className="flex w-full items-center gap-1.5">
+      {sw.map((s, i) => (
         <span
-          key={c}
-          className="h-6 w-6 rounded-md border border-border"
-          style={{ background: c }}
+          key={s.c}
+          className={"h-7 w-7 rounded-md border transition-all duration-300 " + (
+            i === idx ? "scale-110 border-accent-line" : "border-border"
+          )}
+          style={{ background: s.c }}
         />
       ))}
+      <span className="ml-2 font-mono text-[10px] text-muted-foreground">
+        {sw[idx].n}
+      </span>
     </div>
   );
 }
 
 function DeveloperMark() {
+  const [ref, inView] = useInView<HTMLDivElement>();
+  const p = useLoop(5600, inView);
+  const fade = wrapFade(p);
+  const rows = [
+    { m: "GET", u: "/api/products", s: "200", at: 0.05 },
+    { m: "GET", u: "/fonts/inter.woff2", s: "200", at: 0.38 },
+    { m: "POST", u: "/api/track", s: "204", at: 0.68 },
+  ];
   return (
-    <div className="flex w-full max-w-[130px] flex-col gap-1.5">
-      {[100, 62, 82].map((w, i) => (
-        <span
-          key={i}
-          style={{ width: `${w}%` }}
-          className={`h-1.5 rounded-full ${i === 1 ? "bg-foreground/55" : "bg-surface-3"}`}
-        />
-      ))}
+    <div ref={ref} className="w-full space-y-1 font-mono text-[10px]">
+      {rows.map((r) => {
+        const on = p >= r.at;
+        return (
+          <div
+            key={r.u}
+            className="flex items-center gap-1.5 transition-all duration-500 ease-out"
+            style={{ opacity: on ? fade : 0.15 }}
+          >
+            <span className="text-muted-foreground">{r.m}</span>
+            <span className="text-fg-2">{r.u}</span>
+            <span className="ml-auto rounded bg-surface-2 px-1 text-muted-foreground">{r.s}</span>
+          </div>
+        );
+      })}
     </div>
   );
 }
 
 function MotionMark() {
+  const [ref, inView] = useInView<HTMLDivElement>();
+  const p = useLoop(6000, inView);
+  const fill = Math.min(1, p * 1.3);
+  const secs = Math.floor(fill * 12);
   return (
-    <div className="flex items-center gap-1.5">
-      {[0, 1, 2].map((i) => (
-        <span
-          key={i}
-          className={`h-6 rounded-md ${i === 1 ? "w-9 bg-foreground/70" : "w-6 bg-surface-3"}`}
-        />
-      ))}
-      <span className="ml-0.5 border-y-[5px] border-l-[8px] border-y-transparent border-l-foreground/60" />
+    <div ref={ref} className="flex w-full items-center gap-2.5">
+      <span className="grid h-8 w-8 shrink-0 place-items-center rounded-md bg-surface-2">
+        <span className="border-y-[4.5px] border-l-[8px] border-y-transparent border-l-foreground/70" />
+      </span>
+      <div className="min-w-0 flex-1">
+        <div className="mb-1.5 flex justify-between font-mono text-[9.5px] text-muted-foreground">
+          <span>reel.mp4</span>
+          <span>
+            0:{String(secs).padStart(2, "0")} / 0:12
+          </span>
+        </div>
+        <div className="h-1 overflow-hidden rounded-full bg-surface-2">
+          <div
+            className="h-full rounded-full bg-foreground/70"
+            style={{ width: fill * 100 + "%", transition: "width 120ms linear" }}
+          />
+        </div>
+      </div>
     </div>
   );
 }
 
 function MigrateMark() {
+  const [ref, inView] = useInView<HTMLDivElement>();
+  const p = useLoop(6400, inView);
+  const done = Math.min(1, p * 1.25);
+  const n = Math.round(done * 142);
   return (
-    <div className="flex items-center gap-2">
-      <span className="grid h-6 w-6 grid-cols-2 grid-rows-2 gap-[2px]">
-        {[0, 1, 2, 3].map((i) => (
-          <span key={i} className="rounded-[2px] bg-surface-3" />
+    <div ref={ref} className="w-full">
+      <div className="mb-1.5 flex justify-between font-mono text-[9.5px] text-muted-foreground">
+        <span>site export</span>
+        <span>{n} of 142 files</span>
+      </div>
+      <div className="h-1 overflow-hidden rounded-full bg-surface-2">
+        <div
+          className="h-full rounded-full bg-foreground/70"
+          style={{ width: done * 100 + "%", transition: "width 120ms linear" }}
+        />
+      </div>
+      <div className="mt-2 flex gap-1">
+        {[0, 1, 2, 3, 4, 5].map((i) => (
+          <span
+            key={i}
+            className={"h-2 w-2 rounded-[2px] transition-colors duration-300 " + (
+              done * 6 > i ? "bg-foreground/70" : "bg-surface-2"
+            )}
+          />
         ))}
-      </span>
-      <svg
-        viewBox="0 0 24 24"
-        className="h-3.5 w-3.5 text-muted-foreground"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        <path d="M5 12h14m0 0-5-5m5 5-5 5" />
-      </svg>
-      <span className="h-6 w-6 rounded-md bg-foreground/70" />
+      </div>
     </div>
   );
 }
@@ -556,15 +720,15 @@ export function Audience() {
           title="Built for people who know what they are looking for."
         />
 
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-5 sm:grid-cols-2">
           {AUDIENCE.map((a, i) => (
             <Reveal key={a.who} delay={i * 0.08}>
               <Card className="flex h-full flex-col p-6">
-                <div className="mb-6 flex h-8 items-center">
+                <div className="mb-6 flex h-14 items-center">
                   <a.Mark />
                 </div>
-                <div className="mb-1.5 text-[15px] font-semibold">{a.who}</div>
-                <p className="text-[13.5px] leading-relaxed text-muted-foreground">
+                <div className="mb-1.5 text-[16px] font-semibold">{a.who}</div>
+                <p className="text-[14.5px] leading-relaxed text-muted-foreground">
                   {a.what}
                 </p>
               </Card>

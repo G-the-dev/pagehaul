@@ -21,7 +21,7 @@ function Key({ children }: { children: React.ReactNode }) {
   return (
     // Border and ink both inherit the button's own colour, so one chip reads
     // correctly on the filled button and the outlined ones alike.
-    <kbd className="ml-1.5 rounded border border-current px-1 font-mono text-[9.5px] leading-[1.4] opacity-45">
+    <kbd className="ml-1.5 rounded border border-current px-1 font-mono text-[10.5px] leading-[1.4] opacity-45">
       {children}
     </kbd>
   );
@@ -283,12 +283,12 @@ export function DetailDialog({
         >
         <div className="mb-5 flex items-start justify-between gap-4">
           <div className="min-w-0">
-            <p className="truncate text-[16px] font-semibold">{asset.displayName}</p>
+            <p className="truncate text-[17px] font-semibold">{asset.displayName}</p>
             {/* Two lines, hard stop. A CDN address can run to hundreds of
                 characters and was pushing the whole panel down before the
                 picture even appeared. A data URL is not an address at all —
                 a wall of base64 says nothing, so say what the thing is. */}
-            <p className="mt-1 line-clamp-2 break-all font-mono text-[11px] leading-[1.5] text-muted-foreground">
+            <p className="mt-1 line-clamp-2 break-all font-mono text-[12px] leading-[1.5] text-muted-foreground">
               {!asset.url.startsWith("data:")
                 ? asset.url
                 : asset.kind === "screenshot"
@@ -300,7 +300,7 @@ export function DetailDialog({
             {/* The chevrons either side of the panel already say the arrows
                 work; spelling the keys out as well was clutter. */}
             {position && total && total > 1 && (
-              <span className="hidden font-mono text-[11px] tabular-nums text-muted-foreground sm:inline">
+              <span className="hidden font-mono text-[12px] tabular-nums text-muted-foreground sm:inline">
                 {position} of {total}
               </span>
             )}
@@ -333,7 +333,7 @@ export function DetailDialog({
               type="button"
               onClick={onClose}
               aria-label="Close"
-              className="rounded-lg border border-border px-2.5 py-1.5 font-mono text-[11px] text-muted-foreground transition-colors hover:border-border-strong hover:text-foreground"
+              className="rounded-lg border border-border px-2.5 py-1.5 font-mono text-[12px] text-muted-foreground transition-colors hover:border-border-strong hover:text-foreground"
             >
               ESC
             </button>
@@ -438,7 +438,7 @@ export function DetailDialog({
           />
         )}
         {asset.preview && (
-          <pre className="max-h-40 overflow-auto rounded-lg border border-border bg-surface-2 p-3 font-mono text-[11px] leading-relaxed text-fg-2">
+          <pre className="max-h-40 overflow-auto rounded-lg border border-border bg-surface-2 p-3 font-mono text-[12px] leading-relaxed text-fg-2">
             {asset.preview}
           </pre>
         )}
@@ -458,8 +458,8 @@ export function DetailDialog({
               key={k}
               className="flex items-baseline justify-between gap-3 border-b border-border py-2"
             >
-              <dt className="label-mono text-[9.5px]">{k}</dt>
-              <dd className="truncate font-mono text-[11.5px] text-fg-2">{v}</dd>
+              <dt className="label-mono text-[10.5px]">{k}</dt>
+              <dd className="truncate font-mono text-[12.5px] text-fg-2">{v}</dd>
             </div>
           ))}
         </dl>
@@ -469,7 +469,7 @@ export function DetailDialog({
             ladder. The one on the card is marked. */}
         {asset.variants && asset.variants.length > 1 && (
           <div className="mt-5 flex flex-wrap items-center gap-2">
-            <span className="label-mono text-[9.5px]">Size &amp; format</span>
+            <span className="label-mono text-[10.5px]">Size &amp; format</span>
             {asset.variants.map((v) => {
               const current = v.url === selectedUrl;
               return (
@@ -478,7 +478,7 @@ export function DetailDialog({
                   type="button"
                   onClick={() => setSelectedUrl(v.url)}
                   aria-pressed={current}
-                  className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 font-mono text-[11px] transition-colors ${
+                  className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 font-mono text-[12px] transition-colors ${
                     current
                       ? "border-accent bg-accent/10 text-foreground"
                       : "border-border text-muted-foreground hover:border-border-strong hover:text-foreground"
@@ -495,7 +495,7 @@ export function DetailDialog({
           <button
             type="button"
             onClick={() => onDownload(selectedUrl)}
-            className="inline-flex h-9 items-center rounded-lg bg-accent px-4 text-[13px] font-semibold text-accent-fg transition-all hover:brightness-110"
+            className="inline-flex h-9 items-center rounded-lg bg-accent px-4 text-[14px] font-semibold text-accent-fg transition-all hover:brightness-110"
           >
             Download
             <Key>D</Key>
@@ -504,7 +504,7 @@ export function DetailDialog({
             type="button"
             onClick={copy}
             aria-live="polite"
-            className={`inline-flex h-9 items-center gap-1.5 rounded-lg border px-4 text-[13px] transition-colors ${
+            className={`inline-flex h-9 items-center gap-1.5 rounded-lg border px-4 text-[14px] transition-colors ${
               copied !== "idle"
                 ? "border-accent-line text-foreground"
                 : "border-border hover:border-border-strong"
@@ -534,7 +534,7 @@ export function DetailDialog({
             <button
               type="button"
               onClick={() => window.open(selectedUrl, "_blank", "noopener,noreferrer")}
-              className="inline-flex h-9 items-center rounded-lg border border-border px-4 text-[13px] transition-colors hover:border-border-strong"
+              className="inline-flex h-9 items-center rounded-lg border border-border px-4 text-[14px] transition-colors hover:border-border-strong"
             >
               Open original
               <Key>O</Key>

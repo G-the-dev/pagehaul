@@ -24,12 +24,39 @@ export default function TermsPage() {
           it visits.
         </p>
         <p>
-          It is provided free, with no account, and with no guarantee that it will
-          keep working, keep being free, or work on any particular site.
+          There is a free plan and there are paid ones, all without accounts.
+          Nothing here is a guarantee that the service will keep working, keep
+          its current prices, or work on any particular site.
         </p>
       </Clause>
 
-      <Clause n="02" title="What you promise">
+      <Clause n="02" title="Plans, payments and licenses">
+        <p>
+          Quick scans are free and unlimited. The free plan includes a limited
+          number of deep scans; Pro is a monthly plan with unlimited deep scans
+          and every feature unlocked; a scan pack is a one-time purchase of a
+          fixed number of deep scans, valid for a year. Prices are shown in
+          rupees on the pricing section and can change for future purchases,
+          never for one already made.
+        </p>
+        <p>
+          Payment is by UPI. After you pay, we confirm the payment on our side
+          and issue a license, usually within minutes, not instantly. The
+          purchase lives in your browser and in the unlock link emailed to
+          you; opening that link unlocks any browser or device you choose, and
+          it is not transferable by sale. If your browser ever forgets the
+          purchase, the link in your receipt email restores it.
+        </p>
+        <p>
+          If you paid and nothing unlocked, write to{" "}
+          <a href={`mailto:${SITE.contactEmail}`}>{SITE.contactEmail}</a> with
+          your payment reference and we will make it right, with a working
+          license or your money back. Beyond that, purchases of digital
+          services are refundable at our discretion.
+        </p>
+      </Clause>
+
+      <Clause n="03" title="What you promise">
         <p>
           By submitting an address you confirm that you have the right to copy the
           material at it. That means you own the site, you have permission from
@@ -50,7 +77,7 @@ export default function TermsPage() {
         </ul>
       </Clause>
 
-      <Clause n="03" title="Downloading gives you no rights">
+      <Clause n="04" title="Downloading gives you no rights">
         <p>
           This is the part most people get wrong, so it is stated plainly. Getting
           a copy of a file does not give you any right to use it.
@@ -63,11 +90,11 @@ export default function TermsPage() {
         </p>
       </Clause>
 
-      <Clause n="04" title="We do not keep your content">
+      <Clause n="05" title="We do not keep your content">
         <p>
-          Files pass through this service; they do not live in it. Any archive we
-          package is deleted after {SITE.retentionMinutes} minutes, and we do not
-          read, index or retain what you capture.
+          Files pass from the site you scan to your browser; they do not live
+          with us. Archives are built on your own device, and we do not read,
+          index or retain what you capture.
         </p>
         <p>
           We do keep a record of the addresses submitted, so that a takedown
@@ -76,7 +103,7 @@ export default function TermsPage() {
         </p>
       </Clause>
 
-      <Clause n="05" title="Takedown notices">
+      <Clause n="06" title="Takedown notices">
         <p>
           If you believe material was copied through this service in a way that
           infringes your rights, write to{" "}
@@ -89,13 +116,13 @@ export default function TermsPage() {
           reasonable request from the owner.
         </p>
         <p>
-          Because captures are deleted within {SITE.retentionMinutes} minutes,
-          there is usually nothing left for us to remove by the time a notice
-          arrives. Blocking future captures is the meaningful remedy.
+          Because nothing you capture is ever stored with us, there is nothing
+          for us to remove when a notice arrives. Blocking future captures is
+          the meaningful remedy.
         </p>
       </Clause>
 
-      <Clause n="06" title="Limits and fair use">
+      <Clause n="07" title="Limits and fair use">
         <p>
           Requests are limited per address to keep the service available and to
           avoid placing load on the sites being captured. We may refuse or block
@@ -104,7 +131,7 @@ export default function TermsPage() {
         </p>
       </Clause>
 
-      <Clause n="07" title="No warranty">
+      <Clause n="08" title="No warranty">
         <p>
           The service is provided as it is. It may miss files, misread a page,
           fail on a site that blocks automated visitors, or stop working entirely.
@@ -117,7 +144,7 @@ export default function TermsPage() {
         </p>
       </Clause>
 
-      <Clause n="08" title="Changes and contact">
+      <Clause n="09" title="Changes and contact">
         <p>
           These terms may change. The date at the top will change with them, and
           continuing to use the service means accepting the current version.

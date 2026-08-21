@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { Plus } from "lucide-react";
 import Link from "next/link";
 import { EASE, Reveal, Section, Chip } from "./ui/motion-primitives";
@@ -16,7 +16,7 @@ import { FooterWordmark } from "./FooterWordmark";
 const FAQ = [
   {
     q: "Is it free?",
-    a: "Yes. No account, no email, nothing metered.",
+    a: "Quick scans are free and unlimited, and you get 2 free deep scans. Past that it is \u20b9249 a month, or a \u20b999 pack of 5 deep scans.",
   },
   {
     q: "Do you keep my files or scans?",
@@ -72,7 +72,7 @@ function FaqRow({
           className="group flex w-full items-center justify-between gap-6 py-4 text-left"
         >
           <span
-            className={`text-[15px] font-medium leading-snug transition-colors ${
+            className={`text-[16px] font-medium leading-snug transition-colors ${
               open ? "text-foreground" : "text-fg-2 group-hover:text-foreground"
             }`}
           >
@@ -86,21 +86,13 @@ function FaqRow({
             <Plus className="h-3 w-3" />
           </motion.span>
         </button>
-        <AnimatePresence initial={false}>
-          {open && (
-            <motion.div
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: "auto", opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              transition={{ duration: 0.32, ease: EASE }}
-              className="overflow-hidden"
-            >
-              <p className="max-w-xl pb-5 pr-10 text-[14px] leading-relaxed text-muted-foreground">
-                {a}
-              </p>
-            </motion.div>
-          )}
-        </AnimatePresence>
+        {/* No open/close animation at all, by request: the answer is either
+            there or it is not, and a clean cut cannot jitter. */}
+        {open && (
+          <p className="max-w-xl pb-5 pr-10 text-[15px] leading-relaxed text-muted-foreground">
+            {a}
+          </p>
+        )}
       </div>
     </Reveal>
   );
@@ -117,14 +109,12 @@ export function Faq() {
         <Reveal>
           <div className="lg:sticky lg:top-28">
             <Chip>FAQ</Chip>
-            <h2 className="mt-6 text-[2rem] font-medium leading-[1.12] tracking-tight sm:text-[2.5rem]">
+            <h2 className="mt-6 text-[2.15rem] font-medium leading-[1.12] tracking-tight sm:text-[2.7rem]">
               Your questions,
               <br />
               answered plainly.
             </h2>
-            <p className="mt-5 max-w-xs text-[14.5px] leading-relaxed text-muted-foreground">
-              Including the ones where the honest answer is no.
-            </p>
+
           </div>
         </Reveal>
 
@@ -145,6 +135,15 @@ export function Faq() {
   );
 }
 
+/**
+ * A full-bleed band of hairline diagonal stripes, the drafting-paper filler
+ * between sections. Structure without content: the page admits it is built,
+ * the way the tile logo admits it is pixels.
+ */
+export function HatchBand() {
+  return <div aria-hidden className="hatch h-10 w-full border-y border-border/60" />;
+}
+
 export function Footer() {
   return (
     <footer className="relative overflow-hidden">
@@ -157,10 +156,10 @@ export function Footer() {
         <Reveal>
           <div className="grid gap-10 pb-20 sm:grid-cols-[1fr_auto_auto] sm:gap-x-24">
             <div>
-              <div className="mb-3 text-[15px] font-semibold tracking-tight">
+              <div className="mb-3 text-[16px] font-semibold tracking-tight">
                 pagehaul
               </div>
-              <p className="max-w-[26ch] text-[13.5px] leading-relaxed text-muted-foreground">
+              <p className="max-w-[26ch] text-[14.5px] leading-relaxed text-muted-foreground">
                 Every asset on any page, one click away.
               </p>
               {/* Directory badge — kept quiet on purpose: dimmed until
@@ -182,16 +181,11 @@ export function Footer() {
 
             <div>
               <div className="label-mono mb-4">Product</div>
-              <ul className="space-y-2.5 text-[13.5px] text-muted-foreground">
+              <ul className="space-y-2.5 text-[14.5px] text-muted-foreground">
                 <li>
-                  <a href="#top" className="transition-colors hover:text-foreground">
-                    Scan a page
-                  </a>
-                </li>
-                <li>
-                  <Link href="/pricing" className="transition-colors hover:text-foreground">
+                  <a href="/#pricing" className="transition-colors hover:text-foreground">
                     Pricing
-                  </Link>
+                  </a>
                 </li>
                 <li>
                   <Link href="/about" className="transition-colors hover:text-foreground">
@@ -204,7 +198,7 @@ export function Footer() {
 
             <div>
               <div className="label-mono mb-4">More</div>
-              <ul className="space-y-2.5 text-[13.5px] text-muted-foreground">
+              <ul className="space-y-2.5 text-[14.5px] text-muted-foreground">
                 <li>
                   <Link href="/privacy" className="transition-colors hover:text-foreground">
                     Privacy

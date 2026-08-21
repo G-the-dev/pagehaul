@@ -52,7 +52,7 @@ export function Countdown({
   return (
     <Tooltip label={`Results clear ${SITE.resultsMinutes} minutes after a scan`}>
     <span
-      className={`inline-flex items-center gap-2 rounded-full border px-2.5 py-1 font-mono text-[11px] transition-colors ${
+      className={`inline-flex items-center gap-2 rounded-full border px-2.5 py-1 font-mono text-[12px] transition-colors ${
         urgent
           ? "live-urgent border-warn/40 bg-warn-soft text-warn"
           : "border-border bg-surface-2/50 text-fg-2"

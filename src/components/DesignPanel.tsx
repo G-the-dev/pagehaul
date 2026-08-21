@@ -24,7 +24,7 @@ function CopyChip({ value, label }: { value: string; label?: string }) {
         setDone(true);
         setTimeout(() => setDone(false), 1200);
       }}
-      className="inline-flex items-center gap-1.5 font-mono text-[11px] text-muted-foreground transition-colors hover:text-foreground"
+      className="inline-flex items-center gap-1.5 font-mono text-[12px] text-muted-foreground transition-colors hover:text-foreground"
       aria-label={`Copy ${value}`}
     >
       {label ?? value}
@@ -66,7 +66,7 @@ export function DesignPanel({ palette, typography, tokens, host }: Props) {
   if (!hasAny) {
     return (
       <div className="rounded-xl border border-dashed border-border py-16 text-center">
-        <p className="text-sm text-muted-foreground">
+        <p className="text-[15px] text-muted-foreground">
           Run a deep scan to read this page&rsquo;s colours and type.
         </p>
       </div>
@@ -97,15 +97,15 @@ export function DesignPanel({ palette, typography, tokens, host }: Props) {
           format is the W3C standard those plugins share, so it is not tied to
           any one of them. */}
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-surface/50 px-4 py-3">
-        <p className="text-[13px] text-muted-foreground">
+        <p className="text-[14px] text-muted-foreground">
           Export as{" "}
           <span className="text-foreground">design tokens</span>, then import in
           Figma with the{" "}
-          <span className="font-mono text-[12px] text-foreground">
+          <span className="font-mono text-[13px] text-foreground">
             Variables JSON Import
           </span>{" "}
           or{" "}
-          <span className="font-mono text-[12px] text-foreground">
+          <span className="font-mono text-[13px] text-foreground">
             Tokens Studio
           </span>{" "}
           plugin.
@@ -113,7 +113,7 @@ export function DesignPanel({ palette, typography, tokens, host }: Props) {
         <button
           type="button"
           onClick={exportFigma}
-          className="inline-flex h-9 shrink-0 items-center gap-2 rounded-lg bg-accent px-4 text-[13px] font-semibold text-accent-fg transition-all hover:brightness-110"
+          className="inline-flex h-9 shrink-0 items-center gap-2 rounded-lg bg-accent px-4 text-[14px] font-semibold text-accent-fg transition-all hover:brightness-110"
         >
           <Download className="h-3.5 w-3.5" strokeWidth={2.5} />
           Export for Figma
@@ -124,8 +124,8 @@ export function DesignPanel({ palette, typography, tokens, host }: Props) {
         <section>
           <div className="mb-4 flex items-baseline justify-between gap-4">
             <div>
-              <h3 className="text-[15px] font-semibold">Palette</h3>
-              <p className="mt-0.5 text-[13px] text-muted-foreground">
+              <h3 className="text-[16px] font-semibold">Palette</h3>
+              <p className="mt-0.5 text-[14px] text-muted-foreground">
                 Ranked by how often the page paints with each colour.
               </p>
             </div>
@@ -175,10 +175,10 @@ export function DesignPanel({ palette, typography, tokens, host }: Props) {
                     </span>
                   </span>
                   <span className="block px-1.5 py-1.5">
-                    <span className="block font-mono text-[10px] uppercase text-foreground">
+                    <span className="block font-mono text-[11px] uppercase text-foreground">
                       {justCopied ? "copied" : s.hex}
                     </span>
-                    <span className="block font-mono text-[9px] text-muted-foreground">
+                    <span className="block font-mono text-[10px] text-muted-foreground">
                       {s.role}
                     </span>
                   </span>
@@ -192,7 +192,7 @@ export function DesignPanel({ palette, typography, tokens, host }: Props) {
 
       {typography && typography.length > 0 && (
         <section>
-          <h3 className="mb-4 text-[15px] font-semibold">Typography</h3>
+          <h3 className="mb-4 text-[16px] font-semibold">Typography</h3>
           <div className="grid gap-px overflow-hidden rounded-xl border border-border bg-border sm:grid-cols-2">
             {typography.map((t) => (
               <div key={t.family} className="bg-surface p-5">
@@ -202,8 +202,8 @@ export function DesignPanel({ palette, typography, tokens, host }: Props) {
                 >
                   Ag
                 </div>
-                <div className="text-[14px] font-medium">{t.family}</div>
-                <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 font-mono text-[11px] text-muted-foreground">
+                <div className="text-[15px] font-medium">{t.family}</div>
+                <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 font-mono text-[12px] text-muted-foreground">
                   <span>weights {t.weights.join(", ")}</span>
                   <span>sizes {t.sizes.slice(0, 4).join(", ")}</span>
                 </div>
@@ -216,8 +216,8 @@ export function DesignPanel({ palette, typography, tokens, host }: Props) {
       {tokens && tokens.length > 0 && (
         <section>
           <div className="mb-4">
-            <h3 className="text-[15px] font-semibold">Declared tokens</h3>
-            <p className="mt-0.5 text-[13px] text-muted-foreground">
+            <h3 className="text-[16px] font-semibold">Declared tokens</h3>
+            <p className="mt-0.5 text-[14px] text-muted-foreground">
               CSS custom properties the site defines. This is their design system,
               verbatim.
             </p>
@@ -227,7 +227,7 @@ export function DesignPanel({ palette, typography, tokens, host }: Props) {
               {tokens.map((t, i) => (
                 <div
                   key={t.name}
-                  className={`flex items-center gap-4 px-4 py-2 font-mono text-[11.5px] ${
+                  className={`flex items-center gap-4 px-4 py-2 font-mono text-[12.5px] ${
                     i % 2 ? "bg-surface-2/40" : "bg-surface"
                   }`}
                 >

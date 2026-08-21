@@ -103,7 +103,7 @@ export function Tooltip({
               const shift = overLeft > 0 ? overLeft : overRight > 0 ? -overRight : 0;
               el.style.marginLeft = shift ? `${shift}px` : "";
             }}
-            className="pointer-events-none fixed z-[70] max-w-xs rounded-lg border border-border bg-surface-2 px-2.5 py-1.5 text-[12.5px] leading-snug text-foreground shadow-lift"
+            className="pointer-events-none fixed z-[70] max-w-xs rounded-lg border border-border bg-surface-2 px-2.5 py-1.5 text-[13.5px] leading-snug text-foreground shadow-lift"
             style={{
               left: at.x,
               top: at.y,

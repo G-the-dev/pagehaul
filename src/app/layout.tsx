@@ -1,17 +1,23 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import localFont from "next/font/local";
+import { Inter } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 
-const geistSans = Geist({
+const appSans = Inter({
   subsets: ["latin"],
-  variable: "--font-geist-sans",
+  variable: "--font-app-sans",
   display: "swap",
 });
 
-const geistMono = Geist_Mono({
-  subsets: ["latin"],
-  variable: "--font-geist-mono",
+/**
+ * ABC Diatype Mono, from the owner's own licensed files. One weight is all
+ * the mono seats need; the few tiny labels that ask for bold synthesize it.
+ */
+const appMono = localFont({
+  src: "./fonts/ABCDiatypeMono.woff2",
+  weight: "400",
+  variable: "--font-app-mono",
   display: "swap",
 });
 
@@ -56,7 +62,7 @@ export default function RootLayout({
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT }} />
       </head>
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+      <body className={`${appSans.variable} ${appMono.variable} antialiased`}>
         {children}
         {/* Vercel Web Analytics — anonymous page views and visitor counts, no
             cookies. It quietly does nothing when the site is not on Vercel, so

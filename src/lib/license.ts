@@ -19,8 +19,12 @@ export interface LicensePayload {
   plan: "pro" | "pack";
   /** Unix ms after which the token no longer verifies. */
   exp: number;
-  /** Razorpay payment id, for support lookups. */
+  /** Unix ms before which the token is not yet valid: a queued purchase. */
+  nbf?: number;
+  /** The payment reference, for support lookups. */
   ref?: string;
+  /** The buyer's email, so a lost license can be matched to its payment. */
+  email?: string;
 }
 
 function secret(): string | null {
@@ -45,6 +49,33 @@ export function verifyLicense(token: string | null): LicensePayload | null {
   if (parts.length !== 3 || parts[0] !== "v1") return null;
   const [, body, mac] = parts;
   const expected = sign(body, key);
+  if (mac.length !== expected.length) return null;
+  try {
+    if (!timingSafeEqual(Buffer.from(mac), Buffer.from(expected))) return null;
+    const payload = JSON.parse(
+      Buffer.from(body, "base64url").toString("utf8"),
+    ) as LicensePayload;
+    if (typeof payload.exp !== "number" || payload.exp < Date.now()) return null;
+    if (typeof payload.nbf === "number" && payload.nbf > Date.now()) return null;
+    if (payload.plan !== "pro" && payload.plan !== "pack") return null;
+    return payload;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Like verifyLicense, but a queued token (start date still ahead) passes.
+ * For the ledger and the UI, which need to see what is waiting, not only
+ * what is live. Expiry is still enforced.
+ */
+export function verifyLicenseAnyTime(token: string | null): LicensePayload | null {
+  const key = process.env.PH_LICENSE_SECRET || null;
+  if (!key || !token) return null;
+  const parts = token.split(".");
+  if (parts.length !== 3 || parts[0] !== "v1") return null;
+  const [, body, mac] = parts;
+  const expected = createHmac("sha256", key).update(body).digest("hex");
   if (mac.length !== expected.length) return null;
   try {
     if (!timingSafeEqual(Buffer.from(mac), Buffer.from(expected))) return null;

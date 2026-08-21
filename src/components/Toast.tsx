@@ -80,7 +80,7 @@ export function Toast({
               <Icon className="h-3 w-3" strokeWidth={3} />
             </span>
 
-            <p className="pt-px text-[13px] leading-snug text-foreground">
+            <p className="pt-px text-[14px] leading-snug text-foreground">
               {message.text}
             </p>
 

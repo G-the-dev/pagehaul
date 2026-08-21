@@ -1417,7 +1417,7 @@ export async function deepScan(
           if (!pegged) await takeFull();
           if (screenshots.length > 0 && missed > 0) {
             notes.push(
-              `${missed} section${missed === 1 ? "" : "s"} went unscreenshotted — the page ran past the scan's screenshot budget.`,
+              `${missed} section${missed === 1 ? "" : "s"} went unscreenshotted because the page ran past the scan's screenshot budget.`,
             );
           }
         }
@@ -1490,7 +1490,7 @@ export async function deepScan(
     // Silence would read as "this page has no sections". Say what happened.
     if (screenshots.length === 0) {
       notes.push(
-        "No screenshot could be taken — the page either used up the scan's time or would not hold still for a capture.",
+        "No screenshot could be taken. The page either used up the scan's time or would not hold still for a capture.",
       );
     }
 
@@ -1752,7 +1752,7 @@ export async function deepScan(
     // it is not cached and a rescan gets a fresh, fuller attempt.
     if (Date.now() >= deadline - 5_000 && !partial) {
       notes.push(
-        "This page is heavy enough that the scan hit its time limit — these are the files gathered by then. Scanning again picks up from a fresh start.",
+        "This page is heavy enough that the scan hit its time limit, so these are the files gathered by then. Scanning again picks up from a fresh start.",
       );
       partial = true;
     }

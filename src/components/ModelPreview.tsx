@@ -170,7 +170,7 @@ export function ModelLoading({ label }: { label?: string }) {
           <path d="M24 6 40 15v18L24 42 8 33V15L24 6Z" />
           <path d="M8 15l16 9 16-9M24 24v18" />
         </svg>
-        {label && <span className="label-mono text-[9px]">{label}</span>}
+        {label && <span className="label-mono text-[10px]">{label}</span>}
       </div>
     </div>
   );

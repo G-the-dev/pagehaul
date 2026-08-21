@@ -87,8 +87,8 @@ export function FeedbackForm() {
             <path d="M4 12.5 9.5 18 20 6.5" />
           </svg>
         </div>
-        <p className="text-[16px] font-semibold">Sent. Thank you.</p>
-        <p className="mx-auto mt-2 max-w-sm text-[14px] leading-relaxed text-muted-foreground">
+        <p className="text-[17px] font-semibold">Sent. Thank you.</p>
+        <p className="mx-auto mt-2 max-w-sm text-[15px] leading-relaxed text-muted-foreground">
           {email
             ? "If it needs a reply, it will come to the address you gave."
             : "You did not leave an address, so this one is one way. That is fine."}
@@ -100,7 +100,7 @@ export function FeedbackForm() {
             setMessage("");
             setUrl("");
           }}
-          className="mt-6 text-[13.5px] text-muted-foreground underline underline-offset-4 hover:text-foreground"
+          className="mt-6 text-[14.5px] text-muted-foreground underline underline-offset-4 hover:text-foreground"
         >
           Send another
         </button>
@@ -120,7 +120,7 @@ export function FeedbackForm() {
       className="rounded-xl border border-border bg-surface p-6 sm:p-7"
     >
       <fieldset className="mb-6">
-        <legend className="mb-3 font-mono text-[10.5px] uppercase tracking-[0.14em] text-muted-foreground">
+        <legend className="mb-3 font-mono text-[11.5px] uppercase tracking-[0.14em] text-muted-foreground">
           What is this about
         </legend>
         <div className="flex flex-wrap gap-2">
@@ -132,7 +132,7 @@ export function FeedbackForm() {
                 type="button"
                 onClick={() => setKind(k.id)}
                 aria-pressed={active}
-                className={`rounded-full border px-4 py-1.5 text-[13px] font-medium transition-colors ${
+                className={`rounded-full border px-4 py-1.5 text-[14px] font-medium transition-colors ${
                   active
                     ? "border-foreground bg-foreground text-background"
                     : "border-border text-muted-foreground hover:border-border-strong hover:text-foreground"
@@ -148,7 +148,7 @@ export function FeedbackForm() {
       {/* Only asked for a bug, where it is the single most useful field. */}
       {kind === "bug" && (
         <label className="mb-5 block">
-          <span className="mb-2 block text-[13.5px] font-medium">
+          <span className="mb-2 block text-[14.5px] font-medium">
             The page it failed on
           </span>
           <input
@@ -156,9 +156,9 @@ export function FeedbackForm() {
             value={url}
             onChange={(e) => setUrl(e.target.value)}
             placeholder="stripe.com"
-            className="h-11 w-full rounded-lg border border-border bg-background px-3.5 text-[14.5px] outline-none transition-colors placeholder:text-muted-foreground focus:border-border-strong"
+            className="h-11 w-full rounded-lg border border-border bg-background px-3.5 text-[15.5px] outline-none transition-colors placeholder:text-muted-foreground focus:border-border-strong"
           />
-          <span className="mt-1.5 block text-[12.5px] text-muted-foreground">
+          <span className="mt-1.5 block text-[13.5px] text-muted-foreground">
             Most failures are specific to one site, so this is the thing that
             usually solves it.
           </span>
@@ -166,14 +166,14 @@ export function FeedbackForm() {
       )}
 
       <label className="mb-5 block">
-        <span className="mb-2 block text-[13.5px] font-medium">{label}</span>
+        <span className="mb-2 block text-[14.5px] font-medium">{label}</span>
         <textarea
           value={message}
           aria-invalid={!!error}
           onChange={(e) => setMessage(e.target.value)}
           rows={6}
           maxLength={4000}
-          className="w-full resize-y rounded-lg border border-border bg-background px-3.5 py-3 text-[14.5px] leading-relaxed outline-none transition-colors placeholder:text-muted-foreground focus:border-border-strong"
+          className="w-full resize-y rounded-lg border border-border bg-background px-3.5 py-3 text-[15.5px] leading-relaxed outline-none transition-colors placeholder:text-muted-foreground focus:border-border-strong"
           placeholder={
             kind === "bug"
               ? "It found 3 files on a page with dozens of images."
@@ -183,7 +183,7 @@ export function FeedbackForm() {
       </label>
 
       <label className="mb-6 block">
-        <span className="mb-2 block text-[13.5px] font-medium">
+        <span className="mb-2 block text-[14.5px] font-medium">
           Your email{" "}
           <span className="font-normal text-muted-foreground">
             optional, only used to reply
@@ -194,7 +194,7 @@ export function FeedbackForm() {
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           placeholder="you@example.com"
-          className="h-11 w-full rounded-lg border border-border bg-background px-3.5 text-[14.5px] outline-none transition-colors placeholder:text-muted-foreground focus:border-border-strong"
+          className="h-11 w-full rounded-lg border border-border bg-background px-3.5 text-[15.5px] outline-none transition-colors placeholder:text-muted-foreground focus:border-border-strong"
         />
       </label>
 
@@ -213,7 +213,7 @@ export function FeedbackForm() {
       </div>
 
       {error && (
-        <p role="alert" className="mb-4 text-[13px] text-danger">
+        <p role="alert" className="mb-4 text-[14px] text-danger">
           {error}
         </p>
       )}
@@ -221,7 +221,7 @@ export function FeedbackForm() {
       <button
         type="submit"
         disabled={state === "sending"}
-        className="inline-flex h-11 items-center justify-center rounded-lg bg-foreground px-6 text-[14px] font-semibold text-background transition-opacity hover:opacity-90 disabled:opacity-40"
+        className="inline-flex h-11 items-center justify-center rounded-lg bg-foreground px-6 text-[15px] font-semibold text-background transition-opacity hover:opacity-90 disabled:opacity-40"
       >
         {state === "sending" ? "Sending" : "Send"}
       </button>

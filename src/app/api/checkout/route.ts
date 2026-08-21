@@ -23,8 +23,8 @@ export const dynamic = "force-dynamic";
 
 const PLANS = {
   // Amounts in paise, as Razorpay wants them.
-  pro: { amount: 99_00, label: "pagehaul Pro — one month" },
-  pack: { amount: 99_00, label: "pagehaul — 25 deep scans" },
+  pro: { amount: 249_00, label: "pagehaul Pro, one month" },
+  pack: { amount: 99_00, label: "pagehaul, 5 deep scans" },
 } as const;
 
 /** Pro runs a month plus grace; a pack has a year to be spent. */
@@ -43,6 +43,7 @@ export async function POST(req: NextRequest) {
 
   let body: {
     plan?: string;
+    email?: string;
     razorpay_order_id?: string;
     razorpay_payment_id?: string;
     razorpay_signature?: string;
@@ -56,6 +57,16 @@ export async function POST(req: NextRequest) {
   const plan = body.plan === "pack" ? "pack" : body.plan === "pro" ? "pro" : null;
   if (!plan) {
     return NextResponse.json({ error: "Unknown plan." }, { status: 400 });
+  }
+
+  // The email is compulsory: it is where the receipt goes, and the one
+  // handle support has when a browser loses the license it bought.
+  const email = (body.email ?? "").trim().toLowerCase();
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email) || email.length > 254) {
+    return NextResponse.json(
+      { error: "Enter the email the receipt should go to." },
+      { status: 400 },
+    );
   }
 
   // Second half: the widget came back — check Razorpay's signature and mint.
@@ -74,6 +85,7 @@ export async function POST(req: NextRequest) {
       plan,
       exp: Date.now() + (plan === "pro" ? PRO_MS : PACK_MS),
       ref: razorpay_payment_id,
+      email,
     });
     if (!token) {
       return NextResponse.json({ error: "Licensing is not configured." }, { status: 500 });
@@ -91,7 +103,9 @@ export async function POST(req: NextRequest) {
     body: JSON.stringify({
       amount: PLANS[plan].amount,
       currency: "INR",
-      notes: { plan },
+      // The email rides on the order itself, so every payment in the
+      // Razorpay dashboard names its buyer even if our own token is lost.
+      notes: { plan, email },
     }),
   });
   if (!res.ok) {

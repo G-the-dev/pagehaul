@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { SITE } from "@/lib/site";
+import { mailConfigured, sendMail } from "@/lib/mailer";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -95,14 +96,9 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const apiKey = process.env.RESEND_API_KEY;
-  const from = process.env.FEEDBACK_FROM ?? "pagehaul <onboarding@resend.dev>";
-  // Where reports actually land. Distinct from the address shown on the site:
-  // Resend refuses any recipient outside a verified domain, so until
-  // pagehaul.com is verified this has to be the account owner's own address.
   const to = process.env.FEEDBACK_TO ?? SITE.contactEmail;
 
-  if (!apiKey) {
+  if (!mailConfigured()) {
     return NextResponse.json(
       {
         error: `Messages are not set up yet. Please email ${SITE.contactEmail} instead.`,
@@ -123,38 +119,16 @@ export async function POST(req: NextRequest) {
     message,
   ].filter(Boolean);
 
-  try {
-    const res = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        authorization: `Bearer ${apiKey}`,
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({
-        from,
-        to: [to],
-        // Replying goes straight back to the person, when they left an address.
-        reply_to: email || undefined,
-        subject: `${label} via ${SITE.name}`,
-        text: lines.join("\n"),
-      }),
-    });
-
-    if (!res.ok) {
-      const detail = await res.text().catch(() => "");
-      console.error("Feedback send failed:", res.status, detail.slice(0, 300));
-      return NextResponse.json(
-        {
-          error: `We could not send that. Please email ${SITE.contactEmail} instead.`,
-          fallbackEmail: SITE.contactEmail,
-        },
-        { status: 502 },
-      );
-    }
-
-    return NextResponse.json({ ok: true });
-  } catch (e) {
-    console.error("Feedback send threw:", e);
+  const body_text = lines.join("\n");
+  const ok = await sendMail({
+    to,
+    subject: `${label} via ${SITE.name}`,
+    html: `<pre style="font-family:ui-monospace,monospace;font-size:13px;white-space:pre-wrap">${body_text
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")}</pre>`,
+    text: body_text,
+  });
+  if (!ok) {
     return NextResponse.json(
       {
         error: `We could not send that. Please email ${SITE.contactEmail} instead.`,
@@ -163,4 +137,5 @@ export async function POST(req: NextRequest) {
       { status: 502 },
     );
   }
+  return NextResponse.json({ ok: true });
 }
