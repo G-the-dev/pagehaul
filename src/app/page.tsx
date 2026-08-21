@@ -156,7 +156,7 @@ export default function Home() {
       plan === "pro"
         ? "Pro"
         : plan === "pack"
-          ? `Pack · ${packScansLeft()} left`
+          ? `Pack · ${packScansLeft()}`
           : null,
     );
   }, []);
@@ -934,7 +934,7 @@ export default function Home() {
             {planLabel && (
               <span
                 title={licenseEmail() ?? undefined}
-                className="rounded-full border border-accent-line bg-accent-soft px-3 py-1.5 font-mono text-[11px] font-semibold"
+                className="whitespace-nowrap rounded-full border border-accent-line bg-accent-soft px-2 py-1 font-mono text-[10px] font-semibold sm:px-3 sm:py-1.5 sm:text-[11px]"
               >
                 {planLabel}
               </span>
