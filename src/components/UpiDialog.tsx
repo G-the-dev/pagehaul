@@ -29,7 +29,7 @@ function makeRef(): string {
   return "PH-" + [...bytes].map((b) => alphabet[b % alphabet.length]).join("");
 }
 
-type Stage = "pay" | "done" | "expired";
+type Stage = "check" | "pay" | "blocked" | "done" | "expired";
 
 export function UpiDialog({
   plan,
@@ -46,7 +46,7 @@ export function UpiDialog({
   const amount = plan === "pro" ? PRO_PRICE_INR : PACK_PRICE_INR;
   const label = plan === "pro" ? "Pro, one month" : `${PACK_SCANS} deep scans`;
   const [ref, setRef] = useState(makeRef);
-  const [stage, setStage] = useState<Stage>("pay");
+  const [stage, setStage] = useState<Stage>("check");
   const [qr, setQr] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
@@ -95,9 +95,11 @@ export function UpiDialog({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Opening the dialog IS the claim. One notification per reference.
+  // Opening the dialog IS the claim, and the claim is also the check: no
+  // QR appears until the server has confirmed this email is not paying for
+  // something it already owns.
   useEffect(() => {
-    if (stage !== "pay" || claimedFor.current === ref) return;
+    if (stage !== "check" || claimedFor.current === ref) return;
     claimedFor.current = ref;
     (async () => {
       try {
@@ -106,14 +108,26 @@ export function UpiDialog({
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ plan, email, ref }),
         });
-        const data = (await res.json()) as { ok?: boolean; error?: string };
+        const data = (await res.json()) as {
+          ok?: boolean;
+          error?: string;
+          code?: string;
+        };
+        if (res.status === 409 && data.code === "has_plan") {
+          setProblem(data.error ?? "This email already has a plan.");
+          setStage("blocked");
+          return;
+        }
         if (!res.ok || !data.ok) {
           setProblem(data.error ?? "Could not start the payment. Close and try again.");
+          setStage("blocked");
           return;
         }
         track("upi_claimed", { plan });
+        setStage("pay");
       } catch {
         setProblem("Could not start the payment. Close and try again.");
+        setStage("blocked");
       }
     })();
   }, [stage, ref, plan, email]);
@@ -229,6 +243,31 @@ export function UpiDialog({
           </p>
         </div>
 
+        {stage === "check" && (
+          <div className="flex items-center justify-center gap-3 py-14 text-[13px] text-muted-foreground">
+            <span className="h-4 w-4 animate-spin rounded-full border-[1.5px] border-border border-t-foreground" />
+            One moment
+          </div>
+        )}
+
+        {stage === "blocked" && (
+          <div className="pb-2 pt-6 text-center">
+            <p className="text-[15px] font-semibold tracking-tight">
+              Nothing to pay
+            </p>
+            <p className="mx-auto mt-1.5 max-w-[32ch] text-[13px] leading-relaxed text-muted-foreground">
+              {problem}
+            </p>
+            <button
+              type="button"
+              onClick={onClose}
+              className="mt-5 w-full rounded-full border border-border py-2.5 text-[13.5px] font-semibold"
+            >
+              Close
+            </button>
+          </div>
+        )}
+
         {stage === "pay" && (
           <>
             <div className="mx-auto w-fit rounded-xl border border-border bg-white p-3">
@@ -298,7 +337,7 @@ export function UpiDialog({
               onClick={() => {
                 setProblem(null);
                 setRef(makeRef());
-                setStage("pay");
+                setStage("check");
               }}
               className="mt-5 w-full rounded-full bg-accent px-6 py-3 text-[14px] font-semibold text-accent-fg"
             >

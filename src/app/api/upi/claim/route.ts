@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { PACK_PRICE_INR, PRO_PRICE_INR } from "@/lib/plan";
 import { upiLive } from "@/lib/upi-config";
 import { SITE } from "@/lib/site";
-import { ownerClaimEmail } from "@/lib/email";
+import { ownerClaimEmail, resendUnlockEmail } from "@/lib/email";
+import { findActivePlan } from "@/lib/ledger";
 import { mailConfigured, sendMail } from "@/lib/mailer";
 
 export const runtime = "nodejs";
@@ -78,6 +79,40 @@ export async function POST(req: NextRequest) {
       { error: "Payments are opening shortly.", code: "not_live" },
       { status: 503 },
     );
+  }
+
+  // The sent-mail ledger: an email that already owns a plan is told so
+  // instead of being charged twice. Pro blocks everything except its own
+  // renewal in the final week; a pack owner may refill or step up to Pro.
+  const existing = await findActivePlan(email);
+  if (existing) {
+    const { payload, token } = existing;
+    const week = 7 * 24 * 60 * 60_000;
+    const proBlocksThis =
+      payload.plan === "pro" &&
+      (plan === "pack" || payload.exp - Date.now() > week);
+    if (proBlocksThis) {
+      const mail = resendUnlockEmail({
+        planLabel: "Pro",
+        restoreUrl: `${req.nextUrl.origin}/#restore=${encodeURIComponent(token)}`,
+      });
+      await sendMail({
+        to: email,
+        subject: mail.subject,
+        html: mail.html,
+        text: mail.text,
+      });
+      return NextResponse.json(
+        {
+          error:
+            plan === "pack"
+              ? "This email already has Pro, which includes everything. Unlock link re-sent."
+              : "This email already has Pro. Unlock link re-sent, check your inbox.",
+          code: "has_plan",
+        },
+        { status: 409 },
+      );
+    }
   }
 
   const amount = plan === "pro" ? PRO_PRICE_INR : PACK_PRICE_INR;

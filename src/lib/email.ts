@@ -175,3 +175,26 @@ export function lowPackEmail(args: {
   ].join("\n");
   return { subject, html, text };
 }
+
+export function resendUnlockEmail(args: {
+  planLabel: string;
+  restoreUrl: string;
+}): { subject: string; html: string; text: string } {
+  const subject = "Your pagehaul unlock link";
+  const html = WRAP(`
+<tr><td style="padding:22px 32px 0;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;">
+<h1 style="margin:0;font-size:21px;line-height:1.3;color:#111111;">You already have ${args.planLabel}</h1>
+<p style="margin:12px 0 0;font-size:14px;line-height:1.65;color:#525252;">Open this on any device to use it there:</p>
+</td></tr>
+<tr><td style="padding:20px 32px 0;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;" align="center">
+<a href="${args.restoreUrl}" style="display:inline-block;background:#111111;color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;padding:13px 30px;border-radius:999px;">Unlock this device</a>
+</td></tr>`);
+  const text = [
+    `You already have ${args.planLabel}.`,
+    "",
+    "Open this on any device to use it there:",
+    "",
+    args.restoreUrl,
+  ].join("\n");
+  return { subject, html, text };
+}
