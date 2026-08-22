@@ -33,19 +33,21 @@ export default function TermsPage() {
       <Clause n="02" title="Plans, payments and licenses">
         <p>
           Quick scans are free and unlimited. The free plan includes a limited
-          number of deep scans; Pro is a monthly plan with unlimited deep scans
-          and every feature unlocked; a scan pack is a one-time purchase of a
-          fixed number of deep scans, valid for a year. Prices are shown in
-          rupees on the pricing section and can change for future purchases,
-          never for one already made.
+          number of deep scans; Pro is a monthly subscription with unlimited
+          deep scans and every feature unlocked; a scan pack is a one-time
+          purchase of a fixed number of deep scans, valid for a year. Prices
+          are shown on the pricing section and can change for future
+          purchases, never for one already made.
         </p>
         <p>
-          Payment is by UPI. After you pay, we confirm the payment on our side
-          and issue a license, usually within minutes, not instantly. The
-          purchase lives in your browser and in the unlock link emailed to
-          you; opening that link unlocks any browser or device you choose, and
-          it is not transferable by sale. If your browser ever forgets the
-          purchase, the link in your receipt email restores it.
+          Payments are processed by Dodo Payments, the merchant of record for
+          these purchases: they charge your card or wallet, handle taxes, and
+          issue the payment receipt. The unlock is immediate. The purchase
+          lives in your browser and in the unlock link emailed to you; opening
+          that link unlocks any browser or device you choose, and it is not
+          transferable by sale. Subscriptions renew automatically and can be
+          cancelled by replying to any of our emails. If your browser ever
+          forgets the purchase, the link in your receipt email restores it.
         </p>
         <p>
           If you paid and nothing unlocked, write to{" "}

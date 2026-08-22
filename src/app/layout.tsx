@@ -96,18 +96,18 @@ const STRUCTURED_DATA = {
       description:
         "Paste a link and get every image, icon, video, font and document on the page in one grid.",
       offers: [
-        { "@type": "Offer", name: "Free", price: "0", priceCurrency: "INR" },
+        { "@type": "Offer", name: "Free", price: "0", priceCurrency: "USD" },
         {
           "@type": "Offer",
           name: "Pro, one month",
-          price: "249",
-          priceCurrency: "INR",
+          price: "2.99",
+          priceCurrency: "USD",
         },
         {
           "@type": "Offer",
           name: "Scan pack, 5 deep scans",
-          price: "99",
-          priceCurrency: "INR",
+          price: "1.49",
+          priceCurrency: "USD",
         },
       ],
     },
@@ -119,7 +119,7 @@ const STRUCTURED_DATA = {
           name: "Is it free?",
           acceptedAnswer: {
             "@type": "Answer",
-            text: "Quick scans are free and unlimited, and you get 2 free deep scans. Past that it is \u20b9249 a month, or a \u20b999 pack of 5 deep scans.",
+            text: "Quick scans are free and unlimited, and you get 2 free deep scans. Past that it is $2.99 a month, or a $1.49 pack of 5 deep scans.",
           },
         },
         {

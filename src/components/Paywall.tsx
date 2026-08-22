@@ -13,21 +13,17 @@ const GrainGradient = nextDynamic(
 import { track } from "@/lib/analytics";
 import {
   FREE_DEEP_SCANS,
-  PACK_PRICE_INR,
+  PACK_PRICE_USD,
   PACK_SCANS,
-  PRO_PRICE_INR,
+  PRO_PRICE_USD,
   licenseEmail,
   licensePlan,
   packScansLeft,
-  planExpiry,
-  queuedPlan,
-  storeLicense,
 } from "@/lib/plan";
+import { DODO_CHECKOUT_BASE, DODO_PRODUCTS } from "@/lib/dodo";
 import { Section, Reveal, Chip } from "./ui/motion-primitives";
 import { useIsLight } from "@/lib/use-is-light";
 import { useInView } from "@/lib/use-in-view";
-import { upiLive } from "@/lib/upi-config";
-import { UpiDialog } from "./UpiDialog";
 
 /**
  * The plans, and the moment of asking for money.
@@ -55,8 +51,8 @@ const HEADLINES: Record<PaywallReason, { title: string; body: string }> = {
     body: "Preview and download everything a deep scan finds, with nothing held back.",
   },
   pricing: {
-    title: "Simple pricing, in rupees",
-    body: "Quick scans are free forever. The full toolkit costs less than a pizza.",
+    title: "Simple pricing",
+    body: "Quick scans are free forever. The full toolkit costs less than a coffee.",
   },
 };
 
@@ -206,26 +202,16 @@ export function PlansGrid({
   // Which card the person is leaning toward: click or focus marks it, and
   // the card firms its border so the choice is visible without shouting.
   const [activeCard, setActiveCard] = useState<"free" | "pro" | "pack" | null>(null);
-  const [upiPlan, setUpiPlan] = useState<"pro" | "pack" | null>(null);
   // What this browser already owns, so the cards tell the truth: an owned
   // Pro cannot be bought twice, an owned pack offers a refill.
   const [owned, setOwned] = useState<"pro" | "pack" | null>(null);
   const [scansLeft, setScansLeft] = useState(0);
-  const [renewWindow, setRenewWindow] = useState(false);
-  const [queued, setQueued] = useState<"pro" | "pack" | null>(null);
   const [ownerEmail, setOwnerEmail] = useState<string | null>(null);
   useEffect(() => {
     const read = () => {
       setOwned(licensePlan());
       setScansLeft(packScansLeft());
       setOwnerEmail(licenseEmail());
-      const exp = planExpiry();
-      setRenewWindow(
-        licensePlan() === "pro" &&
-          exp !== null &&
-          exp - Date.now() <= 7 * 24 * 60 * 60_000,
-      );
-      setQueued(queuedPlan());
     };
     read();
     window.addEventListener("ph-plan-changed", read);
@@ -239,82 +225,31 @@ export function PlansGrid({
       setEmailNeededFor(plan);
       return;
     }
-    track("checkout_clicked", { plan, origin });
-    // UPI first: when the address is configured, the QR dialog is the whole
-    // checkout. The gateway path below stays wired for the day a gateway
-    // account exists.
-    if (upiLive()) {
-      setUpiPlan(plan);
-      return;
-    }
     setBusyPlan(plan);
     setNote(null);
+    track("checkout_clicked", { plan, origin });
     try {
-      const res = await fetch("/api/checkout", {
+      // The sent-mail ledger gets a word before anyone is charged twice.
+      const pre = await fetch("/api/dodo/precheck", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ plan, email: email.trim() }),
       });
-      const data = (await res.json()) as {
-        error?: string;
-        code?: string;
-        orderId?: string;
-        keyId?: string;
-        amount?: number;
-        currency?: string;
-        label?: string;
-      };
-      if (res.status === 503 && data.code === "not_live") {
-        track("checkout_not_live", { plan, origin });
-        setNote(
-          "Payments are opening in a few days, with UPI, cards and netbanking. Want it today? Say so through the Feedback button and you will be first in line.",
-        );
+      if (pre.status === 409) {
+        const data = (await pre.json()) as { error?: string };
+        setNote(data.error ?? "This email already has a plan. Check your inbox.");
+        setBusyPlan(null);
         return;
       }
-      if (!res.ok || !data.orderId) {
-        setNote(data.error ?? "Checkout could not start. Try again in a moment.");
-        return;
-      }
-      const ok = await loadRazorpay();
-      if (!ok || !window.Razorpay) {
-        setNote("The payment widget could not load. Check your connection and try again.");
-        return;
-      }
-      new window.Razorpay({
-        key: data.keyId,
-        order_id: data.orderId,
-        amount: data.amount,
-        currency: data.currency,
-        name: "pagehaul",
-        description: data.label,
-        prefill: { email: email.trim() },
-        theme: { color: "#111111" },
-        handler: async (rsp: {
-          razorpay_order_id: string;
-          razorpay_payment_id: string;
-          razorpay_signature: string;
-        }) => {
-          const verify = await fetch("/api/checkout", {
-            method: "POST",
-            headers: { "content-type": "application/json" },
-            body: JSON.stringify({ plan, email: email.trim(), ...rsp }),
-          });
-          const out = (await verify.json()) as { token?: string; error?: string };
-          if (out.token) {
-            storeLicense(out.token);
-            track("purchase", { plan, origin });
-            onUnlocked?.();
-          } else {
-            setNote(
-              out.error ??
-                "The payment went through but could not be verified. Contact us and we will fix it.",
-            );
-          }
-        },
-      }).open();
+      // Dodo hosts the checkout; the return page finishes the job. The UPI
+      // flow is parked, not deleted, for the day a domestic rail returns.
+      const url =
+        `${DODO_CHECKOUT_BASE}/${DODO_PRODUCTS[plan]}` +
+        `?quantity=1&redirect_url=${encodeURIComponent(`${window.location.origin}/pay/return`)}` +
+        `&email=${encodeURIComponent(email.trim())}`;
+      window.location.href = url;
     } catch {
       setNote("Checkout could not start. Try again in a moment.");
-    } finally {
       setBusyPlan(null);
     }
   };
@@ -370,7 +305,7 @@ export function PlansGrid({
           onActivate={() => setActiveCard("free")}
           badge="Start here"
           title="Free"
-          price="₹0"
+          price="$0"
           desc="For a first look at what a page is made of."
           shades={SHADES.free}
           ticks={
@@ -407,7 +342,7 @@ export function PlansGrid({
           badge="Best value"
           badgeStrong
           title="Pro"
-          price={`₹${PRO_PRICE_INR}`}
+          price={`$${PRO_PRICE_USD}`}
           priceSuffix="/ month"
           desc="For people who take things from the web every day."
           shades={SHADES.pro}
@@ -420,25 +355,7 @@ export function PlansGrid({
             </>
           }
           footer={
-            owned === "pro" && queued === "pro" ? (
-              <div className="w-full rounded-full border border-accent-line bg-accent-soft px-6 py-3 text-center text-[14px] font-semibold">
-                Renewed ✓
-              </div>
-            ) : owned === "pro" && renewWindow ? (
-              <>
-                {emailInput("pro")}
-                <button
-                  type="button"
-                  onClick={() => buy("pro")}
-                  disabled={busyPlan !== null}
-                  className="w-full rounded-full bg-accent px-6 py-3 text-center text-[14px] font-semibold text-accent-fg disabled:opacity-50"
-                >
-                  {busyPlan === "pro"
-                    ? "Opening checkout…"
-                    : `Renew Pro · ₹${PRO_PRICE_INR}`}
-                </button>
-              </>
-            ) : owned === "pro" ? (
+            owned === "pro" ? (
               <div>
                 <div className="w-full rounded-full border border-accent-line bg-accent-soft px-6 py-3 text-center text-[14px] font-semibold">
                   Your current plan ✓
@@ -458,7 +375,7 @@ export function PlansGrid({
                   disabled={busyPlan !== null}
                   className="w-full rounded-full bg-accent px-6 py-3 text-center text-[14px] font-semibold text-accent-fg disabled:opacity-50"
                 >
-                  {busyPlan === "pro" ? "Opening checkout…" : `Get Pro for ₹${PRO_PRICE_INR}/mo`}
+                  {busyPlan === "pro" ? "Opening checkout…" : `Get Pro for $${PRO_PRICE_USD}/mo`}
                 </button>
               </>
             )
@@ -471,7 +388,7 @@ export function PlansGrid({
           onActivate={() => setActiveCard("pack")}
           badge="One-time"
           title="Scan pack"
-          price={`₹${PACK_PRICE_INR}`}
+          price={`$${PACK_PRICE_USD}`}
           desc="A pocketful of deep scans, no subscription."
           shades={SHADES.pack}
           ticks={
@@ -482,25 +399,7 @@ export function PlansGrid({
             </>
           }
           footer={
-            owned === "pro" && queued === "pack" ? (
-              <div className="w-full rounded-full border border-accent-line bg-accent-soft px-6 py-3 text-center text-[14px] font-semibold">
-                Queued after Pro ✓
-              </div>
-            ) : owned === "pro" && renewWindow ? (
-              <>
-                {emailInput("pack")}
-                <button
-                  type="button"
-                  onClick={() => buy("pack")}
-                  disabled={busyPlan !== null}
-                  className="w-full rounded-full border border-border bg-surface-2 px-6 py-3 text-center text-[14px] font-semibold text-fg-2 disabled:opacity-50"
-                >
-                  {busyPlan === "pack"
-                    ? "Opening checkout…"
-                    : `Buy for after Pro · ₹${PACK_PRICE_INR}`}
-                </button>
-              </>
-            ) : owned === "pro" ? (
+            owned === "pro" ? (
               <div className="w-full rounded-full border border-border px-6 py-3 text-center text-[14px] font-semibold text-muted-foreground">
                 Included in Pro
               </div>
@@ -522,8 +421,8 @@ export function PlansGrid({
                   {busyPlan === "pack"
                     ? "Opening checkout…"
                     : owned === "pack"
-                      ? `Refill · ${PACK_SCANS} more for ₹${PACK_PRICE_INR}`
-                      : `Buy ${PACK_SCANS} scans for ₹${PACK_PRICE_INR}`}
+                      ? `Refill · ${PACK_SCANS} more for $${PACK_PRICE_USD}`
+                      : `Buy ${PACK_SCANS} scans for $${PACK_PRICE_USD}`}
                 </button>
               </>
             )
@@ -537,17 +436,6 @@ export function PlansGrid({
         </p>
       )}
 
-      {upiPlan && (
-        <UpiDialog
-          plan={upiPlan}
-          email={email.trim()}
-          onClose={() => setUpiPlan(null)}
-          onPaid={() => {
-            window.dispatchEvent(new Event("ph-plan-changed"));
-            if (onUnlocked) onUnlocked();
-          }}
-        />
-      )}
     </div>
   );
 }

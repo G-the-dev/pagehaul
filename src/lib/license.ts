@@ -23,6 +23,8 @@ export interface LicensePayload {
   nbf?: number;
   /** The payment reference, for support lookups. */
   ref?: string;
+  /** The Dodo subscription id, so a lapsed token can ask for a new month. */
+  sub?: string;
   /** The buyer's email, so a lost license can be matched to its payment. */
   email?: string;
 }

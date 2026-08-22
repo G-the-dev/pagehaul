@@ -11,9 +11,12 @@
  */
 
 export const FREE_DEEP_SCANS = 2;
+export const PRO_PRICE_USD = 2.99;
+export const PACK_PRICE_USD = 1.49;
+export const PACK_SCANS = 5;
+/** Kept for the dormant UPI flow; the live checkout is Dodo, in dollars. */
 export const PRO_PRICE_INR = 249;
 export const PACK_PRICE_INR = 99;
-export const PACK_SCANS = 5;
 
 /** Kinds a free account can see but not open or download. */
 export const LOCKED_KINDS = ["model", "audio", "screenshot"] as const;
@@ -234,6 +237,27 @@ export function planExpiry(): number | null {
 /** The email the current plan was bought with, for showing whose it is. */
 export function licenseEmail(): string | null {
   return readPayload(licenseToken())?.email ?? null;
+}
+
+/**
+ * The raw stored token when it is an expired Pro that names a
+ * subscription: the one case worth sending to the refresh endpoint,
+ * where the subscription may still be paying for a fresh month.
+ */
+export function lapsedSubscriptionToken(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const t = window.localStorage.getItem(LICENSE_KEY);
+    if (!t) return null;
+    if (readPayload(t)) return null; // still live; nothing to refresh
+    const body = t.split(".")[1] ?? "";
+    const b64 = body.replace(/-/g, "+").replace(/_/g, "/");
+    const pad = b64 + "=".repeat((4 - (b64.length % 4)) % 4);
+    const payload = JSON.parse(atob(pad)) as { plan?: string; sub?: string };
+    return payload.plan === "pro" && typeof payload.sub === "string" ? t : null;
+  } catch {
+    return null;
+  }
 }
 
 const PACK_USED_KEY = "ph-pack-used";

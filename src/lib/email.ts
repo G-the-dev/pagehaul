@@ -62,7 +62,7 @@ export function buyerUnlockEmail(args: {
 <tr><td style="padding:20px 32px 0;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-top:1px solid #ececec;">
 ${row("Plan", planLabel)}
-${row("Amount", "₹" + args.amount)}
+${row("Amount", "$" + args.amount)}
 ${row("Reference", args.reference)}
 </table>
 </td></tr>`);
@@ -79,7 +79,7 @@ ${row("Reference", args.reference)}
     "Keep this email. If pagehaul ever locks again, this link is the key.",
     "",
     `Plan: ${planLabel}`,
-    `Amount: ₹${args.amount}`,
+    `Amount: $${args.amount}`,
     `Reference: ${args.reference}`,
     "",
     "Something wrong? Just reply to this email.",
@@ -163,15 +163,15 @@ export function lowPackEmail(args: {
   const html = WRAP(`
 <tr><td style="padding:22px 32px 0;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;">
 <h1 style="margin:0;font-size:21px;line-height:1.3;color:#111111;">One scan left</h1>
-<p style="margin:12px 0 0;font-size:14px;line-height:1.65;color:#525252;">A refill adds ${args.packScans} more, and what&#39;s left carries over.</p>
+<p style="margin:12px 0 0;font-size:14px;line-height:1.65;color:#525252;">A refill adds ${args.packScans} more for $${args.amount}, and what&#39;s left carries over.</p>
 </td></tr>
 <tr><td style="padding:20px 32px 0;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;" align="center">
-<a href="${args.restoreUrl}" style="display:inline-block;background:#111111;color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;padding:13px 30px;border-radius:999px;">Refill · ₹${args.amount}</a>
+<a href="${args.restoreUrl}" style="display:inline-block;background:#111111;color:#ffffff;text-decoration:none;font-size:14px;font-weight:600;padding:13px 30px;border-radius:999px;">Refill · $${args.amount}</a>
 </td></tr>`);
   const text = [
     "Your pack is down to its last deep scan.",
     "",
-    `A refill is ${args.packScans} more for ₹${args.amount}. Open this link, it`,
+    `A refill is ${args.packScans} more for $${args.amount}. Open this link, it`,
     "unlocks the browser it opens in, then use the pricing section:",
     "",
     args.restoreUrl,

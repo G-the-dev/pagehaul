@@ -73,11 +73,11 @@ export default function PrivacyPage() {
           notification we receive.
         </p>
         <p>
-          Payments are made by UPI, directly from your bank to ours. We never
-          see or store card numbers, bank details or UPI PINs; your payment app
-          handles all of that. What we keep is the payment reference, the plan,
-          the amount and your email, for as long as needed to honour the
-          license and answer disputes.
+          Payments are processed by Dodo Payments, the merchant of record. We
+          never see or store card numbers or bank details; their checkout
+          handles all of that. What we keep is the payment reference, the
+          plan, the amount and your email, for as long as needed to honour
+          the purchase and answer disputes.
         </p>
       </Clause>
 
@@ -97,8 +97,9 @@ export default function PrivacyPage() {
 
       <Clause n="05" title="Services we rely on">
         <p>
-          The site is hosted on Vercel, analytics is processed by PostHog, and
-          email, receipts, unlock links and feedback, is sent through Gmail. Each
+          The site is hosted on Vercel, analytics is processed by PostHog,
+          payments are processed by Dodo Payments, and email, receipts, unlock
+          links and feedback, is sent through Gmail. Each
           processes requests on our behalf and will see the usual technical
           information any web request carries, including IP address, as part of
           serving and protecting the service.

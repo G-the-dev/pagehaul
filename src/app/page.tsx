@@ -33,6 +33,7 @@ import {
   deepAllowed,
   deepScansLeft,
   isPaid,
+  lapsedSubscriptionToken,
   licenseEmail,
   licensePlan,
   licenseToken,
@@ -168,23 +169,24 @@ export default function Home() {
     // The unlock link from the receipt email: opening it on any device
     // installs the purchase there. Nobody has to know what a license is;
     // the link is the purchase.
-    try {
-      const exp = planExpiry();
-      if (
-        licensePlan() === "pro" &&
-        exp !== null &&
-        exp - Date.now() < 7 * 24 * 60 * 60_000 &&
-        !window.localStorage.getItem("ph-renewal-sent")
-      ) {
-        window.localStorage.setItem("ph-renewal-sent", "1");
-        fetch("/api/upi/renewal", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ token: licenseToken() }),
-        }).catch(() => {});
-      }
-    } catch {
-      /* storage blocked; the nudge is a nicety */
+    // A lapsed Pro token whose subscription may still be paying: ask for a
+    // fresh month. This is how a Dodo subscription's renewal reaches the
+    // browser without webhooks or anyone doing anything.
+    const lapsed = lapsedSubscriptionToken();
+    if (lapsed) {
+      fetch("/api/dodo/refresh", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ token: lapsed }),
+      })
+        .then((r) => r.json())
+        .then((d: { token?: string }) => {
+          if (d.token) {
+            storeLicense(d.token);
+            refreshPlan();
+          }
+        })
+        .catch(() => {});
     }
     const m = window.location.hash.match(/^#restore=(.+)$/);
     if (m) {
