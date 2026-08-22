@@ -54,7 +54,11 @@ export const metadata: Metadata = {
   keywords: [
     "website asset extractor",
     "image downloader",
+    "image extractor",
     "website downloader",
+    "website copier",
+    "svg extractor",
+    "3d model downloader",
     "download images from website",
     "extract fonts from website",
     "website scanner",

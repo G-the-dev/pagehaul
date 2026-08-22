@@ -3,9 +3,9 @@ import Link from "next/link";
 import { PageShell, Clause } from "@/components/PageShell";
 
 export const metadata: Metadata = {
-  title: "Website Downloader Online: an HTTrack Alternative in the Browser · pagehaul",
+  title: "Website Downloader and Copier Online: an HTTrack Alternative · pagehaul",
   description:
-    "Download a website's assets online, no desktop app. Every image, icon, font, video and file from any page as a zip. The modern HTTrack alternative for grabbing assets.",
+    "Website downloader, copier and extractor online, no desktop app. Every image, icon, font, video, script and file from any page as a zip. The modern HTTrack alternative.",
   alternates: { canonical: "/website-downloader" },
 };
 
@@ -83,7 +83,9 @@ export default function WebsiteDownloaderPage() {
         <p>
           Every image at full quality with its srcset family grouped. Inline
           and hosted SVGs. Fonts under their real family names. Video, audio,
-          JSON payloads and code. On a deep scan, full-page and per-section
+          JSON payloads, scripts and code, the whole page&rsquo;s source
+          material, which is what a website copier or code downloader was
+          ever really for. On a deep scan, full-page and per-section
           screenshots, plus the page&rsquo;s color palette, typography and
           design tokens. Take one file, or select a set and get a zip built
           in your browser, organised into folders by kind with a manifest.

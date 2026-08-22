@@ -205,6 +205,16 @@ export function Footer() {
                   </Link>
                 </li>
                 <li>
+                  <Link href="/svg-extractor" className="transition-colors hover:text-foreground">
+                    SVG extractor
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/3d-model-downloader" className="transition-colors hover:text-foreground">
+                    3D model downloader
+                  </Link>
+                </li>
+                <li>
                   <Link href="/about" className="transition-colors hover:text-foreground">
                     About
                   </Link>

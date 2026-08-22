@@ -3,9 +3,9 @@ import Link from "next/link";
 import { PageShell, Clause } from "@/components/PageShell";
 
 export const metadata: Metadata = {
-  title: "Image Downloader: Download All Images from Any Website · pagehaul",
+  title: "Image Downloader and Extractor: Save All Images from Any Website · pagehaul",
   description:
-    "Free online image downloader. Paste a URL and download every image on the page, JPG, PNG, WebP, SVG, at full quality, one by one or as a zip. No signup.",
+    "Free online image downloader and extractor. Paste a URL and save every image on the page, JPG, PNG, WebP, SVG, at full quality, one by one or as a zip. No signup.",
   alternates: { canonical: "/image-downloader" },
 };
 
@@ -46,7 +46,7 @@ export default function ImageDownloaderPage() {
   return (
     <PageShell
       eyebrow="Image downloader"
-      title="Download every image from any website."
+      title="Extract and download every image from any website."
       lede="Paste a link. Every image on the page shows up in one grid, previewed and properly named, ready to take one at a time or all at once as a zip."
     >
       <script
