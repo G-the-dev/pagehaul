@@ -48,9 +48,9 @@ const THEME_INIT = `
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://pagehaul.vercel.app"),
-  title: "pagehaul, every asset on any page",
+  title: "Website Asset Extractor: Download Images, SVGs, Fonts, Videos from Any URL · pagehaul",
   description:
-    "Paste a link and get every image, icon, video, font and document on the page in one grid. Take a single file or all of them. No DevTools, no archive to dig through.",
+    "Paste any URL and download every image, SVG icon, font, video, audio file and 3D model on the page. Previews, real names, one-click zips. Free, no signup.",
   keywords: [
     "website asset extractor",
     "download images from website",
@@ -62,9 +62,9 @@ export const metadata: Metadata = {
   ],
   alternates: { canonical: "/" },
   openGraph: {
-    title: "pagehaul, every asset on any page",
+    title: "pagehaul: every asset on any page",
     description:
-      "Paste a link and get every image, icon, video, font and document on the page in one grid.",
+      "Paste any URL and download every image, SVG icon, font, video, audio file and 3D model on the page. Free, no signup.",
     url: "/",
     siteName: "pagehaul",
     type: "website",
@@ -72,9 +72,9 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "pagehaul, every asset on any page",
+    title: "pagehaul: every asset on any page",
     description:
-      "Paste a link and get every image, icon, video, font and document on the page in one grid.",
+      "Paste any URL and download every image, SVG icon, font, video, audio file and 3D model on the page. Free, no signup.",
   },
   robots: { index: true, follow: true },
 };
@@ -116,10 +116,66 @@ const STRUCTURED_DATA = {
       mainEntity: [
         {
           "@type": "Question",
-          name: "Is it free?",
+          name: "How do I download all images from a website at once?",
           acceptedAnswer: {
             "@type": "Answer",
-            text: "Quick scans are free and unlimited, and you get 2 free deep scans. Past that it is $2.99 a month, or a $1.49 pack of 5 deep scans.",
+            text: "Paste the address into pagehaul and scan. Every image on the page appears in one grid, original files at full quality, and you can take one or select them all as a zip.",
+          },
+        },
+        {
+          "@type": "Question",
+          name: "Why are some images missing or not downloadable?",
+          acceptedAnswer: {
+            "@type": "Answer",
+            text: "A quick scan reads only the markup, so anything drawn by JavaScript needs a deep scan, which runs the page in a real browser. A few sites also refuse direct downloads; those open in a new tab so you can save them yourself.",
+          },
+        },
+        {
+          "@type": "Question",
+          name: "Is it legal to download images from a website?",
+          acceptedAnswer: {
+            "@type": "Answer",
+            text: "Downloading gives you no rights to a file. Images, fonts and video usually carry licences. pagehaul is built for sites you own, migrations, backups and reference.",
+          },
+        },
+        {
+          "@type": "Question",
+          name: "How do I save an SVG file from a website?",
+          acceptedAnswer: {
+            "@type": "Answer",
+            text: "SVG icons, including inline ones that never exist as files, are collected under the Icons tab. Download them as files, or copy one as source and paste it straight into Figma or your editor.",
+          },
+        },
+        {
+          "@type": "Question",
+          name: "What font does this website use, and can I download it?",
+          acceptedAnswer: {
+            "@type": "Answer",
+            text: "The Fonts tab lists every typeface the page loads under its real family name, and the files download like anything else. Whether you may use a font is a licence question the download does not answer.",
+          },
+        },
+        {
+          "@type": "Question",
+          name: "How do I get a website's color palette?",
+          acceptedAnswer: {
+            "@type": "Answer",
+            text: "Run a deep scan and open the Design tab: the palette as the page paints it, its typography, and its design tokens, ready for Figma or CSS.",
+          },
+        },
+        {
+          "@type": "Question",
+          name: "Can I download 3D models from a website?",
+          acceptedAnswer: {
+            "@type": "Answer",
+            text: "Yes. Deep scans collect GLB and glTF models, including ones three.js sites assemble at runtime, with previews before you download.",
+          },
+        },
+        {
+          "@type": "Question",
+          name: "Does it work on dynamic or lazy-loaded pages?",
+          acceptedAnswer: {
+            "@type": "Answer",
+            text: "That is what deep scan exists for: it runs the page in a real browser and scrolls it, so lazy images and script-built content actually appear.",
           },
         },
         {
@@ -132,10 +188,10 @@ const STRUCTURED_DATA = {
         },
         {
           "@type": "Question",
-          name: "What does it find?",
+          name: "Is it free?",
           acceptedAnswer: {
             "@type": "Answer",
-            text: "Images and every srcset size, SVG icons, video, fonts, documents, scripts, and the API calls a page makes. Deep scans also read its palette and type.",
+            text: "Quick scans are free and unlimited, and you get 2 free deep scans. Past that it is $2.99 a month, or a $1.49 pack of 5 deep scans.",
           },
         },
       ],

@@ -230,8 +230,14 @@ export function Hero({
             each word and fades with it, so the change reads as the selection
             moving on, not the sentence moving around.
           */}
-          <span className="block">Any page, one click,</span>
-          <span className="block whitespace-nowrap">
+          {/* The animated heading reads as a slogan; this reads as what the
+              product does, for screen readers and crawlers alike. */}
+          <span className="sr-only">
+            Website asset extractor: download every image, SVG icon, font,
+            video, audio file and 3D model from any URL
+          </span>
+          <span aria-hidden className="block">Any page, one click,</span>
+          <span aria-hidden className="block whitespace-nowrap">
             every{" "}
             <span className="relative inline-grid align-baseline">
               {words.map((w) => (
