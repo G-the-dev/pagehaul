@@ -228,6 +228,17 @@
     background-position: 0 0, 0 6px, 6px -6px, -6px 0;
   }
 
+  /* Chrome paints autofilled inputs its own pale blue, which lands like a
+     foreign object on a dark card. The inset-shadow trick repaints the
+     field in our own ground, and the fill colour keeps our ink. */
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover,
+  input:-webkit-autofill:focus {
+    -webkit-box-shadow: 0 0 0 1000px var(--background) inset;
+    -webkit-text-fill-color: var(--foreground);
+    caret-color: var(--foreground);
+  }
+
   /* Hairline diagonal stripes, the drafting-paper filler for decorative
      bands and gutters. Uses the border token so it recolours with the theme. */
   .hatch {

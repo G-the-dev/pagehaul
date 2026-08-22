@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { Check, X, Zap, Layers, Package } from "lucide-react";
 import nextDynamic from "next/dynamic";
 
@@ -436,11 +437,7 @@ export function PlansGrid({
         />
       </div>
 
-      {note && (
-        <p className="mt-4 rounded-lg border border-border bg-surface-2/40 px-4 py-3 text-[13.5px] leading-relaxed text-muted-foreground">
-          {note}
-        </p>
-      )}
+      {note && <PricingToast text={note} onDone={() => setNote(null)} />}
 
     </div>
   );
@@ -520,5 +517,34 @@ export function Paywall({
         />
       </div>
     </div>
+  );
+}
+
+/**
+ * The pricing area's own toast, top right, where transient answers belong.
+ * A message that lives in the layout pushes cards around; one that floats
+ * says its piece and leaves.
+ */
+function PricingToast({ text, onDone }: { text: string; onDone: () => void }) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  useEffect(() => {
+    const t = window.setTimeout(onDone, 7000);
+    return () => clearTimeout(t);
+  }, [text, onDone]);
+  if (!mounted) return null;
+  return createPortal(
+    <div className="fixed right-4 top-4 z-[120] w-[min(360px,calc(100vw-32px))] rounded-xl border border-border bg-background p-4 shadow-soft">
+      <p className="pr-6 text-[13.5px] leading-relaxed">{text}</p>
+      <button
+        type="button"
+        onClick={onDone}
+        aria-label="Dismiss"
+        className="absolute right-2.5 top-2.5 grid h-6 w-6 place-items-center rounded-full text-muted-foreground"
+      >
+        <X className="h-3.5 w-3.5" aria-hidden />
+      </button>
+    </div>,
+    document.body,
   );
 }
