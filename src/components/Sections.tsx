@@ -150,7 +150,7 @@ export function Footer() {
           before, which is why nothing aligned. */}
       <div className="mx-auto max-w-6xl px-6 pt-20 sm:px-8">
         <Reveal>
-          <div className="grid gap-10 pb-20 sm:grid-cols-[1fr_auto_auto] sm:gap-x-24">
+          <div className="grid gap-10 pb-20 sm:grid-cols-2 sm:gap-x-12 lg:grid-cols-[1fr_auto_auto_auto] lg:gap-x-20">
             <div>
               <div className="mb-3 text-[16px] font-semibold tracking-tight">
                 pagehaul
@@ -180,8 +180,8 @@ export function Footer() {
                 <img
                   src="https://maidensail.com/badge/pagehaul.svg"
                   alt="Featured on Maidensail"
-                  height={36}
-                  className="h-9 w-auto"
+                  height={24}
+                  className="h-6 w-auto"
                 />
               </a>
             </div>
@@ -194,6 +194,18 @@ export function Footer() {
                     Pricing
                   </a>
                 </li>
+                <li>
+                  <Link href="/about" className="transition-colors hover:text-foreground">
+                    About
+                  </Link>
+                </li>
+                <li className="opacity-50">Browser extension, soon</li>
+              </ul>
+            </div>
+
+            <div>
+              <div className="label-mono mb-4">Tools</div>
+              <ul className="space-y-2.5 text-[14.5px] text-muted-foreground">
                 <li>
                   <Link href="/image-downloader" className="transition-colors hover:text-foreground">
                     Image downloader
@@ -219,12 +231,6 @@ export function Footer() {
                     Website scraper
                   </Link>
                 </li>
-                <li>
-                  <Link href="/about" className="transition-colors hover:text-foreground">
-                    About
-                  </Link>
-                </li>
-                <li className="opacity-50">Browser extension, soon</li>
               </ul>
             </div>
 
