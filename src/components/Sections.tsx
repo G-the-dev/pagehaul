@@ -285,6 +285,16 @@ export function Footer() {
                   </a>
                 </li>
                 <li>
+                  <Link href="/image-downloader" className="transition-colors hover:text-foreground">
+                    Image downloader
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/website-downloader" className="transition-colors hover:text-foreground">
+                    Website downloader
+                  </Link>
+                </li>
+                <li>
                   <Link href="/about" className="transition-colors hover:text-foreground">
                     About
                   </Link>

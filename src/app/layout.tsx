@@ -53,6 +53,8 @@ export const metadata: Metadata = {
     "Paste any URL and download every image, SVG icon, font, video, audio file and 3D model on the page. Previews, real names, one-click zips. Free, no signup.",
   keywords: [
     "website asset extractor",
+    "image downloader",
+    "website downloader",
     "download images from website",
     "extract fonts from website",
     "website scanner",
