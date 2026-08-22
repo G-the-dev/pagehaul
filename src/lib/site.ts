@@ -18,6 +18,9 @@ export const SITE = {
 
   repo: "https://github.com/G-the-dev/pagehaul",
 
+  /** The maker's X account, linked from the footer. */
+  x: "https://x.com/gaurav_jain26",
+
   /** Shown on the legal pages. Update when you change the wording. */
   legalUpdated: "20 August 2026",
 

@@ -162,13 +162,24 @@ export function Footer() {
               <p className="max-w-[26ch] text-[14.5px] leading-relaxed text-muted-foreground">
                 Every asset on any page, one click away.
               </p>
+              <a
+                href={SITE.x}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="pagehaul on X"
+                className="mt-5 inline-grid h-8 w-8 place-items-center rounded-full border border-border text-muted-foreground transition-colors hover:border-border-strong hover:text-foreground"
+              >
+                <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="currentColor" aria-hidden>
+                  <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                </svg>
+              </a>
               {/* Directory badge — kept quiet on purpose: dimmed until
                   hovered, sized by the badge itself. The rel value is what
                   their verifier looks for; leave it as issued. */}
               <a
                 href="https://maidensail.com/startup/pagehaul"
                 rel="dofollow"
-                className="mt-5 inline-block opacity-60 transition-opacity hover:opacity-100"
+                className="mt-4 block w-fit opacity-60 transition-opacity hover:opacity-100"
               >
                 <img
                   src="https://maidensail.com/badge/pagehaul.svg"
