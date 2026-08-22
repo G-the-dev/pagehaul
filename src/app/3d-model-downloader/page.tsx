@@ -5,7 +5,7 @@ import { PageShell, Clause } from "@/components/PageShell";
 export const metadata: Metadata = {
   title: "3D Model Downloader: Extract GLB and glTF Models from Any Website · pagehaul",
   description:
-    "Download 3D models from websites, GLB, glTF and more, including models three.js sites assemble at runtime. Previews before you download. No extension needed.",
+    "Download 3D models from websites free, GLB, glTF and more, including models three.js sites assemble at runtime. Previews first. Online, no extension needed.",
   alternates: { canonical: "/3d-model-downloader" },
 };
 

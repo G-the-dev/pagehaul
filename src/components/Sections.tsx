@@ -215,6 +215,11 @@ export function Footer() {
                   </Link>
                 </li>
                 <li>
+                  <Link href="/website-scraper" className="transition-colors hover:text-foreground">
+                    Website scraper
+                  </Link>
+                </li>
+                <li>
                   <Link href="/about" className="transition-colors hover:text-foreground">
                     About
                   </Link>

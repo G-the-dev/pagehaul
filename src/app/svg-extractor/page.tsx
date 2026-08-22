@@ -5,7 +5,7 @@ import { PageShell, Clause } from "@/components/PageShell";
 export const metadata: Metadata = {
   title: "SVG Extractor: Download SVG Icons and Logos from Any Website · pagehaul",
   description:
-    "Extract and download SVG files from any website, including inline SVGs that never exist as files. Save icons and logos, or copy source straight into Figma. Free.",
+    "Extract and download SVG files from any website online, free, no signup. Inline SVGs that never exist as files, icons and logos, or copy source straight into Figma.",
   alternates: { canonical: "/svg-extractor" },
 };
 

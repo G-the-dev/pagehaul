@@ -5,7 +5,7 @@ import { PageShell, Clause } from "@/components/PageShell";
 export const metadata: Metadata = {
   title: "Website Downloader and Copier Online: an HTTrack Alternative · pagehaul",
   description:
-    "Website downloader, copier and extractor online, no desktop app. Every image, icon, font, video, script and file from any page as a zip. The modern HTTrack alternative.",
+    "Website downloader, copier and extractor, online and free, no signup, no software to install. Every image, icon, font, video, script and file from any page as a zip.",
   alternates: { canonical: "/website-downloader" },
 };
 
