@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
+import { AnimatePresence, motion } from "framer-motion";
 import { Check, X, Zap, Layers, Package } from "lucide-react";
 import nextDynamic from "next/dynamic";
 
@@ -437,7 +438,7 @@ export function PlansGrid({
         />
       </div>
 
-      {note && <PricingToast text={note} onDone={() => setNote(null)} />}
+      <PricingToast text={note} onDone={() => setNote(null)} />
 
     </div>
   );
@@ -522,29 +523,52 @@ export function Paywall({
 
 /**
  * The pricing area's own toast, top right, where transient answers belong.
- * A message that lives in the layout pushes cards around; one that floats
- * says its piece and leaves.
+ * Slides in from the edge it lives on, breathes on a soft gradient, and
+ * slides back out, dismissed or after seven seconds. Mounted permanently
+ * so the exit animation has somewhere to play.
  */
-function PricingToast({ text, onDone }: { text: string; onDone: () => void }) {
+function PricingToast({
+  text,
+  onDone,
+}: {
+  text: string | null;
+  onDone: () => void;
+}) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
   useEffect(() => {
+    if (!text) return;
     const t = window.setTimeout(onDone, 7000);
     return () => clearTimeout(t);
   }, [text, onDone]);
   if (!mounted) return null;
   return createPortal(
-    <div className="fixed right-4 top-4 z-[120] w-[min(360px,calc(100vw-32px))] rounded-xl border border-border bg-background p-4 shadow-soft">
-      <p className="pr-6 text-[13.5px] leading-relaxed">{text}</p>
-      <button
-        type="button"
-        onClick={onDone}
-        aria-label="Dismiss"
-        className="absolute right-2.5 top-2.5 grid h-6 w-6 place-items-center rounded-full text-muted-foreground"
-      >
-        <X className="h-3.5 w-3.5" aria-hidden />
-      </button>
-    </div>,
+    <AnimatePresence>
+      {text && (
+        <motion.div
+          key={text}
+          initial={{ x: 400, opacity: 0 }}
+          animate={{ x: 0, opacity: 1 }}
+          exit={{ x: 400, opacity: 0, transition: { duration: 0.28, ease: "easeIn" } }}
+          transition={{ type: "spring", stiffness: 300, damping: 30 }}
+          className="fixed right-4 top-4 z-[120] w-[min(360px,calc(100vw-32px))] rounded-xl border border-border p-4 shadow-soft"
+          style={{
+            background:
+              "linear-gradient(135deg, var(--surface-2) 0%, var(--background) 60%)",
+          }}
+        >
+          <p className="pr-6 text-[13.5px] leading-relaxed">{text}</p>
+          <button
+            type="button"
+            onClick={onDone}
+            aria-label="Dismiss"
+            className="absolute right-2.5 top-2.5 grid h-6 w-6 place-items-center rounded-full text-muted-foreground"
+          >
+            <X className="h-3.5 w-3.5" aria-hidden />
+          </button>
+        </motion.div>
+      )}
+    </AnimatePresence>,
     document.body,
   );
 }
