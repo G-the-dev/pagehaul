@@ -56,7 +56,7 @@ export default function ImageDownloaderPage() {
       <div className="not-prose mb-12">
         <Link
           href="/"
-          className="inline-block rounded-full bg-accent px-7 py-3 text-[15px] font-semibold text-accent-fg transition-opacity hover:opacity-90"
+          className="inline-block rounded-full bg-accent px-7 py-3 text-[15px] font-semibold !text-accent-fg no-underline transition-opacity hover:opacity-90"
         >
           Scan a page free
         </Link>

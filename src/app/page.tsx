@@ -6,7 +6,7 @@ import type { Asset, AssetKind, ScanResult } from "@/lib/types";
 import { TileGrid } from "@/components/TileGrid";
 import { Hero } from "@/components/Hero";
 import { ScanProgress } from "@/components/ScanProgress";
-import { Faq, Footer, Formats, HatchBand } from "@/components/Sections";
+import { Faq, Footer, HatchBand } from "@/components/Sections";
 // Code-split but still server-rendered: the pricing section sits far
 // below the fold, and its chunk (cards, checkout, QR machinery) has no
 // business inside the JS that makes the hero interactive.
@@ -1325,8 +1325,6 @@ export default function Home() {
       <Steps />
       <HatchBand />
       <PricingSection />
-      <HatchBand />
-      <Formats />
       <HatchBand />
       <Faq />
       <Footer />

@@ -19,44 +19,20 @@ const FAQ = [
     a: "Paste the address and scan. Every image on the page appears in one grid, original files at full quality, and you can take one or select them all as a zip.",
   },
   {
-    q: "Why are some images missing or not downloadable?",
+    q: "Why are some files missing or not downloadable?",
     a: "A quick scan reads only the markup, so anything drawn by JavaScript needs a deep scan, which runs the page in a real browser. A few sites also refuse direct downloads; those open in a new tab so you can save them yourself.",
-  },
-  {
-    q: "How do I save an SVG file from a website?",
-    a: "SVG icons, including inline ones that never exist as files, are collected under the Icons tab. Download them as files, or copy one as source and paste it straight into Figma or your editor.",
-  },
-  {
-    q: "What font does this website use, and can I download it?",
-    a: "The Fonts tab lists every typeface the page loads under its real family name, and the files download like anything else. Whether you may use a font is a licence question the download does not answer.",
-  },
-  {
-    q: "How do I get a website's color palette?",
-    a: "Run a deep scan and open the Design tab: the palette as the page paints it, its typography, and its design tokens, ready for Figma or CSS.",
-  },
-  {
-    q: "Can I download 3D models from a website?",
-    a: "Yes. Deep scans collect GLB and glTF models, including ones three.js sites assemble at runtime, with previews before you download.",
-  },
-  {
-    q: "Does it work on dynamic or lazy-loaded pages?",
-    a: "That is what deep scan exists for: it runs the page in a real browser and scrolls it, so lazy images and script-built content actually appear.",
   },
   {
     q: "Is it legal to download images from a website?",
     a: "Downloading gives you no rights to a file. Images, fonts and video usually carry licences. Built for sites you own, migrations, backups and reference.",
   },
   {
-    q: "Do you keep my files or scans?",
-    a: "No. Your browser fetches files straight from the original site and builds any archive locally. We keep no history.",
-  },
-  {
     q: "Is it free?",
     a: "Quick scans are free and unlimited, and you get 2 free deep scans. Past that it is $2.99 a month, or a $1.49 pack of 5 deep scans.",
   },
   {
-    q: "Does it work on my phone?",
-    a: "Yes, with a phone-sized flow: pick the kinds of files you want and take the zip. The full grid with previews is best on a desktop.",
+    q: "Do you keep my files or scans?",
+    a: "No. Your browser fetches files straight from the original site and builds any archive locally. We keep no history.",
   },
   {
     q: "Does it work on X or Instagram?",
@@ -150,72 +126,6 @@ export function Faq() {
             />
           ))}
         </div>
-      </div>
-    </Section>
-  );
-}
-
-/**
- * The one stretch of plain prose on the landing page, written for the
- * person who arrived from a search and wants the specifics: what formats
- * come out, how the zip works, what happens on JavaScript-built pages.
- */
-export function Formats() {
-  return (
-    <Section id="formats">
-      <div className="grid gap-12 lg:grid-cols-[minmax(0,0.75fr)_minmax(0,1.25fr)] lg:gap-20">
-        <Reveal>
-          <div className="lg:sticky lg:top-28">
-            <Chip>The specifics</Chip>
-            <h2 className="mt-6 text-[2.15rem] font-medium leading-[1.12] tracking-tight sm:text-[2.7rem]">
-              Every format,
-              <br />
-              spelled out.
-            </h2>
-          </div>
-        </Reveal>
-        <Reveal delay={0.06}>
-          <div className="space-y-8 text-[15px] leading-[1.75] text-fg-2">
-            <div>
-              <h3 className="mb-2 text-[17px] font-semibold tracking-tight text-foreground">
-                What a scan extracts
-              </h3>
-              <p>
-                Images in JPG, PNG, WebP, AVIF and GIF, with every srcset size
-                the page declares. SVG icons, including inline ones that never
-                exist as files. Fonts as WOFF2, WOFF and TTF under their real
-                family names. Video and audio in MP4, WebM and MP3. Documents,
-                scripts, JSON payloads, and 3D models in GLB and glTF. Deep
-                scans add full-page and per-section screenshots, plus the color
-                palette, typography and design tokens read off the painted
-                page.
-              </p>
-            </div>
-            <div>
-              <h3 className="mb-2 text-[17px] font-semibold tracking-tight text-foreground">
-                One file, or the whole page as a zip
-              </h3>
-              <p>
-                Click a file and it downloads alone, named like a person would
-                name it. Select a set and it arrives as one zip, organised
-                into folders by kind with a manifest, built by your own
-                browser so nothing you take ever sits on a server.
-              </p>
-            </div>
-            <div>
-              <h3 className="mb-2 text-[17px] font-semibold tracking-tight text-foreground">
-                JavaScript pages, lazy loading, single-page apps
-              </h3>
-              <p>
-                Most of the web draws itself after the markup arrives, which
-                is why right-click and view-source miss so much. A deep scan
-                runs the page in a real browser and scrolls it end to end, so
-                lazy-loaded images, script-built galleries and WebGL scenes
-                give up their files like any other page.
-              </p>
-            </div>
-          </div>
-        </Reveal>
       </div>
     </Section>
   );

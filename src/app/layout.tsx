@@ -121,12 +121,12 @@ const STRUCTURED_DATA = {
           name: "How do I download all images from a website at once?",
           acceptedAnswer: {
             "@type": "Answer",
-            text: "Paste the address into pagehaul and scan. Every image on the page appears in one grid, original files at full quality, and you can take one or select them all as a zip.",
+            text: "Paste the address and scan. Every image on the page appears in one grid, original files at full quality, and you can take one or select them all as a zip.",
           },
         },
         {
           "@type": "Question",
-          name: "Why are some images missing or not downloadable?",
+          name: "Why are some files missing or not downloadable?",
           acceptedAnswer: {
             "@type": "Answer",
             text: "A quick scan reads only the markup, so anything drawn by JavaScript needs a deep scan, which runs the page in a real browser. A few sites also refuse direct downloads; those open in a new tab so you can save them yourself.",
@@ -137,47 +137,15 @@ const STRUCTURED_DATA = {
           name: "Is it legal to download images from a website?",
           acceptedAnswer: {
             "@type": "Answer",
-            text: "Downloading gives you no rights to a file. Images, fonts and video usually carry licences. pagehaul is built for sites you own, migrations, backups and reference.",
+            text: "Downloading gives you no rights to a file. Images, fonts and video usually carry licences. Built for sites you own, migrations, backups and reference.",
           },
         },
         {
           "@type": "Question",
-          name: "How do I save an SVG file from a website?",
+          name: "Is it free?",
           acceptedAnswer: {
             "@type": "Answer",
-            text: "SVG icons, including inline ones that never exist as files, are collected under the Icons tab. Download them as files, or copy one as source and paste it straight into Figma or your editor.",
-          },
-        },
-        {
-          "@type": "Question",
-          name: "What font does this website use, and can I download it?",
-          acceptedAnswer: {
-            "@type": "Answer",
-            text: "The Fonts tab lists every typeface the page loads under its real family name, and the files download like anything else. Whether you may use a font is a licence question the download does not answer.",
-          },
-        },
-        {
-          "@type": "Question",
-          name: "How do I get a website's color palette?",
-          acceptedAnswer: {
-            "@type": "Answer",
-            text: "Run a deep scan and open the Design tab: the palette as the page paints it, its typography, and its design tokens, ready for Figma or CSS.",
-          },
-        },
-        {
-          "@type": "Question",
-          name: "Can I download 3D models from a website?",
-          acceptedAnswer: {
-            "@type": "Answer",
-            text: "Yes. Deep scans collect GLB and glTF models, including ones three.js sites assemble at runtime, with previews before you download.",
-          },
-        },
-        {
-          "@type": "Question",
-          name: "Does it work on dynamic or lazy-loaded pages?",
-          acceptedAnswer: {
-            "@type": "Answer",
-            text: "That is what deep scan exists for: it runs the page in a real browser and scrolls it, so lazy images and script-built content actually appear.",
+            text: "Quick scans are free and unlimited, and you get 2 free deep scans. Past that it is $2.99 a month, or a $1.49 pack of 5 deep scans.",
           },
         },
         {
@@ -190,10 +158,10 @@ const STRUCTURED_DATA = {
         },
         {
           "@type": "Question",
-          name: "Is it free?",
+          name: "Does it work on X or Instagram?",
           acceptedAnswer: {
             "@type": "Answer",
-            text: "Quick scans are free and unlimited, and you get 2 free deep scans. Past that it is $2.99 a month, or a $1.49 pack of 5 deep scans.",
+            text: "Instagram public profiles, yes. X, no. X serves media only to signed in sessions, and we say so rather than handing back nothing.",
           },
         },
       ],
