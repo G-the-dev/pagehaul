@@ -20,7 +20,7 @@ import {
   licensePlan,
   packScansLeft,
 } from "@/lib/plan";
-import { DODO_CHECKOUT_BASE, DODO_PRODUCTS } from "@/lib/dodo";
+import { DODO_CHECKOUT_BASE, DODO_CHECKOUT_READY, DODO_PRODUCTS } from "@/lib/dodo";
 import { Section, Reveal, Chip } from "./ui/motion-primitives";
 import { useIsLight } from "@/lib/use-is-light";
 import { useInView } from "@/lib/use-in-view";
@@ -225,9 +225,15 @@ export function PlansGrid({
       setEmailNeededFor(plan);
       return;
     }
+    track("checkout_clicked", { plan, origin });
+    if (!DODO_CHECKOUT_READY) {
+      setNote(
+        "Payments are opening in a day or two. Want to be first? Say so through the Feedback button.",
+      );
+      return;
+    }
     setBusyPlan(plan);
     setNote(null);
-    track("checkout_clicked", { plan, origin });
     try {
       // The sent-mail ledger gets a word before anyone is charged twice.
       const pre = await fetch("/api/dodo/precheck", {

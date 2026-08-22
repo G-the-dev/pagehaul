@@ -16,6 +16,13 @@ export const DODO_PRODUCTS = {
 
 export const DODO_CHECKOUT_BASE = "https://checkout.dodopayments.com/buy";
 
+/**
+ * Flip to true the day Dodo finishes verifying the account. Until then the
+ * buy buttons say payments are opening shortly instead of marching buyers
+ * into a checkout that cannot take their money.
+ */
+export const DODO_CHECKOUT_READY = false;
+
 const API = "https://live.dodopayments.com";
 
 async function dodoGet(path: string): Promise<Record<string, unknown> | null> {
